@@ -1,0 +1,72 @@
+[
+  {
+    "id": "ja-solar-550",
+    "manufacturer": "JA Solar",
+    "model": "JAM72S30-550/MR",
+    "power": 550,
+    "efficiency": 21.2,
+    "pricePerWatt": 0.25,
+    "totalPrice": 137.50,
+    "warranty": 25,
+    "dimensions": { "width": 1134, "height": 2278, "depth": 35 },
+    "weight": 27.5,
+    "temperatureCoeff": -0.35,
+    "lastUpdated": "2025-01-15"
+  },
+  {
+    "id": "trina-560",
+    "manufacturer": "Trina Solar",
+    "model": "Vertex S TSM-560DEG21C.20",
+    "power": 560,
+    "efficiency": 21.5,
+    "pricePerWatt": 0.26,
+    "totalPrice": 145.60,
+    "warranty": 25,
+    "dimensions": { "width": 1134, "height": 2278, "depth": 35 },
+    "weight": 28.0,
+    "temperatureCoeff": -0.34,
+    "lastUpdated": "2025-01-15"
+  },
+  {
+    "id": "longi-540",
+    "manufacturer": "LONGi Solar",
+    "model": "Hi-MO 5 LR5-54HPH-540M",
+    "power": 540,
+    "efficiency": 20.8,
+    "pricePerWatt": 0.25,
+    "totalPrice": 135.00,
+    "warranty": 25,
+    "dimensions": { "width": 1134, "height": 2278, "depth": 30 },
+    "weight": 27.2,
+    "temperatureCoeff": -0.36,
+    "lastUpdated": "2025-01-15"
+  },
+  {
+    "id": "canadian-545",
+    "manufacturer": "Canadian Solar",
+    "model": "HiKu6 CS6W-545MS",
+    "power": 545,
+    "efficiency": 21.0,
+    "pricePerWatt": 0.25,
+    "totalPrice": 136.25,
+    "warranty": 25,
+    "dimensions": { "width": 1134, "height": 2278, "depth": 35 },
+    "weight": 27.6,
+    "temperatureCoeff": -0.35,
+    "lastUpdated": "2025-01-15"
+  },
+  {
+    "id": "sunpower-430",
+    "manufacturer": "SunPower",
+    "model": "Maxeon 6 AC SPR-MAX6-430",
+    "power": 430,
+    "efficiency": 22.8,
+    "pricePerWatt": 0.50,
+    "totalPrice": 215.00,
+    "warranty": 40,
+    "dimensions": { "width": 1046, "height": 1690, "depth": 40 },
+    "weight": 22.0,
+    "temperatureCoeff": -0.29,
+    "lastUpdated": "2025-01-15"
+  }
+]
