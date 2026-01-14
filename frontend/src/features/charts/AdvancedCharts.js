@@ -42,19 +42,23 @@ const AdvancedCharts = ({ financialData, productionData, type }) => {
 
   // Preparar datos extendidos para gráficos avanzados
   // data viene mapeada de ResultsView como:
-  // { year: f.year, balance: f.cumulative, savings: f.savings + f.income, costs: f.opex }
+  // { year: f.year, balance: f.cumulative, savings: f.savings + f.income, costs: f.opex || f.expenses }
+  
+  // Find initial investment (usually Year 0 costs)
+  const initialInvestmentEntry = data.find(d => d.year === 0) || data[0];
+  const initialInvestment = initialInvestmentEntry ? (initialInvestmentEntry.costs || 1) : 1;
+
   const chartData = data.map(item => ({
     year: item.year,
     value: item.balance, // Acumulado
     profit: item.balance, // En este contexto, profit acumulado es el balance
-    roi: item.balance > 0 ? (item.balance / (data[0].costs || 1)) * 100 : 0, // Aproximacion visual
+    roi: item.balance > 0 ? (item.balance / initialInvestment) * 100 : 0, 
     income: item.savings,
-    maintenance: item.costs
+    maintenance: item.costs,
+    production: item.production // Ensure yearly production is passed for the graph
   }));
 
   // Datos para gráfico de pastel (Inversión vs Beneficio Final)
-  // El año 0 tiene costs = Inversion (Capex) y balance = -Capex
-  const initialInvestment = data.length > 0 ? data[0].costs : 0; // Approx Year 0 cost is investment
   const finalYear = chartData[chartData.length - 1];
   
   const pieData = [
@@ -197,7 +201,7 @@ const AdvancedCharts = ({ financialData, productionData, type }) => {
                   dataKey="maintenance"
                   stackId="a"
                   fill={CHART_CONSTANTS.COLORS.MAINTENANCE}
-                  name="Mantenimiento"
+                  name="Gastos"
                   radius={[2, 2, 0, 0]}
                 />
               </BarChart>

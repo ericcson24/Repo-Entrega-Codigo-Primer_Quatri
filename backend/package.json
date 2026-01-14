@@ -12,6 +12,7 @@
     "download:prices": "node scripts/download-price-data.js",
     "download:all": "npm run download:weather && npm run download:solar && npm run download:prices",
     "train:ai": "node scripts/train-advanced-ai.js",
+    "debug:simulation": "node scripts/debug-simulation.js",
     "seed:db": "node scripts/seed-firestore.js",
     "update:all": "npm run download:all && npm run train:ai"
   },

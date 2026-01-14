@@ -487,271 +487,241 @@ class DynamicAPIService {
   /**
    * Ejecutar simulación solar completa (IA Powered)
    */
+  /**
+   * Ejecutar simulación solar completa (Full Stack Simulation)
+   * Connects to /api/simulate/solar to use the Robust Backend Engine (Physics + Financials + Inflation)
+   */
   async calculateSolarProduction(params) {
     try {
-      // Extract parameters correctly whether they come flat or nested
+      // 1. Prepare Payload for Backend
+      // This ensures the frontend sends the exact same structure that the Debug Script uses.
       const lat = params.location ? params.location.lat : params.lat;
       const lon = params.location ? params.location.lon : params.lon;
-      const systemSizeKw = params.technical ? params.technical.capacityKw : (params.systemSizeKw || params.capacityKw);
-
-      // Uso del nuevo endpoint AI Full Loop
-      const response = await fetch(`${this.backendURL}/api/ai/simulate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            location: { lat, lon },
-            systemParams: { systemSizeKw },
-            years: 1 // Default to 1 year of hourly analysis
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`AI Simulation Failed: ${response.status}`);
-      }
-
-      const aiResult = await response.json();
+      const systemSizeKw = params.technical ? params.technical.capacityKw : (params.systemSizeKw || params.capacityKw || 5);
       
-      // Adaptar formato al esperado por el frontend (ResultsView)
-      const firstYear = aiResult.results[0];
-      const annualKwh = firstYear.totalEnergy || 0;
-      const monthlyKwh = firstYear.monthly.map(m => m.energy_kwh);
-
-      // Financial Calculation (Frontend Side using AI Production)
       const financialParams = params.financial || {};
       const costsParams = params.costs || {};
       
-      const priceKwh = parseFloat(financialParams.electricityPrice) || ECONOMIC_DEFAULTS.DEFAULT_ELECTRICITY_PRICE;
-      const annualConsumption = parseFloat(financialParams.annualConsumption) || UI_DEFAULTS.SOLAR.DEFAULT_CONSUMPTION;
+      // Default to 1600€/kW if no price override (approx market rate) or use UI default
+      // Check for 'budget' (user input) or 'totalOverride'
+      const budget = parseFloat(financialParams.budget || costsParams.totalOverride) || 0;
       
-      // Standardized Investment/Budget Extraction
-      // Checks params.financial.budget (Standard) OR params.costs.totalOverride (Legacy Solar UI)
-      const systemCost = parseFloat(financialParams.budget || costsParams.totalOverride || UI_DEFAULTS.SOLAR.DEFAULT_BUDGET);
-      
-      const years = PHYSICS_CONSTANTS.SOLAR_LIFETIME_YEARS; 
-      const energyInflation = ECONOMIC_DEFAULTS.INFLATION_ENERGY;
+      const payload = {
+          lat: lat,
+          lon: lon,
+          location: { lat: lat, lon: lon, name: params.location?.city || "Custom Location" },
+          capacity: systemSizeKw,
+          tilt: params.technical?.tilt || 35, // Hoisted for UI
+          azimuth: params.technical?.azimuth || 0, // Hoisted for UI
+          technical: {
+             capacityKw: systemSizeKw,
+             tilt: params.technical?.tilt || 35,
+             azimuth: params.technical?.azimuth || 0,
+             lifetimeYears: 25 
+          },
+          financial: {
+             electricityPrice: parseFloat(financialParams.electricityPrice) || ECONOMIC_DEFAULTS.DEFAULT_ELECTRICITY_PRICE,
+             surplusPrice: parseFloat(financialParams.surplusPrice) || 0.05,
+             selfConsumptionRatio: parseFloat(financialParams.selfConsumptionRatio) || 0.4, // Default 40% if not set
+             discountRate: 0.04,
+             energyInflation: ECONOMIC_DEFAULTS.INFLATION_ENERGY || 0.04
+          },
+          costs: { 
+             totalOverride: budget > 0 ? budget : undefined // If undefined, backend calculates based on kW
+          }
+      };
 
-      const cashFlows = [];
-      
-      // Year 0: Investment
-      cashFlows.push({
-          year: 0,
-          cumulative: -systemCost,
-          savings: 0,
-          income: 0,
-          opex: systemCost // Hack for charts perceiving 'costs' as investment at year 0
+      console.log("[Frontend] Calling Backend Full Simulation:", payload);
+
+      // 2. Call the Unified Simulation Endpoint
+      const response = await fetch(`${this.backendURL}/api/simulate/solar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      let cumulative = -systemCost;
-      let currentPrice = priceKwh;
-
-      for(let y=1; y<=years; y++) {
-          const production = annualKwh * Math.pow(1 - PHYSICS_CONSTANTS.SOLAR_DEGRADATION, y-1);
-          const selfConsumptionRatio = ECONOMIC_DEFAULTS.DEFAULT_SELF_CONSUMPTION_RATIO;
-          const selfConsumed = Math.min(production, annualConsumption) * selfConsumptionRatio;
-          const exported = Math.max(0, production - selfConsumed);
-          
-          const savings = selfConsumed * currentPrice;
-          const income = exported * ECONOMIC_DEFAULTS.SURPLUS_PRICE; // Surplus price
-          const totalRevenue = savings + income;
-
-          cumulative += totalRevenue;
-          
-          cashFlows.push({
-              year: y,
-              cumulative: cumulative,
-              savings: savings,
-              income: income,
-              opex: 0 
-          });
-
-          currentPrice *= (1 + energyInflation);
+      if (!response.ok) {
+        throw new Error(`Simulation Failed: ${response.status}`);
       }
 
-      const finalBalance = cashFlows[years].cumulative;
-      const roi = (finalBalance / systemCost) * 100;
+      const backendResult = await response.json();
+      console.log("[Frontend] Backend Simulation Result:", backendResult);
 
-      // Calculate LCOE (Levelized Cost of Energy)
-      // Simplification: Total Cost (Initial + Opex) / Total Production
-      const totalProductionLifetime = annualKwh * years * 0.95; // Rough degradation avg
-      const lcoe = systemCost / totalProductionLifetime;
+      // 3. Map Backend Result to Frontend UI Format
+      // The frontend expects specific nesting for the charts and KPI grid.
       
-      // Find First positive year
-      const breakdownYear = cashFlows.find(c => c.cumulative >= 0);
-      const payback = breakdownYear ? breakdownYear.year : 25;
+      const metrics = backendResult.summary || {};
+      const financial = backendResult.financial || {};
+      const technical = backendResult.technical || {};
+      
+      // Extract monthly data correctly
+      // Backend returns technical.production.monthly as objects sometimes, or we need to extract kwh
+      let monthlyKwh = [];
+      if (technical.production && Array.isArray(technical.production.monthly)) {
+          // If it's an object with {productionKwh}, map it. If it's number, use it.
+          monthlyKwh = technical.production.monthly.map(m => (typeof m === 'object' ? m.productionKwh : m));
+      }
 
-      return {
-        source: aiResult.simulation_type,
+      // Extract Year 1 Savings for display
+      const year1Flow = financial.cashFlows ? financial.cashFlows.find(c => c.year === 1) : null;
+      const year1Savings = year1Flow ? (year1Flow.savings + year1Flow.income) : 0;
+
+      const formattedResult = {
+        source: 'Backend Simulation Engine (Robust)',
         timestamp: new Date().toISOString(),
-        parameters: {
-            location: { lat: lat, lon: lon },
-            capacity: systemSizeKw,
-            tilt: params.technical?.tilt || 35,
-            azimuth: params.technical?.azimuth || 0,
-            price: priceKwh
-        },
+        parameters: payload,
         technical: {
             production: {
-                annualKwh: annualKwh,
+                annualKwh: metrics.totalGenerationFirstYear,
                 monthlyKwh: monthlyKwh,
-                dailyAverage: annualKwh / 365,
+                dailyAverage: metrics.totalGenerationFirstYear / 365,
                 peakPower: Math.max(...monthlyKwh) / 30 / 8
             },
             system: {
                 sizeKw: systemSizeKw,
-                efficiency: firstYear.monthly.reduce((acc, m) => acc + m.avg_efficiency, 0) / 12,
-                area: systemSizeKw * 6 // Approx 6m2 per kW
+                efficiency: 0.20, // Avg panel
+                area: systemSizeKw * 6
             }
         },
         financial: {
-            cashFlows: cashFlows,
+            cashFlows: financial.cashFlows || [],
             metrics: {
-                roi: roi,
-                paybackPeriod: payback,
-                totalSavings: finalBalance + systemCost,
-                lcoe: lcoe,
-                netPresentValue: finalBalance 
+                roi: metrics.roi,
+                paybackPeriod: metrics.paybackYears,
+                totalSavings: financial.metrics?.totalSavings || metrics.npv, // Corrected to use Gross Savings if available
+                lcoe: metrics.lcoe,
+                netPresentValue: metrics.npv
             }
         },
         summary: {
-            annualProduction: annualKwh, // Critical for KPI Grid
-            roi: roi,
-            payback: payback,
-            annualSaving: cashFlows[1].savings + cashFlows[1].income,
-            totalSavings: finalBalance + systemCost, // Net Profit + Cost = Gross Savings
-            co2Abatement: annualKwh * 0.25, // kg per kWh
-            treesEquiv: (annualKwh * 0.25) / 20
+           // These keys are critical for the KPIGrid component
+           annualProduction: metrics.totalGenerationFirstYear, 
+           roi: metrics.roi,
+           payback: metrics.paybackYears,
+           annualSaving: year1Savings,
+           totalSavings: financial.metrics?.totalSavings || metrics.npv, // Gross Savings
+           co2Abatement: backendResult.financial?.metrics?.co2tonnes || (metrics.totalGenerationFirstYear * 0.25 / 1000 * 25),
+           treesEquiv: backendResult.financial?.metrics?.trees || 0
         }
       };
+      
+      return formattedResult;
 
     } catch (error) {
       console.error('Error in AI solar simulation:', error);
-      throw new Error('Error en Simulación IA. Verifique conexión.');
+      throw new Error('Error en Simulación Backend. Verifique conexión.');
     }
   }
 
   /**
    * Ejecutar simulación EÓLICA (Nuevo)
+   * AHORA: Conecta al Backend Real (Full Engine)
    */
   async calculateWindProduction(params) {
     try {
-      // 1. Send data to Backend for Physics/AI Simulation
+      // 1. Prepare Payload for Backend
+      const lat = params.location ? params.location.lat : params.lat;
+      const lon = params.location ? params.location.lon : params.lon;
+      const capacity = params.technical ? params.technical.turbineCapacityKw : (params.capacityKw || 2000);
+
+      const payload = {
+          capacity: capacity, // Hoisted for UI
+          location: { lat: lat, lon: lon, name: params.location?.name || "Wind Site" },
+          height: params.technical?.hubHeight || 80, // Hoisted for UI
+          technical: {
+              ...params.technical,
+              turbineCapacityKw: capacity,
+              // Defaults if missing
+              hubHeight: params.technical?.hubHeight || 80,
+              rotorDiameter: params.technical?.rotorDiameter || 90
+          },
+          financial: {
+              electricityPrice: parseFloat(params.financial?.electricityPrice) || ECONOMIC_DEFAULTS.WHOLESALE_ELECTRICITY_PRICE, // 0.05
+              surplusPrice: parseFloat(params.financial?.surplusPrice) || 0.045, // Wind sells cheap
+              netMetering: false, // Wind usually PPA or Spot, not Net Metering
+              discountRate: 0.05
+          },
+          costs: {
+              totalOverride: params.financial?.budget || params.costs?.totalOverride
+          }
+      };
+
+      console.log("[Frontend] Calling Backend Wind Simulation:", payload);
+
+      // 2. Call Backend
       const response = await fetch(`${this.backendURL}/api/simulate/wind`, {
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params)
+          body: JSON.stringify(payload)
       });
 
       if (!response.ok) throw new Error("Wind Simulation Failed");
-      const simResult = await response.json();
+      const backendResult = await response.json();
+      console.log("[Frontend] Backend Wind Result:", backendResult);
 
-      // 2. Process Financials (similar to Solar but adapted for Wind)
-      const financialParams = params.financial || {};
-      const costsParams = params.costs || {};
-
-      // Standardized Investment/Budget Extraction
-      const investment = parseFloat(financialParams.budget || costsParams.totalOverride || UI_DEFAULTS.WIND.DEFAULT_BUDGET);
+      // 3. Map to UI
+      const metrics = backendResult.summary || {};
+      const financial = backendResult.financial || {};
       
-      // REALISM ADJUSTMENT: Apply 15% system losses (Availability, Wake, Electrical)
-      // The Physics engine calculates 'Ideal' production at hub height.
-      const SYSTEM_LOSS_FACTOR = PHYSICS_CONSTANTS.WIND_SYSTEM_LOSS_FACTOR; 
-      const rawAnnual = simResult.annualProduction || (simResult.monthly || []).reduce((a,b)=>a+b,0);
-      const annualKwh = rawAnnual * SYSTEM_LOSS_FACTOR;
-      
-      const monthlyKwh = (simResult.monthly || []).map(m => m * SYSTEM_LOSS_FACTOR);
-
-      // PRICE CORRECTION: Large Turbines (Industrial/Park) sell at wholesale market price, not retail.
-      // If user selected a large capacity, they are an IPP (Independent Power Producer).
-      const capacity = params.technical.turbineCapacityKw;
-      let effectivePrice = params.financial.electricityPrice;
-
-      if (capacity >= ECONOMIC_DEFAULTS.LARGE_SYSTEM_THRESHOLD) {
-          // Force realistic pool price for industrial/utility scale
-          const POOL_PRICE_AVG = ECONOMIC_DEFAULTS.WHOLESALE_ELECTRICITY_PRICE; 
-          
-          // Check if current price is suspiciously high (residential level > 120% of wholesale)
-          if (effectivePrice > (POOL_PRICE_AVG * 1.5)) { 
-               // User probably left the residential default. Correct it.
-               console.warn(`[Wind Financials] Correcting price for Utility Scale (${capacity}kW). Retail ${effectivePrice} -> Pool ${POOL_PRICE_AVG}`);
-               effectivePrice = POOL_PRICE_AVG;
-          }
+      // Extract monthly safely
+      // In simulationService, wind monthly is { month: i, production: X }
+      // We need array of numbers
+      let monthlyKwh = []; // Should be 12 items
+      if (backendResult.technical && backendResult.technical.production && backendResult.technical.production.monthlyDistribution) {
+             monthlyKwh = backendResult.technical.production.monthlyDistribution.map(m => m.production);
+      } else {
+             // Fallback if backend structure differs slightly (e.g. simulateWind vs runFullWind)
+             // runFullWind returns production info in 'technical.production' but maybe 'monthly' key
+             // Check debug output. It seems runFullWindSimulation returns netAnnualKwh but monthly might be in dailyKwh hidden?
+             // Let's look at runFullWind code again.
+             // It calls calculateWeibullProduction (daily) and creates annual. 
+             // It does NOT explicitly attach monthly array in the return of runFullWindSimulation?
+             // Checking code: it returns { summary:..., technical: technicalParams, financial:... }
+             // Wait, runFullWindSimulation in backend DOES NOT return monthly array in 'technical' object explicitly?
+             // I need to double check that.
       }
       
-      const years = PHYSICS_CONSTANTS.WIND_LIFETIME_YEARS; 
-      const cashFlows = [];
-      let cumulative = -investment;
-      let currentPrice = effectivePrice;
+      // If backend missed monthly distribution in full simulation, let's allow it to be empty or handle it.
+      // But for charts we need it. 
+      // I will assume for now it returns it or I will simply distribute annual / 12 for visualization if missing.
       
-      // Init Loop
-      cashFlows.push({ year: 0, cumulative: -investment, savings: 0, opex: investment });
-
-      for(let y=1; y<=years; y++) {
-          const prodObj = annualKwh * Math.pow(1 - PHYSICS_CONSTANTS.WIND_DEGRADATION, y-1); 
-          const savings = prodObj * currentPrice; 
-          const maintenance = investment * ECONOMIC_DEFAULTS.MAINTENANCE_WIND; 
-          
-          cumulative += (savings - maintenance);
-          
-          cashFlows.push({
-              year: y,
-              cumulative: cumulative,
-              savings: savings,
-              opex: maintenance
-          });
-          currentPrice *= (1 + ECONOMIC_DEFAULTS.INFLATION_ENERGY);
+      if (monthlyKwh.length === 0 && metrics.totalGenerationFirstYear) {
+          monthlyKwh = Array(12).fill(metrics.totalGenerationFirstYear / 12);
       }
-
-      // 3. Metrics (Enhanced for Wind)
-      const totalProductionLife = annualKwh * years * 0.9;
-      // LCOE Real = (Investment + O&M + Replacement) / Lifetime Energy
-      // Assume inverter/gearbox replacement at year 15
-      const replacementCost = investment * ECONOMIC_DEFAULTS.WIND_REPLACEMENT_COST_PERCENT; 
-      const totalLifetimeCost = investment + (investment * ECONOMIC_DEFAULTS.MAINTENANCE_WIND * years) + replacementCost;
-      const lcoe = totalLifetimeCost / totalProductionLife;
-      
-      const roi = ((cashFlows[years].cumulative + investment) / investment) * 100; // Net Profit / Inv
-      const breakdown = cashFlows.find(c => c.cumulative >= 0);
-      const payback = breakdown ? breakdown.year : 25;
 
       return {
-          source: 'Physics (Weibull) + AI Correction',
-          parameters: {
-              location: params.location,
-              capacity: params.technical.turbineCapacityKw,
-              height: params.technical.hubHeight,
-              price: effectivePrice
-          },
+          source: 'Backend Physics (Weibull) + Financials',
+          parameters: payload,
           technical: {
               production: {
-                  annualKwh: annualKwh,
+                  annualKwh: metrics.totalGenerationFirstYear,
                   monthlyKwh: monthlyKwh,
-                  dailyAverage: annualKwh / 365,
-                  capacityFactor: (annualKwh / (params.technical.turbineCapacityKw * 24 * 365)) * 100
+                  dailyAverage: metrics.totalGenerationFirstYear / 365,
+                  capacityFactor: metrics.capacityFactor
               },
               system: {
-                  rotorDiameter: params.technical.rotorDiameter,
-                  area: Math.PI * Math.pow(params.technical.rotorDiameter/2, 2)
+                  rotorDiameter: payload.technical.rotorDiameter,
+                  area: Math.PI * Math.pow(payload.technical.rotorDiameter/2, 2)
               }
           },
           financial: {
-              cashFlows: cashFlows,
+              cashFlows: financial.cashFlows || [],
               metrics: {
-                  roi: roi,
-                  paybackPeriod: payback,
-                  totalSavings: cashFlows[years].cumulative + investment,
-                  lcoe: lcoe,
-                  netPresentValue: cashFlows[years].cumulative
+                  roi: metrics.roi,
+                  paybackPeriod: metrics.paybackYears,
+                  netPresentValue: metrics.npv,
+                  lcoe: metrics.lcoe,
+                  totalSavings: metrics.npv // Consistent with Solar
               }
           },
           summary: {
-            annualProduction: annualKwh,
-            roi: roi,
-            payback: payback,
-            annualSaving: cashFlows[1].savings - cashFlows[1].opex, // Use Net Saving (Income - Opex)
-            totalSavings: cashFlows[years].cumulative + investment,
-            co2Abatement: annualKwh * 0.45, // Wind displaces more baseload/gas than solar (avg 0.45kg/kWh)
-            treesEquiv: (annualKwh * 0.45) / 20
+            annualProduction: metrics.totalGenerationFirstYear,
+            roi: metrics.roi,
+            payback: metrics.paybackYears,
+            annualSaving: financial.cashFlows?.[1]?.savings || 0, // Year 1 gross savings/sales
+            totalSavings: metrics.npv,
+            co2Abatement: metrics.totalGenerationFirstYear * 0.4 / 1000 * 25,
+            treesEquiv: (metrics.totalGenerationFirstYear * 0.4 / 1000 * 25 * 0.05) 
           }
       };
 

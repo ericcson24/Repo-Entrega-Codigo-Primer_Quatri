@@ -2,7 +2,11 @@ const simulationService = require('../services/simulationService');
 
 exports.calculateWind = async (req, res) => {
     try {
+        console.log("-> [SimulationController] Recibida petición Eólica:", req.body.location?.name);
+        
         // Nuevo flujo "Full Stack" para Eólica
+        // Se espera estructura: { location, technical, financial, costs }
+        
         const lat = req.body.lat || req.body.location?.lat;
         const lon = req.body.lon || req.body.location?.lon;
         const capacity = req.body.capacity || req.body.technical?.turbineCapacityKw;
@@ -12,29 +16,20 @@ exports.calculateWind = async (req, res) => {
         }
 
         // Recuperar parámetros técnicos avanzados
-        const rotorDiameter = req.body.technical?.rotorDiameter;
-        const hubHeight = req.body.technical?.hubHeight;
+        // Si vienen en 'req.body.technical', genial. Si no, construimos.
+        const technical = req.body.technical || {};
+        technical.turbineCapacityKw = parseFloat(capacity); // Ensure sync
         
-        // Ejecutar simulación Weibul real en backend
-        const simulationResult = await simulationService.simulateWind(
-            parseFloat(lat), 
-            parseFloat(lon), 
-            parseFloat(capacity),
-            { 
-               height: hubHeight || 80, 
-               diameter: rotorDiameter,
-               cutIn: req.body.technical?.cutIn,
-               rated: req.body.technical?.rated 
-            }
-        );
-
-        // Devolver formato estandarizado
-        res.json({
-            annualProduction: simulationResult.annualProduction,
-            monthly: simulationResult.monthlyDistribution.map(m => m.production),
-            meta: simulationResult.meta,
-            simulation_type: 'Physics (Weibull)'
+        // Ejecutar simulación COMPLETA en backend (Physics + Financials)
+        const result = await simulationService.runFullWindSimulation({
+            location: { lat: parseFloat(lat), lon: parseFloat(lon), name: req.body.location?.name },
+            technical: technical,
+            financial: req.body.financial || {},
+            costs: req.body.costs || { totalOverride: req.body.financial?.budget }
         });
+
+        // Devolver formato similar al Solar para consistencia
+        res.json(result);
 
     } catch (error) {
         console.error('Wind Simulation Error:', error);

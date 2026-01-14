@@ -18,18 +18,29 @@ class WeatherService {
     let minDist = Infinity;
 
     for (const file of files) {
-        // Filename format: weather_city_lat_lon_dates.json
-        // Try parsing from filename first (faster)
-        const parts = file.split('_');
-        if (parts.length >= 4) {
-             const fLat = parseFloat(parts[2]);
-             const fLon = parseFloat(parts[3]);
-             if (!isNaN(fLat) && !isNaN(fLon)) {
-                 const dist = Math.sqrt(Math.pow(fLat - lat, 2) + Math.pow(fLon - lon, 2));
-                 if (dist < minDist) {
-                     minDist = dist;
-                     closest = file;
-                 }
+        // Improved parsing: Use Regex to find coordinates regardless of underscores in city name
+        // Matches ..._LAT_LON_...
+        const coordsMatch = file.match(/_(-?\d+\.\d+)_(-?\d+\.\d+)_/);
+        
+        let fLat, fLon;
+        if (coordsMatch) {
+             fLat = parseFloat(coordsMatch[1]);
+             fLon = parseFloat(coordsMatch[2]);
+        } else {
+             // Fallback: simple split (for simple city names like 'madrid')
+             const parts = file.split('_');
+             // Typically weather_City_Lat_Lon_Date.json -> lat is index 2
+             if (parts.length >= 4) {
+                 fLat = parseFloat(parts[2]);
+                 fLon = parseFloat(parts[3]);
+             }
+        }
+
+        if (fLat !== undefined && !isNaN(fLat) && !isNaN(fLon)) {
+             const dist = Math.sqrt(Math.pow(fLat - lat, 2) + Math.pow(fLon - lon, 2));
+             if (dist < minDist) {
+                 minDist = dist;
+                 closest = file;
              }
         }
     }
@@ -101,17 +112,39 @@ class WeatherService {
    * Obtiene datos históricos para simulaciones precisas (Weibull)
    */
   async getHistoricalWeather(lat, lon, years = 3) {
+    // 1. Check Local Data FIRST (User Priority)
+    const localData = this._findClosestLocalData(lat, lon);
+    if (localData && localData.data) {
+        console.log(`[WeatherService] getHistoricalWeather: Using LOCAL data 2020-2024 for [${lat}, ${lon}]`);
+        return {
+            data: localData.data.map(d => ({
+                date: d.date,
+                windMean: (d.windspeed_mean || 0) / 3.6, // km/h -> m/s
+                windMax: (d.windspeed_max || 0) / 3.6,
+                tempMean: d.temperature_mean,
+                radiation: d.solar_radiation // MJ/m2 or compatible
+            })),
+            metadata: {
+                lat, lon, 
+                start: localData.period ? localData.period.start : '2020-01-01', 
+                end: localData.period ? localData.period.end : '2024-12-31',
+                source: 'Local File'
+            }
+        };
+    }
+
+    // 2. Fallback to API (2020-2024 Period)
     try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setFullYear(endDate.getFullYear() - years);
+      const startDate = '2020-01-01';
+      const endDate = '2024-12-31';
+      console.log(`[WeatherService] Local data missing. Fetching history from API (2020-2024)...`);
 
       const response = await axios.get('https://archive-api.open-meteo.com/v1/archive', {
         params: {
           latitude: lat,
           longitude: lon,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0],
+          start_date: startDate,
+          end_date: endDate,
           daily: 'temperature_2m_mean,windspeed_10m_mean,windspeed_10m_max,shortwave_radiation_sum',
           timezone: 'Europe/Madrid'
         }
@@ -120,8 +153,8 @@ class WeatherService {
       return {
         data: response.data.daily.time.map((t, i) => ({
           date: t,
-          windMean: response.data.daily.windspeed_10m_mean[i],
-          windMax: response.data.daily.windspeed_10m_max[i],
+          windMean: (response.data.daily.windspeed_10m_mean[i] || 0) / 3.6, // Fix: API returns km/h
+          windMax: (response.data.daily.windspeed_10m_max[i] || 0) / 3.6,
           tempMean: response.data.daily.temperature_2m_mean[i],
           radiation: response.data.daily.shortwave_radiation_sum[i]
         })),
@@ -136,65 +169,74 @@ class WeatherService {
   }
 
   async getWindResourceData(coords) {
-        try {
-            // Utilizamos Open-Meteo Archive o Forecast para obtener promedio histórico
-            // Para una simulacion profesional, lo ideal es el Histórico de 5-10 años.
-            // Aqui usamos una aproximación rápida con la API actual.
-            const response = await axios.get(`${apis.weather.openmeteo}/forecast`, {
-                params: {
-                    latitude: coords.lat,
-                    longitude: coords.lon,
-                    current_weather: true,
-                    hourly: 'wind_speed_80m,wind_speed_100m,wind_speed_10m,temperature_2m',
-                    past_days: 92, // Use last 3 months ~ approximation of recent history
-                    timezone: 'auto'
-                }
-            });
+    // 1. Check Local Data FIRST (User Requirement: Use "the period I have" -> 2020-2024)
+    console.log(`[WeatherService] Checking local data for [${coords.lat}, ${coords.lon}]...`);
+    const localData = this._findClosestLocalData(coords.lat, coords.lon);
 
-            // Calcular medias simples
-            const hourly = response.data.hourly || {};
-            const wind80 = hourly.wind_speed_80m || [];
-            const temps = hourly.temperature_2m || [];
+    if (localData && localData.data && localData.data.length > 0) {
+        // Calculate Average from Local File
+        // Local files (generated by Open-Meteo script) are in km/h
+        const avgSpeedKmH = localData.data.reduce((s,d) => s + (d.wind_speed_mean || d.windspeed_mean || 0), 0) / localData.data.length;
+        const avgSpeedMS = avgSpeedKmH / 3.6; // Unit Conversion: km/h -> m/s
 
-            const avgSpeed = wind80.reduce((a, b) => a + b, 0) / (wind80.length || 1);
-            const avgTemp = temps.reduce((a, b) => a + b, 0) / (temps.length || 1);
+        const avgTemp = localData.data.reduce((s,d) => s + (d.temperature_mean || 15), 0) / localData.data.length;
+        
+        console.log(`[WeatherService] ✅ Prioritizing LOCAL data (${localData.location ? localData.location.name : 'Matched File'}). Period: 2020-2024.`);
+        console.log(`   -> Avg Wind: ${avgSpeedMS.toFixed(2)} m/s (${avgSpeedKmH.toFixed(1)} km/h)`);
 
-            return {
-                source: 'Open-Meteo Historical',
-                avgSpeed: avgSpeed || 6.5, // Fallback safe
-                avgTemp: avgTemp || 15,
-                refHeight: 80,
-                elevation: response.data.elevation || 0
-            };
-        } catch (error) {
-            console.warn('Weather API limit or error, checking local DB:', error.message);
-            
-            const localData = this._findClosestLocalData(coords.lat, coords.lon);
-            if (localData && localData.data) {
-                const avgSpeed = localData.data.reduce((s,d) => s + (d.wind_speed_mean || d.windspeed_mean || 5), 0) / localData.data.length;
-                const avgTemp = localData.data.reduce((s,d) => s + (d.temperature_mean || 15), 0) / localData.data.length;
-                return {
-                     source: `Local Offline Database (${localData.location ? localData.location.name : 'Unknown'})`,
-                     avgSpeed: avgSpeed,
-                     avgTemp: avgTemp,
-                     refHeight: 10, // Los datos de API local suelen ser a 10m
-                     elevation: 0 // Unknown in local json
-                };
-            }
-
-            // Si no hay API ni DB, es un error crítico.
-            console.warn("No wind data found. Using global defaults.");
-             return { 
-                source: 'Global Defaults', 
-                avgSpeed: 6.0,
-                avgTemp: 15,
+        return {
+                source: `Local DB (2020-2024)`,
+                avgSpeed: avgSpeedMS,
+                avgTemp: avgTemp,
                 refHeight: 10,
                 elevation: 0
-            };
-        }
+        };
     }
 
-  /**
+    // 2. Fallback to API (Restricted to 2020-2024 to match User's dataset standard)
+    try {
+        console.log(`[WeatherService] ⚠️ Local data missing. Fetching from Archive API (matched to 2020-2024 period)...`);
+        
+        const response = await axios.get('https://archive-api.open-meteo.com/v1/archive', {
+            params: {
+                latitude: coords.lat,
+                longitude: coords.lon,
+                start_date: '2020-01-01',
+                end_date: '2024-12-31',
+                daily: 'temperature_2m_mean,windspeed_10m_mean,windspeed_10m_max',
+                timezone: 'Europe/Madrid'
+            }
+        });
+        
+        const daily = response.data.daily || {};
+        const windMean = daily.windspeed_10m_mean || [];
+        const temps = daily.temperature_2m_mean || [];
+
+        const avgSpeedKmH = windMean.reduce((a, b) => a + b, 0) / (windMean.length || 1);
+        const avgSpeedMS = avgSpeedKmH / 3.6; // Unit Conversion
+        const avgTemp = temps.reduce((a, b) => a + b, 0) / (temps.length || 1);
+
+        console.log(`   -> Avg Wind (API 2020-2024): ${avgSpeedMS.toFixed(2)} m/s`);
+        
+        return {
+            source: 'Open-Meteo Archive (2020-2024)',
+            avgSpeed: avgSpeedMS, 
+            avgTemp: avgTemp || 15,
+            refHeight: 10,
+            elevation: response.data.elevation || 0
+        };
+
+    } catch (error) {
+        console.warn('Weather API failed:', error.message);
+        return { 
+            source: 'Global Defaults', 
+            avgSpeed: 6.0, 
+            avgTemp: 15,
+            refHeight: 10,
+            elevation: 0
+        };
+    }
+  }  /**
    * Obtiene datos HORARIOS históricos para simulación AI precisa
    */
   async getHourlyHistoricalWeather(lat, lon, years = 1) {

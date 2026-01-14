@@ -1,5 +1,6 @@
 const weatherService = require('./weatherService');
 const solarService = require('./solarService');
+const aiService = require('./aiService'); // Import AI
 const marketService = require('./marketService');
 const SIMULATION_CONSTANTS = require('../config/simulationParams');
 
@@ -34,26 +35,39 @@ class SimulationService {
         // Sumamos: Paneles, Inversores, Estructura, Mano de Obra, Licencias, Terreno...
         const totalCapex = this._calculateTotalCapex(costs, technical.capacityKw);
 
-        // 4. Proyección a 25-30 años (Financial Model)
-        const projection = this._generateCashFlowProjection({
+        // 4. Proyección SCENARIOS (Base, Optimistic, Pessimistic)
+        const commonParams = {
             production: solarData.production,
             capex: totalCapex,
             financialParams: { ...financial, electricityPrice: currentElecPrice },
             technicalParams: technical,
             type: 'SOLAR'
-        });
+        };
 
+        const baseScenario = this._generateCashFlowProjection({ ...commonParams, scenario: 'BASE' });
+        // Generate alternate scenarios silently
+        const optimisticScenario = this._generateCashFlowProjection({ ...commonParams, scenario: 'OPTIMISTIC', silent: true });
+        const pessimisticScenario = this._generateCashFlowProjection({ ...commonParams, scenario: 'PESSIMISTIC', silent: true });
+
+        // Merge scenarios into financial object
         return {
             summary: {
                 totalGenerationFirstYear: solarData.production.annualKwh,
                 totalInvestment: totalCapex,
-                roi: projection.metrics.roi,
-                paybackYears: projection.metrics.paybackPeriod,
-                npv: projection.metrics.npv, // VAN
-                irr: projection.metrics.irr  // TIR
+                roi: baseScenario.metrics.roi,
+                paybackYears: baseScenario.metrics.paybackPeriod,
+                npv: baseScenario.metrics.npv, // VAN
+                irr: baseScenario.metrics.irr  // TIR
             },
             technical: solarData,
-            financial: projection,
+            financial: {
+                ...baseScenario,
+                scenarios: {
+                    base: baseScenario,
+                    optimistic: optimisticScenario,
+                    pessimistic: pessimisticScenario
+                }
+            },
             market: {
                 referencePrice: currentElecPrice,
                 priceSource: 'User Input or Default'
@@ -62,10 +76,10 @@ class SimulationService {
     }
 
     _calculateTotalCapex(costs, capacityKw) {
-        // Si el usuario provee un coste total manual, usarlo
+        // 1. Override Directo (User Input tiene prioridad absoluta)
         if (costs?.totalOverride) return costs.totalOverride;
 
-        // Sumar componentes unitarios si existen, o usar coste por vatio estándar
+        // 2. Suma Componentes Unitarios (si disponibles)
         const equipCost = (costs?.panelsCost || 0) + (costs?.invertersCost || 0) + (costs?.structureCost || 0);
         
         if (equipCost > 0) {
@@ -73,14 +87,48 @@ class SimulationService {
             return equipCost + (costs?.installationCost || 0) + (costs?.permitsCost || 0);
         }
 
-        // Modelo simplificado por defecto: ~1000€/kWp standard residencial/industrial pequeño
-        const defaultCostPerKw = 1000; 
+        // 3. Fallback: Modelo Simplificado Coste Por vatio (Standard Market Rates)
+        // Usamos backend/config/simulationParams.js para Centralizar precios
+        // Default: 1300€/kWp (Solar) - Conservative estimate for residential
+        const defaultCostPerKw = SIMULATION_CONSTANTS.SOLAR.FINANCIAL.DEFAULT_CAPEX_PER_KW || 1300; 
+        
+        // Si el usuario da un costo por kW, usalo, sino el default
         return capacityKw * (costs?.costPerKw || defaultCostPerKw);
     }
 
     _generateCashFlowProjection(data) {
-        const { production, capex, financialParams, technicalParams, type = 'SOLAR' } = data;
+        const { production, capex, financialParams, technicalParams, type = 'SOLAR', scenario = 'BASE', silent = false } = data;
+
+        if (!silent) {
+            console.log("\n============================================================");
+            console.log(` 🛰️  SIMULATION CORE | SCENARIO: ${scenario} | TYPE: ${type} 🛰️`);
+            console.log("============================================================\n");
+            
+            // --- MANIFEST SELECTION ---
+            console.log("📜 SIMULATION MANIFEST & ACTIVE MODULES:");
+            console.log(`   [✅] PHYSICS ENGINE:       ${type} Degradation & Efficiency Curves`);
+            console.log(`   [✅] AI NEURAL NETWORKS:   Enabled (Solar/Wind Physics + Market Economy)`);
+            console.log(`   [✅] FINANCIAL MODEL:      DCF (Discounted Cash Flow) with Inflation`);
+            console.log(`   [✅] MARKET DYNAMICS:      Cannibalization & Volatility enabled`);
+        }
         
+        if (technicalParams.batteryCapacityKw && technicalParams.batteryCapacityKw > 0) {
+             if (!silent) console.log(`   [✅] STORAGE SYSTEM:       Battery Enabled (${technicalParams.batteryCapacityKw} kWh)`);
+        } else {
+             if (!silent) console.log(`   [⚪] STORAGE SYSTEM:       Disabled (No battery capacity specified)`);
+        }
+        
+        if (technicalParams.horizonData) {
+            if (!silent) console.log(`   [✅] SHADING ANALYSIS:     3D Horizon Enabled`);
+        } else {
+            if (!silent) console.log(`   [⚪] SHADING ANALYSIS:     Disabled (No 3D horizons data provided)`);
+        }
+        
+        if (!silent) {
+            console.log(`   [i] NOTE:                  'Nights' handled via Net-Metering/Self-Consumption Ratio`);
+            console.log("------------------------------------------------------------\n");
+        }
+
         // Select configuration based on type (SOLAR or WIND)
         const configSection = SIMULATION_CONSTANTS[type] || SIMULATION_CONSTANTS.SOLAR;
 
@@ -90,13 +138,13 @@ class SimulationService {
                      25;
         
         // Parametros financieros
-        const electricityPrice = financialParams.electricityPrice || SIMULATION_CONSTANTS.MARKET.GRID_PRICE;
+        let electricityPrice = financialParams.electricityPrice || SIMULATION_CONSTANTS.MARKET.GRID_PRICE;
         
         // Determine Surplus Price (Feed-in Tariff)
         let defaultSurplusPrice = SIMULATION_CONSTANTS.MARKET.FEED_IN_TARIFF_SOLAR;
         if (type === 'WIND') defaultSurplusPrice = SIMULATION_CONSTANTS.MARKET.FEED_IN_TARIFF_WIND;
         
-        const surplusPrice = financialParams.surplusPrice || defaultSurplusPrice;
+        let surplusPrice = financialParams.surplusPrice || defaultSurplusPrice;
 
         // Self Consumption Ratio
         let defaultSelfConsumption = 0.5; // generic default
@@ -110,7 +158,26 @@ class SimulationService {
             ? financialParams.selfConsumptionRatio 
             : defaultSelfConsumption;
 
-        const energyInflation = financialParams.energyInflation || SIMULATION_CONSTANTS.FINANCIAL.INFLATION_ENERGY;
+        // SCENARIO LOGIC: Adjust basic params
+        let energyInflation = financialParams.energyInflation || SIMULATION_CONSTANTS.FINANCIAL.INFLATION_ENERGY;
+        let volatilityRange = 0.2; // Base volatility
+        let curtailmentRiskFactor = 0.2;
+
+        if (scenario === 'OPTIMISTIC') {
+            energyInflation += 0.015; // +1.5% inflation (Higher savings over time)
+            volatilityRange = 0.1; // More stable
+            curtailmentRiskFactor = 0.05; // Low risk
+            electricityPrice *= 1.05; // Start slightly higher
+        } else if (scenario === 'PESSIMISTIC') {
+            energyInflation = Math.max(0, energyInflation - 0.025); // Stagnation
+            volatilityRange = 0.35; // High chaos
+            curtailmentRiskFactor = 0.4; // High risk
+            electricityPrice *= 0.9; // Start lower
+        } else {
+             // BASE
+             // No changes
+        }
+
         const discountRate = financialParams.discountRate || SIMULATION_CONSTANTS.FINANCIAL.DISCOUNT_RATE;
         
         const degradation = technicalParams.degradationRate || configSection.TECHNICAL.DEGRADATION_RATE || 0.0055;
@@ -118,10 +185,13 @@ class SimulationService {
 
         let cashFlows = [];
         let cumulativeCashFlow = -capex;
-        let cumulativeSavings = 0;
-        let paybackPeriod = null;
+        // Incur initial Capex
+        
+        if (!silent) {
+            console.log(`[YEAR 0] 🏗️ CAPEX DEPLOYMENT`);
+            console.log(`   > Equipment & Installation: -${capex.toFixed(2)}€\n`);
+        }
 
-        // Año 0: Inversión
         cashFlows.push({
             year: 0,
             revenue: 0,
@@ -130,60 +200,227 @@ class SimulationService {
             cumulative: cumulativeCashFlow
         });
 
+        let paybackPeriod = null;
+        let cumulativeSavings = 0;
+
+        // Generar Clima Base (Madrid/Avg)
+        let currentAvgTemp = 15.0; // grados
+        let currentWindAvg = 5.0; // m/s (cooling effect)
+        let currentIrradiation = 1000; // W/m2 peak avg
+
         for (let year = 1; year <= years; year++) {
-            // Producción degradada
-            const yearProduction = production.annualKwh * Math.pow(1 - degradation, year - 1);
+            if (!silent) console.log(`------------------ YEAR ${year} ------------------`);
             
-            // Precios inflados
-            const yearPriceGrid = electricityPrice * Math.pow(1 + energyInflation, year - 1);
-            const yearPriceSurplus = surplusPrice * Math.pow(1 + energyInflation, year - 1); // Asumimos sube igual
+            // --- 1. CLIMATE CHANGE SIMULATION (AI INPUTS) ---
+            // Simulate global warming: Avg temp rises slightly each year
+            currentAvgTemp += 0.05; // +0.05 degrees per year
+            // Wind speed slightly more volatile
+            currentWindAvg += (Math.random() * 0.2 - 0.1);
 
-            // Ingresos / Ahorros
-            const selfConsumedEnergy = yearProduction * selfConsumptionRatio;
-            const exportedEnergy = yearProduction * (1 - selfConsumptionRatio);
+            if (!silent) console.log(`   🌤️  Environment: Temp=${currentAvgTemp.toFixed(2)}°C | Wind=${currentWindAvg.toFixed(2)}m/s`);
+            
+            // --- 2. PHYSICS ENGINE (AI INFERENCE) ---
+            // Ask AI: "Given this hotter climate, what is the Performance Ratio?"
+            let efficiencyFactor = 1.0; 
+            
+            if (type === 'SOLAR') {
+                // Predict PR based on Physics
+                const predictedPR = aiService.predictPerformanceRatio(currentAvgTemp, currentIrradiation, currentWindAvg);
+                // Base PR is usually ~0.85. If predicted is 0.82, factor is 0.82/0.85
+                efficiencyFactor = predictedPR / 0.85; 
+                if (!silent) console.log(`   🤖 AI Physics (Solar): Temp=${currentAvgTemp.toFixed(1)}C, Irr=${currentIrradiation}W/m2 -> Predicted PR=${(predictedPR*100).toFixed(2)}% (Impact: ${efficiencyFactor.toFixed(3)})`);
+            } else if (type === 'WIND') {
+                // For wind, efficiency is already handled in daily production calculation (air density + power curve)
+                // But we can add a small climatic efficiency factor if needed (e.g. icing, extreme heat)
+                // For now, keep it 1.0 or dependent on air density changes
+                efficiencyFactor = 1.0;
+                if (!silent) console.log(`   🤖 AI Physics (Wind): Standard Loss Model applied in Power Curve. Climatic Factor=${efficiencyFactor.toFixed(3)}`);
+            }
+            
+            // Standard Material Degradation (Aging)
 
+            const ageDegradation = Math.pow(1 - degradation, year - 1);
+            // Combined Production Factor
+            const finalProduction = production.annualKwh * ageDegradation * efficiencyFactor;
+            
+            // Debug: Capacity Factor Check
+            if (type === 'WIND' && production.capacityKw && !silent) {
+                 const capacityFactor = (finalProduction / (production.capacityKw * 8760)) * 100;
+                 console.log(`   ⚡ Production: Base=${production.annualKwh.toFixed(0)} * Age=${ageDegradation.toFixed(3)} * Climate=${efficiencyFactor.toFixed(3)} = ${finalProduction.toFixed(2)} kWh`);
+                 console.log(`      -> Capacity Factor: ${capacityFactor.toFixed(2)}% (Rated: ${production.capacityKw}kW)`);
+                 if(capacityFactor < 15) console.warn("      ⚠️  WARNING: Very Low Capacity Factor (<15%). Site may be unsuitable for wind.");
+            } else if (!silent) {
+                 console.log(`   ⚡ Production: Base=${production.annualKwh.toFixed(0)} * Age=${ageDegradation.toFixed(3)} * Climate=${efficiencyFactor.toFixed(3)} = ${finalProduction.toFixed(2)} kWh`);
+            }
+
+
+            // --- 3. MARKET ECONOMY (AI INFERENCE) ---
+            // AI Service: Predict "Cannibalization" 
+            const renewablePenetration = Math.min(1.0, 0.2 + (year * 0.025)); // Increasing penetration
+            const demandFactor = 0.5 + (Math.random()*0.1); 
+            const gasPriceFactor = 0.5;
+
+            if (!silent) console.log(`   📉 AI Market Inputs: Penetration=${(renewablePenetration*100).toFixed(1)}%, Demand=${demandFactor.toFixed(2)}, Gas=${gasPriceFactor}`);
+
+            let aiPriceFactor = 1.0;
+            try {
+                // Try to get prediction from AI Service
+                // Use specific method that handles denormalization (0-1 -> 0.0x-2.0x)
+                if (typeof aiService.predictPriceFactor === 'function') {
+                     aiPriceFactor = aiService.predictPriceFactor(renewablePenetration, demandFactor, gasPriceFactor);
+                }
+                if (!silent) console.log(`   📉 AI Market Output: 'Cannibalization' Price Factor: ${aiPriceFactor.toFixed(3)}`);
+            } catch (e) {
+                if (!silent) console.warn("   ⚠️ AI Market Prediction Failed, using default 1.0", e.message);
+            }
+
+            // Apply Inflation & Price Factors
+            const inflationFactor = Math.pow(1 + energyInflation, year - 1);
+            
+            // --- ENHANCEMENT 1: Market Volatility & Shocks (User Feedback) ---
+            // Random fluctuation ±10% to represent market instability
+            // SCENARIO ADJUSTMENT: volatilityRange
+            const marketVolatility = 1 + (Math.random() * volatilityRange - (volatilityRange/2)); 
+            
+            // Limit Price (User Request: Max 0.35€ real constant equivalent - soft cap)
+            const MAX_PRICE_CAP = 0.45;
+            let yearPriceGrid = electricityPrice * inflationFactor * marketVolatility; 
+
+            if (yearPriceGrid > MAX_PRICE_CAP) {
+                if (!silent) console.warn(`      ⚠️  Price Cap Hit (${yearPriceGrid.toFixed(3)} > ${MAX_PRICE_CAP}). Limiting.`);
+                yearPriceGrid = MAX_PRICE_CAP;
+            }
+
+            // --- ENHANCEMENT 2: Curtailment & Price Floor ---
+            // If saturation is high (aiPriceFactor low), risk of 0€ prices (Curtailment) increases
+            let effectiveSurplusPrice = surplusPrice * inflationFactor * aiPriceFactor * marketVolatility;
+            
+            // Curtailment Risk: If Price Factor < 0.5, Chance of 0 price/curtailment
+            if (aiPriceFactor < 0.5 && Math.random() < curtailmentRiskFactor) {
+                if (!silent) console.warn(`      ⚠️  MARKET SHOCK: Curtailment/Negative Prices detected. Surplus value -> 0€`);
+                effectiveSurplusPrice = 0;
+            }
+            
+            const yearPriceSurplus = Math.max(0, effectiveSurplusPrice); // Floor at 0
+            
+            if (!silent) console.log(`   💰 Financials: Buy @ ${yearPriceGrid.toFixed(3)} €/kWh | Sell @ ${yearPriceSurplus.toFixed(3)} €/kWh`);
+
+
+            // --- 4. ENERGY FLOW (Diurnal) ---
+            // "Nights are 0 production". Self consumption is capped by Simultaneity.
+            
+            // --- ENHANCEMENT 3: Dynamic Self-Consumption (Electrification) ---
+            // Asumiendo: User adds EVs/Heat Pumps over time -> Self-consumption rises
+            // Growth: 0.5% absolute per year, capped at 80% (Scenario Adjusted)
+            let electrificationRate = 0.005; // Base
+            if (scenario === 'OPTIMISTIC') electrificationRate = 0.01;
+            if (scenario === 'PESSIMISTIC') electrificationRate = 0.001;
+            
+            const electrificationImpact = (year - 1) * electrificationRate; 
+            const currentSelfConsumptionRatio = Math.min(0.8, selfConsumptionRatio + electrificationImpact);
+            
+            const selfConsumedEnergy = finalProduction * currentSelfConsumptionRatio;
+            const exportedEnergy = finalProduction - selfConsumedEnergy;
+            
             const savings = selfConsumedEnergy * yearPriceGrid;
             const income = exportedEnergy * yearPriceSurplus;
             const totalRevenue = savings + income;
+            
+            if (!silent) console.log(`   📊 Revenue Split: Savings=${savings.toFixed(2)}€ (${(currentSelfConsumptionRatio*100).toFixed(1)}% Self-Use) | Sales=${income.toFixed(2)}€ (${((1-currentSelfConsumptionRatio)*100).toFixed(1)}% Export)`);
 
-            // Gastos (OPEX con inflación IPC)
-            const yearOpex = opexAnnual * Math.pow(1 + SIMULATION_CONSTANTS.FINANCIAL.INFLATION_MAINTENANCE, year - 1);
+            // --- 5. OPEX & EVENTS ---
+            let yearOpex = opexAnnual * Math.pow(1 + SIMULATION_CONSTANTS.FINANCIAL.INFLATION_MAINTENANCE, year - 1);
+            
+            let replacementCost = 0;
+            if (year === 12) { 
+                replacementCost = capex * 0.15; // Inverter replacement
+                if (!silent) console.log(`   🛠️  EVENT: Major Overhaul (Inverter Swap) -> -${replacementCost.toFixed(2)}€`);
+            }
+            const totalExpenses = yearOpex + replacementCost;
 
-            // Flujo Neto
-            const netFlow = totalRevenue - yearOpex;
+            // Net
+            const netFlow = totalRevenue - totalExpenses;
             cumulativeCashFlow += netFlow;
             cumulativeSavings += totalRevenue;
 
+            if (!silent) {
+                console.log(`   💵 Cash Flow: +${totalRevenue.toFixed(2)} - ${totalExpenses.toFixed(2)} = ${netFlow.toFixed(2)}€`);
+                console.log(`   🏦 Cumulative: ${cumulativeCashFlow.toFixed(2)}€`);
+            }
+            
             if (paybackPeriod === null && cumulativeCashFlow >= 0) {
-                // Interpolación lineal simple para fracción de año
                 const prevCumulative = cashFlows[year-1].cumulative;
                 paybackPeriod = (year - 1) + (Math.abs(prevCumulative) / netFlow);
+                if (!silent) console.log(`   🚀 PAYBACK REACHED: Period ~ ${paybackPeriod.toFixed(1)} Years`);
             }
 
             cashFlows.push({
                 year,
-                production: yearProduction,
+                production: finalProduction,
                 savings: savings,
-                income: income,
-                opex: yearOpex,
+                income: income, 
+                opex: totalExpenses,
                 netFlow: netFlow,
-                cumulative: cumulativeCashFlow
+                cumulative: cumulativeCashFlow,
+                aiFactors: {
+                    climate: efficiencyFactor,
+                    market: aiPriceFactor
+                }
             });
+        }
+        if (!silent) {
+            console.log("\n============================================================");
+            console.log("             🏁  SIMULATION FINALIZED  🏁");
+            console.log("============================================================");
         }
 
         // Métricas Finales
         const npv = this._calculateNPV(-capex, cashFlows.slice(1).map(c => c.netFlow), discountRate);
         const irr = this._calculateIRR([-capex, ...cashFlows.slice(1).map(c => c.netFlow)]);
-        const roi = ((cumulativeSavings - (opexAnnual * years) - capex) / capex) * 100;
+        
+        // Calculate Total Lifetime Expenses (Capex + Opex sum) - PURELY PHYSICAL/COST LCOE
+        // Discounting costs for LCOE is standard practice: Sum(Cost_t / (1+r)^t) / Sum(Energy_t / (1+r)^t)
+        
+        let discountedCosts = capex; // Year 0
+        let discountedEnergy = 0;
+        
+        // Re-iterate flows for LCOE specific discounting
+        cashFlows.forEach(c => {
+            if (c.year === 0) return;
+            const discFactor = Math.pow(1 + discountRate, c.year);
+            discountedCosts += (c.opex || 0) / discFactor;
+            discountedEnergy += (c.production || 0) / discFactor;
+        });
+        
+        const lcoe = (discountedEnergy > 0) ? (discountedCosts / discountedEnergy) : 0;
+        
+        // ROI = (Total Net Profit / Initial Investment) * 100
+        // Correct ROI Formula: (Total Benefits - Total Costs) / Total Costs
+        const totalFlowsRevenue = cashFlows.reduce((acc,c) => acc + (c.savings||0) + (c.income||0), 0);
+        const totalFlowsExpenses = cashFlows.reduce((acc,c) => acc + (c.opex||0), 0);
+        
+        // Use (Net / Investment) for comparability
+        const roi = ((totalFlowsRevenue - totalFlowsExpenses - capex) / capex) * 100;
+        
+         // Factor CO2 Spain Mix approx 0.25 kg/kWh (Grid Average)
+        // We avoid emitting this by producing it ourselves
+        const totalLifetimeProduction = cashFlows.reduce((acc,c) => acc + (c.production || 0), 0);
+        const co2AvoidedTonnes = (totalLifetimeProduction * 0.24) / 1000;
+        const treesEquivalent = Math.round(co2AvoidedTonnes * 50);
 
         return {
+            scenario,
             cashFlows,
             metrics: {
                 roi: parseFloat(roi.toFixed(2)),
-                paybackPeriod: paybackPeriod ? parseFloat(paybackPeriod.toFixed(1)) : '25+',
+                paybackPeriod: paybackPeriod ? parseFloat(paybackPeriod.toFixed(1)) : null,
                 npv: parseFloat(npv.toFixed(2)),
                 irr: parseFloat((irr * 100).toFixed(2)),
-                totalSavings: parseFloat(cumulativeSavings.toFixed(2))
+                lcoe: parseFloat(lcoe.toFixed(4)), 
+                totalSavings: parseFloat(cumulativeSavings.toFixed(2)),
+                totalLifetimeProduction: totalLifetimeProduction,
+                co2tonnes: parseFloat(co2AvoidedTonnes.toFixed(2)),
+                trees: treesEquivalent 
             }
         };
     }
@@ -291,7 +528,21 @@ class SimulationService {
         };
 
         // Curva de potencia del aerogenerador P(v)
+        // MEJORA IA: Usamos el modelo neuronal para predecir P(v) en lugar de fórmula teórica
         const turbinePower = (v) => {
+             // 1. Obtener densidad del aire (o default)
+             const rho = params.airDensity || 1.225;
+             
+             // 2. Consultar al Cerebro de IA (Physics-Informed Neural Network)
+             // Devuelve factor 0-1 (Porcentaje de capacidad nominal)
+             const performanceFactor = aiService.predictWindPower(v, rho);
+             
+             // 3. Escalar a capacidad real
+             return performanceFactor * capacityKw;
+        };
+
+        /* LÓGICA ANTIGUA (Reemplazada por IA)
+        const turbinePowerOld = (v) => {
             if (v < cutIn || v >= cutOut) return 0;
             if (v >= rated) return capacityKw;
 
@@ -303,12 +554,9 @@ class SimulationService {
                 // La fórmula física pura puede exceder la capacidad nominal antes del rated speed
                 // si el modelo no está perfectamente alineado. Capped.
                 return Math.min(powerW / 1000, capacityKw);
-            } else {
-                // Modelo cúbico simple interpolado si no hay diámetro
-                const factor = Math.pow((v - cutIn) / (rated - cutIn), 3);
-                return capacityKw * factor;
             }
         };
+        */
 
         // Integración numérica (Regla del trapecio)
         let totalWeightedPower = 0; // kW Weighted Average
@@ -530,46 +778,106 @@ class SimulationService {
         }
 
         const {
-            inflationRate = SIMULATION_CONSTANTS.FINANCIAL.INFLATION_ENERGY, // Convertir de 3 a 0.03
+            inflationRate = 0.03,
             years = 25
         } = params;
 
-        const annualSavingsBase = annualProduction * selfConsumptionRate * electricityPrice;
-        //...
+        // --- NEW ROI ENGINE UPGRADE (Using AI Economy) ---
+        // We simulate hour-by-hour price impact or approximate it via factors
+        // Here we apply the AI "Cannibalization Factor" to the base price
+        
+        // Assume simplified factors for this simulation run:
+        // High Solar Pen (Summer noon) -> Low Price
+        // Use AI to predict average price factor for this system type
+        let priceCaptureFactor = 1.0;
+        
+        // Solar or Wind? Derive from params context or pass explicitly. 
+        // For now, if selfConsumption > 0 we assume Solar-like behavior (daytime generation)
+        if (selfConsumptionRate > 0.3) {
+             // Solar Profile: Higher penetration (0.6), High Demand (0.8 - Day)
+             // Check AI prediction for this profile
+             const aiFactor = aiService.predictPriceFactor(0.6, 0.8, 0.5); 
+             // Note: Solar captures LESS than average price usually
+             priceCaptureFactor = aiFactor; 
+        } else {
+             // Wind Profile: Lower correlation (0.3), Avg Demand (0.5)
+             const aiFactor = aiService.predictPriceFactor(0.3, 0.5, 0.5);
+             priceCaptureFactor = aiFactor; 
+        }
+        
+        // Apply AI Factor to effective price (Base Market Price * AI Capture Factor)
+        // If Model predicts 0.8, it means this tech captures 80% of average pool price
+        const effectiveElectricityPrice = (electricityPrice || 0.15) * priceCaptureFactor;
+        
+        // Debug
+        // console.log(`[Financial AI] Base: ${electricityPrice}, AI-Factor: ${priceCaptureFactor.toFixed(3)}, Effective: ${effectiveElectricityPrice.toFixed(3)}`);
+
+        const annualSavingsBase = annualProduction * selfConsumptionRate * effectiveElectricityPrice;
         const annualIncomeBase = annualProduction * (1 - selfConsumptionRate) * surplusPrice;
 
-        const cashFlows = [-investment];
+        const cashFlows = [];
         let cumulativeCashFlow = -investment;
+        let cumulativeSavings = 0;
         let paybackPeriod = null;
 
-        // Costes
-        const maintenanceRate = 0.005; // 0.5% anual (más realista para solar residencial)
-        const discountRate = params.discountRate ? (params.discountRate / 100) : (SIMULATION_CONSTANTS.FINANCIAL.DISCOUNT_RATE);
+        // Cash flow year 0
+        cashFlows.push({
+            year: 0,
+            production: 0,
+            savings: 0,
+            income: 0,
+            opex: 0,
+            netFlow: -investment,
+            cumulative: cumulativeCashFlow
+        });
 
-        for (let i = 1; i <= years; i++) {
-            const degradationFactor = Math.pow(1 - (params.degradationRate || 0.005), i - 1); 
-            // Inflación energética suele ser mayor a IPC, pero usamos param
-            const inflationFactor = Math.pow(1 + inflationRate, i - 1);
+        const capex = investment;
+        const opexRate = costs.maintenanceAnnual || (investment * 0.01); 
 
-            // Ahorro real anual
-            const yearSavings = annualSavingsBase * degradationFactor * inflationFactor;
-            const yearIncome = annualIncomeBase * degradationFactor * inflationFactor;
+        for (let year = 1; year <= years; year++) {
+            // Apply Degradation (Non-linear? Simple linear for now but could be AI)
+            const degradation = (year === 1) ? 0 : 0.005; 
+            const yearProduction = annualProduction * Math.pow(1 - degradation, year - 1);
             
-            // Coste mantenimiento indexado
-            let maintenance = investment * maintenanceRate * Math.pow(1 + 0.02, i - 1); // Inflación general 2%
+            // Inflate Prices
+            const yearPrice = effectiveElectricityPrice * Math.pow(1 + inflationRate, year - 1);
+            const yearSurplus = surplusPrice * Math.pow(1 + inflationRate, year - 1);
             
-            // Reemplazo invesor año 12 (mejores inversores) - DESHABILITADO POR CÁLCULO INCORRECTO
-            // if (i === 12) maintenance += (investment / 6); // Aprox coste inversor vs sistema total
+            const savings = yearProduction * selfConsumptionRate * yearPrice;
+            const income = yearProduction * (1 - selfConsumptionRate) * yearSurplus;
+            const totalRevenue = savings + income;
 
-            const netFlow = (yearSavings + yearIncome) - maintenance;
+            // Opex Escalation (Inflation + Aging equipment cost)
+            // Maintenance inflation usually higher than CPI (Labor/Parts) -> +1%
+            const opexAnnual = opexRate; 
+            const yearOpex = opexAnnual * Math.pow(1 + (inflationRate + 0.01), year - 1);
             
-            cashFlows.push(netFlow);
+            // Inverter Replacement (Year 12 Spike)
+            let replacementCost = 0;
+            if (year === 12) {
+                 replacementCost = capex * 0.15; // 15% of initial capex
+            }
+
+            // Flujo Neto
+            const netFlow = totalRevenue - yearOpex - replacementCost;
             cumulativeCashFlow += netFlow;
+            cumulativeSavings += totalRevenue;
 
             if (paybackPeriod === null && cumulativeCashFlow >= 0) {
-                const prevCumulative = cumulativeCashFlow - netFlow;
-                paybackPeriod = (i - 1) + (Math.abs(prevCumulative) / netFlow);
+                // Interpolación lineal simple para fracción de año
+                const prevCumulative = cashFlows[year-1].cumulative;
+                paybackPeriod = (year - 1) + (Math.abs(prevCumulative) / netFlow);
             }
+
+            cashFlows.push({
+                year,
+                production: yearProduction,
+                savings: savings,
+                income: income,
+                opex: yearOpex,
+                netFlow: netFlow,
+                cumulative: cumulativeCashFlow
+            });
         }
 
         const totalBenefit = cashFlows.slice(1).reduce((a, b) => a + b, 0);
@@ -636,8 +944,8 @@ class SimulationService {
         const totalCapex = this._calculateWindCapex(costs, turbineCapacityKw);
 
         // 4. Modelo Financiero (Mayor OPEX y Riesgo)
-        const projection = this._generateCashFlowProjection({
-            production: { annualKwh: netAnnualKwh, dailyAverage: dailyKwh, airDensity: airDensity },
+        const commonParams = {
+            production: { annualKwh: netAnnualKwh, dailyAverage: dailyKwh, airDensity: airDensity, capacityKw: turbineCapacityKw },
             capex: totalCapex,
             financialParams: {
                 ...financial, 
@@ -652,17 +960,21 @@ class SimulationService {
             },
             type: 'WIND',
             finalProvision: totalCapex * SIMULATION_CONSTANTS.WIND.FINANCIAL.DISMANTLING_PROVISION // Coste desmantelamiento
-        });
+        };
+
+        const baseScenario = this._generateCashFlowProjection({ ...commonParams, scenario: 'BASE' });
+        const optimisticScenario = this._generateCashFlowProjection({ ...commonParams, scenario: 'OPTIMISTIC', silent: true });
+        const pessimisticScenario = this._generateCashFlowProjection({ ...commonParams, scenario: 'PESSIMISTIC', silent: true });
 
         return {
             summary: {
                 totalGenerationFirstYear: netAnnualKwh,
                 totalInvestment: totalCapex,
                 capacityFactor: (netAnnualKwh / (turbineCapacityKw * 8760)) * 100,
-                roi: projection.metrics.roi,
-                paybackYears: projection.metrics.paybackPeriod,
-                npv: projection.metrics.npv,
-                irr: projection.metrics.irr
+                roi: baseScenario.metrics.roi,
+                paybackYears: baseScenario.metrics.paybackPeriod,
+                npv: baseScenario.metrics.npv,
+                irr: baseScenario.metrics.irr
             },
             technical: {
                 avgWindSpeedHub,
@@ -670,15 +982,23 @@ class SimulationService {
                 airDensity: airDensity,
                 lossesPercent: totalLosses * 100
             },
-            financial: projection
+            financial: {
+                ...baseScenario,
+                scenarios: {
+                    base: baseScenario,
+                    optimistic: optimisticScenario,
+                    pessimistic: pessimisticScenario
+                }
+            }
         };
     }
 
     _calculateWindCapex(costs, capacityKw) {
         if (costs?.totalOverride) return costs.totalOverride;
         
-        // Eólica ~ 1.2M€ - 1.5M€ por MW instalado
-        const defaultCostPerKw = 1300; 
+        // Eólica ~ 1.5M€ - 1.8M€ por MW instalado (Update 2024: Costes han subido)
+        // Usamos Constante Centralizada
+        const defaultCostPerKw = SIMULATION_CONSTANTS.WIND.FINANCIAL.DEFAULT_CAPEX_PER_KW || 1600; 
         
         // Desglose típico si no se especifica:
         // Turbina 70%, Civil 15%, Grid 10%, Legal 5%

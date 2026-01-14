@@ -66,8 +66,9 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
   const chartData = financialData.map(f => ({
       year: f.year,
       balance: f.cumulative, // For financial chart
-      savings: f.savings + f.income,
-      costs: f.opex
+      savings: (f.savings || 0) + (f.income || 0),
+      costs: f.opex || f.expenses || 0, // Correctly capture expenses/capex for Year 0
+      production: f.production || 0 // Include production for AdvancedCharts
   }));
 
   const productionData = monthlyProduction.map((val, index) => ({
@@ -145,8 +146,14 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
                   <div>
                       <h4 className="font-semibold text-gray-400 mb-2">{type === 'solar' ? 'Ubicación & Solar' : 'Ubicación & Viento'}</h4>
                       <ul className="space-y-2 text-sm">
-                          <li className="flex justify-between"><span>Latitud:</span> <span className="text-white">{results.parameters.location.lat.toFixed(4)}</span></li>
-                          <li className="flex justify-between"><span>Longitud:</span> <span className="text-white">{results.parameters.location.lon.toFixed(4)}</span></li>
+                          <li className="flex justify-between">
+                            <span>Latitud:</span> 
+                            <span className="text-white">{(results.parameters.location?.lat || results.parameters.lat || 0).toFixed(4)}</span>
+                          </li>
+                          <li className="flex justify-between">
+                            <span>Longitud:</span> 
+                            <span className="text-white">{(results.parameters.location?.lon || results.parameters.lon || 0).toFixed(4)}</span>
+                          </li>
                           {type === 'solar' ? (
                               <li className="flex justify-between"><span>Irradiación Pico:</span> <span className="text-white">{(results.technical?.production?.peakPower || 0).toFixed(2)} kWh/m²</span></li>
                           ) : (

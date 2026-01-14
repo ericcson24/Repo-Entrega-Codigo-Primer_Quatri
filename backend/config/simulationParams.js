@@ -25,6 +25,7 @@ const SIMULATION_CONSTANTS = {
     },
     FINANCIAL: {
         OPEX_PERCENTAGE: 0.015, // 1.5% del CAPEX
+        DEFAULT_CAPEX_PER_KW: 1300 // Standardize default cost (Conservative)
     }
   },
 
@@ -47,7 +48,8 @@ const SIMULATION_CONSTANTS = {
     FINANCIAL: {
         OPEX_PERCENTAGE: 0.035, // 3-4% del CAPEX (mucho más alto que solar)
         DISMANTLING_PROVISION: 0.05, // 5% del CAPEX reservado para final de vida
-        CAPTURE_PRICE_FACTOR: 0.90 // 90% (Canibalización de precio)
+        CAPTURE_PRICE_FACTOR: 0.90, // 90% (Canibalización de precio)
+        DEFAULT_CAPEX_PER_KW: 1600 // Higher initial cost for Wind
     }
   },
 
@@ -66,7 +68,8 @@ const SIMULATION_CONSTANTS = {
     FEED_IN_TARIFF_SOLAR: 0.05, 
     FEED_IN_TARIFF_WIND: 0.045, // Eólica suele vender más barato (noche/viento fuerte)
     GRID_PRICE: 0.15,
-    SELF_CONSUMPTION_RATIO_WIND: 0.70, // Eólica industrial suele ser para autoconsumo masivo 24h
+    SELF_CONSUMPTION_RATIO_WIND: 0.30, // UPDATED: More realistic default (30%). 70% is only for heavy industry with constant 24h load.
+    SELF_CONSUMPTION_RATIO: 0.40, // Base default
   }
 };
 

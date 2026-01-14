@@ -99,8 +99,8 @@ class WeatherDataDownloader {
       
       // Esperar 5 segundos entre requests (evitar rate limiting 429)
       if (loc !== locations[locations.length - 1]) {
-        console.log(`    Esperando 5 segundos antes de la siguiente descarga...`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        console.log(`    Esperando 10 segundos antes de la siguiente descarga...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
       }
     }
 
