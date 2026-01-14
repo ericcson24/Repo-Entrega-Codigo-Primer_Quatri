@@ -1,7 +1,7 @@
 const weatherService = require('./weatherService');
 const solarService = require('./solarService');
+const marketService = require('./marketService');
 const SIMULATION_CONSTANTS = require('../config/simulationParams');
-// const marketService = require('./marketService'); // Assuming this exists or we use constants
 
 
 class SimulationService {

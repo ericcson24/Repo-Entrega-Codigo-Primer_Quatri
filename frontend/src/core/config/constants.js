@@ -10,7 +10,9 @@ export const PHYSICS_CONSTANTS = {
   OPTIMAL_AZIMUTH: 180, // 180 = Sur (PVGIS standard)
   TEMP_LOSS_COEFFICIENT: 0.0035, // -0.35%/ºC
   STANDARD_TEMP: 25, // STC
-
+  SOLAR_LIFETIME_YEARS: 25, // Vida útil estándar Paneles
+  SOLAR_DEGRADATION: 0.005, // 0.5% anual
+  
   // Parámetros Eólica (Alineados con Backend Weibull)
   WIND_CUT_IN_SPEED: 3.5, // m/s
   WIND_RATED_SPEED: 12.0, // m/s
@@ -19,6 +21,8 @@ export const PHYSICS_CONSTANTS = {
   WIND_AVAILABILITY: 0.97, // 97% disponibilidad técnica
   WIND_CP_DEFAULT: 0.40, // Coeficiente de potencia moderno (turbinas grandes)
   WIND_SYSTEM_LOSS_FACTOR: 0.85, // Factor de pérdidas del sistema (wake effects, eléctrico, transmisión)
+  WIND_LIFETIME_YEARS: 20, // Vida útil estándar
+  WIND_DEGRADATION: 0.01, // 1.0% anual (mayor desgaste mecánico)
 
 };
 
@@ -27,7 +31,10 @@ export const ECONOMIC_DEFAULTS = {
   DEFAULT_ELECTRICITY_PRICE: 0.15, // €/kWh (Media regulada/libre)
   WHOLESALE_ELECTRICITY_PRICE: 0.065, // €/kWh (Precio mayorista promedio para productores industriales)
   LARGE_SYSTEM_THRESHOLD: 100, // kW (Umbral para considerar productor industrial)
+  WIND_REPLACEMENT_COST_PERCENT: 0.20, // % del CAPEX para grandes reparaciones (año 15)
   CONSUMER_PRICE_TOLLS: 0.04, // Peajes aprox €/kWh
+  SURPLUS_PRICE: 0.05, // €/kWh (Precio venta excedentes autoproducción)
+  DEFAULT_SELF_CONSUMPTION_RATIO: 0.40, // 40% autoconsumo directo sin baterías
   VAT: 1.21, // 21% IVA
   
   // Factores Financieros

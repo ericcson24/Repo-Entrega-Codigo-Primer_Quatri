@@ -28,7 +28,7 @@
  *    - Alternativa: API propia backend que consulta catálogos actualizados
  */
 
-import { PHYSICS_CONSTANTS, CACHE_CONSTANTS } from '../config/constants';
+import { PHYSICS_CONSTANTS, CACHE_CONSTANTS, ECONOMIC_DEFAULTS, UI_DEFAULTS } from '../config/constants';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -522,11 +522,15 @@ class DynamicAPIService {
       const financialParams = params.financial || {};
       const costsParams = params.costs || {};
       
-      const priceKwh = parseFloat(financialParams.electricityPrice) || 0.15;
-      const annualConsumption = parseFloat(financialParams.annualConsumption) || 3000;
-      const systemCost = parseFloat(costsParams.totalOverride) || 5000;
-      const years = 20; 
-      const energyInflation = 0.03;
+      const priceKwh = parseFloat(financialParams.electricityPrice) || ECONOMIC_DEFAULTS.DEFAULT_ELECTRICITY_PRICE;
+      const annualConsumption = parseFloat(financialParams.annualConsumption) || UI_DEFAULTS.SOLAR.DEFAULT_CONSUMPTION;
+      
+      // Standardized Investment/Budget Extraction
+      // Checks params.financial.budget (Standard) OR params.costs.totalOverride (Legacy Solar UI)
+      const systemCost = parseFloat(financialParams.budget || costsParams.totalOverride || UI_DEFAULTS.SOLAR.DEFAULT_BUDGET);
+      
+      const years = PHYSICS_CONSTANTS.SOLAR_LIFETIME_YEARS; 
+      const energyInflation = ECONOMIC_DEFAULTS.INFLATION_ENERGY;
 
       const cashFlows = [];
       
@@ -543,13 +547,13 @@ class DynamicAPIService {
       let currentPrice = priceKwh;
 
       for(let y=1; y<=years; y++) {
-          const production = annualKwh * Math.pow(0.995, y-1); // 0.5% degradation
-          const selfConsumptionRatio = 0.4;
+          const production = annualKwh * Math.pow(1 - PHYSICS_CONSTANTS.SOLAR_DEGRADATION, y-1);
+          const selfConsumptionRatio = ECONOMIC_DEFAULTS.DEFAULT_SELF_CONSUMPTION_RATIO;
           const selfConsumed = Math.min(production, annualConsumption) * selfConsumptionRatio;
           const exported = Math.max(0, production - selfConsumed);
           
           const savings = selfConsumed * currentPrice;
-          const income = exported * 0.05; // Surplus price
+          const income = exported * ECONOMIC_DEFAULTS.SURPLUS_PRICE; // Surplus price
           const totalRevenue = savings + income;
 
           cumulative += totalRevenue;
@@ -643,33 +647,38 @@ class DynamicAPIService {
       const simResult = await response.json();
 
       // 2. Process Financials (similar to Solar but adapted for Wind)
-      const investment = params.financial.budget;
+      const financialParams = params.financial || {};
+      const costsParams = params.costs || {};
+
+      // Standardized Investment/Budget Extraction
+      const investment = parseFloat(financialParams.budget || costsParams.totalOverride || UI_DEFAULTS.WIND.DEFAULT_BUDGET);
       
       // REALISM ADJUSTMENT: Apply 15% system losses (Availability, Wake, Electrical)
       // The Physics engine calculates 'Ideal' production at hub height.
-      const SYSTEM_LOSS_FACTOR = 0.85; 
+      const SYSTEM_LOSS_FACTOR = PHYSICS_CONSTANTS.WIND_SYSTEM_LOSS_FACTOR; 
       const rawAnnual = simResult.annualProduction || (simResult.monthly || []).reduce((a,b)=>a+b,0);
       const annualKwh = rawAnnual * SYSTEM_LOSS_FACTOR;
       
       const monthlyKwh = (simResult.monthly || []).map(m => m * SYSTEM_LOSS_FACTOR);
 
-      // PRICE CORRECTION: Large Turbines (>100kW) sell at wholesale market price, not retail.
-      // If user selected 5000kW, they are an IPP (Independent Power Producer).
+      // PRICE CORRECTION: Large Turbines (Industrial/Park) sell at wholesale market price, not retail.
+      // If user selected a large capacity, they are an IPP (Independent Power Producer).
       const capacity = params.technical.turbineCapacityKw;
       let effectivePrice = params.financial.electricityPrice;
 
-      if (capacity >= 100) {
-          // Force realistic pool price for industrial/utility scale (0.05-0.08 range)
-          // We use 0.06 as a safe conservative average for long term PPA/Market
-          const POOL_PRICE_AVG = 0.065; 
-          if (effectivePrice > 0.10) { 
-               // User probably left the residential default (0.15+). Correct it.
+      if (capacity >= ECONOMIC_DEFAULTS.LARGE_SYSTEM_THRESHOLD) {
+          // Force realistic pool price for industrial/utility scale
+          const POOL_PRICE_AVG = ECONOMIC_DEFAULTS.WHOLESALE_ELECTRICITY_PRICE; 
+          
+          // Check if current price is suspiciously high (residential level > 120% of wholesale)
+          if (effectivePrice > (POOL_PRICE_AVG * 1.5)) { 
+               // User probably left the residential default. Correct it.
                console.warn(`[Wind Financials] Correcting price for Utility Scale (${capacity}kW). Retail ${effectivePrice} -> Pool ${POOL_PRICE_AVG}`);
                effectivePrice = POOL_PRICE_AVG;
           }
       }
       
-      const years = 20; 
+      const years = PHYSICS_CONSTANTS.WIND_LIFETIME_YEARS; 
       const cashFlows = [];
       let cumulative = -investment;
       let currentPrice = effectivePrice;
@@ -678,9 +687,9 @@ class DynamicAPIService {
       cashFlows.push({ year: 0, cumulative: -investment, savings: 0, opex: investment });
 
       for(let y=1; y<=years; y++) {
-          const prodObj = annualKwh * Math.pow(0.99, y-1); // 1% degradation for turbines (higher wear)
+          const prodObj = annualKwh * Math.pow(1 - PHYSICS_CONSTANTS.WIND_DEGRADATION, y-1); 
           const savings = prodObj * currentPrice; 
-          const maintenance = investment * 0.03; // ~3% O&M cost annually for wind
+          const maintenance = investment * ECONOMIC_DEFAULTS.MAINTENANCE_WIND; 
           
           cumulative += (savings - maintenance);
           
@@ -690,15 +699,15 @@ class DynamicAPIService {
               savings: savings,
               opex: maintenance
           });
-          currentPrice *= 1.03;
+          currentPrice *= (1 + ECONOMIC_DEFAULTS.INFLATION_ENERGY);
       }
 
       // 3. Metrics (Enhanced for Wind)
       const totalProductionLife = annualKwh * years * 0.9;
       // LCOE Real = (Investment + O&M + Replacement) / Lifetime Energy
-      // Assume inverter/gearbox replacement at year 15 (20% of capex)
-      const replacementCost = investment * 0.2; // approx
-      const totalLifetimeCost = investment + (investment * 0.03 * years) + replacementCost;
+      // Assume inverter/gearbox replacement at year 15
+      const replacementCost = investment * ECONOMIC_DEFAULTS.WIND_REPLACEMENT_COST_PERCENT; 
+      const totalLifetimeCost = investment + (investment * ECONOMIC_DEFAULTS.MAINTENANCE_WIND * years) + replacementCost;
       const lcoe = totalLifetimeCost / totalProductionLife;
       
       const roi = ((cashFlows[years].cumulative + investment) / investment) * 100; // Net Profit / Inv
