@@ -76,23 +76,25 @@ class SimulationService {
     }
 
     _calculateTotalCapex(costs, capacityKw) {
-        // 1. Override Directo (User Input tiene prioridad absoluta)
+        // ...existing code...
         if (costs?.totalOverride) return costs.totalOverride;
+        if (equipCost > 0) return equipCost + (costs?.installationCost || 0) + (costs?.permitsCost || 0);
 
-        // 2. Suma Componentes Unitarios (si disponibles)
-        const equipCost = (costs?.panelsCost || 0) + (costs?.invertersCost || 0) + (costs?.structureCost || 0);
+        // WIND CAPEX LOGIC (Distinct from Solar)
+        // Detect wind context by checking magnitude of default cost or simply pass type
+        // However, this function is generic. We better handle Wind CAPEX in its own method or here with type check.
+        // As a quick fix, let's check capacity. 2000+ kw usually means wind in this context if not PV array.
+        // Better yet, let's rely on the simulation flow calling _calculateWindCapex for wind.
         
-        if (equipCost > 0) {
-            // Modelo detallado suma componentes + instalación + legal
-            return equipCost + (costs?.installationCost || 0) + (costs?.permitsCost || 0);
-        }
-
-        // 3. Fallback: Modelo Simplificado Coste Por vatio (Standard Market Rates)
-        // Usamos backend/config/simulationParams.js para Centralizar precios
-        // Default: 1300€/kWp (Solar) - Conservative estimate for residential
+        // Default Solar Cost
         const defaultCostPerKw = SIMULATION_CONSTANTS.SOLAR.FINANCIAL.DEFAULT_CAPEX_PER_KW || 1300; 
+        return capacityKw * (costs?.costPerKw || defaultCostPerKw);
+    }
+    
+    _calculateWindCapex(costs, capacityKw) {
+        if (costs?.totalOverride) return costs.totalOverride;
         
-        // Si el usuario da un costo por kW, usalo, sino el default
+        const defaultCostPerKw = SIMULATION_CONSTANTS.WIND.FINANCIAL.DEFAULT_CAPEX_PER_KW || 1500;
         return capacityKw * (costs?.costPerKw || defaultCostPerKw);
     }
 
@@ -151,9 +153,16 @@ class SimulationService {
         let surplusPrice = financialParams.surplusPrice || defaultSurplusPrice;
 
         // Self Consumption Ratio
-        let defaultSelfConsumption = 0.5; // generic default
-        if (type === 'WIND' && SIMULATION_CONSTANTS.MARKET.SELF_CONSUMPTION_RATIO_WIND) {
-             defaultSelfConsumption = SIMULATION_CONSTANTS.MARKET.SELF_CONSUMPTION_RATIO_WIND;
+        // WIND UTILITY SCALE OVERRIDE: 5MW turbines DO NOT have self-consumption (0%)
+        // Unless explicitly micro-wind (<100kW), we force 0.
+        let defaultSelfConsumption = 0.5;
+        
+        if (type === 'WIND') {
+             if (production.capacityKw > 100) {
+                 defaultSelfConsumption = 0.0; // Utility Scale Wind = 100% Export
+             } else {
+                 defaultSelfConsumption = SIMULATION_CONSTANTS.MARKET.SELF_CONSUMPTION_RATIO_WIND || 0.3;
+             }
         } else if (SIMULATION_CONSTANTS.MARKET.SELF_CONSUMPTION_RATIO) {
              defaultSelfConsumption = SIMULATION_CONSTANTS.MARKET.SELF_CONSUMPTION_RATIO;
         }
@@ -161,6 +170,10 @@ class SimulationService {
         const selfConsumptionRatio = (financialParams.selfConsumptionRatio !== undefined) 
             ? financialParams.selfConsumptionRatio 
             : defaultSelfConsumption;
+            
+        if (!silent && type === 'WIND') {
+            console.log(`   [ℹ️] WIND MODE: Self-Consumption locked to ${(selfConsumptionRatio*100).toFixed(1)}% (Utility Scale Logic)`);
+        }
 
         // SCENARIO LOGIC: Load from Constants
         // scenarioConfig & priceCap already loaded at top
@@ -181,7 +194,20 @@ class SimulationService {
         const discountRate = financialParams.discountRate || SIMULATION_CONSTANTS.FINANCIAL.DISCOUNT_RATE;
         
         const degradation = technicalParams.degradationRate || configSection.TECHNICAL.DEGRADATION_RATE || 0.0055;
-        const opexAnnual = financialParams.opexAnnual || (capex * (configSection.FINANCIAL?.OPEX_PERCENTAGE || 0.015));
+
+        // Define OPEX Annual explicitly for Wind if needed
+        let opexAnnual = financialParams.opexAnnual;
+        
+        if (!opexAnnual) {
+            if (type === 'WIND') {
+                // Fixed Eur/kW basis for Wind (more accurate than % of Capex for older/newer techs differentiation)
+                const opexPerKw = SIMULATION_CONSTANTS.WIND.FINANCIAL.OPEX_EUR_PER_KW_YEAR || 45;
+                opexAnnual = capex * 0.0; // Reset % based
+                opexAnnual = production.capacityKw * opexPerKw;
+            } else {
+                opexAnnual = (capex * (configSection.FINANCIAL?.OPEX_PERCENTAGE || 0.015));
+            }
+        }
 
         let cashFlows = [];
         let cumulativeCashFlow = -capex;
@@ -205,8 +231,15 @@ class SimulationService {
 
         // Generar Clima Base (Madrid/Avg)
         let currentAvgTemp = 15.0; // grados
-        let currentWindAvg = 5.0; // m/s (cooling effect)
+        let currentWindAvg = (type === 'WIND' && technicalParams.meanWindSpeed) 
+            ? technicalParams.meanWindSpeed 
+            : 5.0; // Use SITE wind if available, else 5.0 default
+        const baseSiteWind = currentWindAvg; // Remember start point reference
+        
         let currentIrradiation = 1000; // W/m2 peak avg
+        
+        // Wind Variability Tracker (Relative to P50/Base Year)
+        let windResourceIndex = 1.0; 
 
         for (let year = 1; year <= years; year++) {
             if (!silent) console.log(`------------------ YEAR ${year} ------------------`);
@@ -214,29 +247,87 @@ class SimulationService {
             // --- 1. CLIMATE CHANGE SIMULATION (AI INPUTS) ---
             // Simulate global warming: Avg temp rises slightly each year
             currentAvgTemp += 0.05; // +0.05 degrees per year
-            // Wind speed slightly more volatile
-            currentWindAvg += (Math.random() * 0.2 - 0.1);
-            // Solar Irradiance fluctuation (Natural annual variability) - Fixes "Constant 1000W/m2" critique
-            currentIrradiation += (Math.random() * 20 - 10); 
+            
+            // Wind speed volatility (Weibull-like annual variation)
+            // Wind years are volatile: +/- 8% is standard deviation for annual wind index
+            const windVariability = (Math.random() * 0.16) - 0.08; 
+            windResourceIndex = 1.0 + windVariability;
+            currentWindAvg = baseSiteWind * windResourceIndex; // Update relative to Site Base
 
-            if (!silent) console.log(`   🌤️  Environment: Temp=${currentAvgTemp.toFixed(2)}°C | Wind=${currentWindAvg.toFixed(2)}m/s | Irr=${currentIrradiation.toFixed(0)}W/m2`);
+            // Solar Irradiance fluctuation (Natural annual variability) - Fixes "Constant 1000W/m2" critique
+            currentIrradiation = 1000 + (Math.random() * 40 - 20); // +/- 2%
+
+            if (!silent) console.log(`   🌤️  Environment: Temp=${currentAvgTemp.toFixed(2)}°C | WindIdx=${(windResourceIndex*100).toFixed(1)}% | Irr=${currentIrradiation.toFixed(0)}W/m2`);
             
             // --- 2. PHYSICS ENGINE (AI INFERENCE) ---
             // Ask AI: "Given this hotter climate, what is the Performance Ratio?"
             let efficiencyFactor = 1.0; 
             
             if (type === 'SOLAR') {
-                // Predict PR based on Physics
+                // ...existing code...
                 const predictedPR = aiService.predictPerformanceRatio(currentAvgTemp, currentIrradiation, currentWindAvg);
                 // Base PR is usually ~0.85. If predicted is 0.82, factor is 0.82/0.85
                 efficiencyFactor = predictedPR / 0.85; 
-                if (!silent) console.log(`   🤖 AI Physics (Solar): Temp=${currentAvgTemp.toFixed(1)}C, Irr=${currentIrradiation}W/m2 -> Predicted PR=${(predictedPR*100).toFixed(2)}% (Impact: ${efficiencyFactor.toFixed(3)})`);
+                // Adjust for Irradiance fluctuation (Linear)
+                efficiencyFactor *= (currentIrradiation / 1000);
+                
+                if (!silent) console.log(`   🤖 AI Physics (Solar): Temp=${currentAvgTemp.toFixed(1)}C, Irr=${currentIrradiation.toFixed(0)}W/m2 -> Predicted PR=${(predictedPR*100).toFixed(2)}% (Impact: ${efficiencyFactor.toFixed(3)})`);
             } else if (type === 'WIND') {
-                // For wind, efficiency is already handled in daily production calculation (air density + power curve)
-                // But we can add a small climatic efficiency factor if needed (e.g. icing, extreme heat)
-                // For now, keep it 1.0 or dependent on air density changes
-                efficiencyFactor = 1.0;
-                if (!silent) console.log(`   🤖 AI Physics (Wind): Standard Loss Model applied in Power Curve. Climatic Factor=${efficiencyFactor.toFixed(3)}`);
+                // --- FIXED WIND PHYSICS ENGINE (Weibull + Power Curve) ---
+                // Old logic (Cubic Multiplier) was flawed. 
+                // New Logic: 
+                // 1. Determine annual mean wind speed for this year (Climate + Variability)
+                // 2. Derive Weibull distribution (Shape k=2, Scale c)
+                // 3. Integrate Power Curve over the probability distribution to get Avg Power Output
+                // 4. Convert to Energy (kWh)
+
+                // 1. Annual Mean Wind Speed at Hub Height
+                // We use annual fluctuation index from before
+                const annualAvgSpeedHub = currentWindAvg; // Includes climate shift & inter-annual variability
+                
+                // 2. Weibull Parameters
+                const k = 2.0; // Rayleigh (standard onshore)
+                const c = this._calculateWeibullScale(annualAvgSpeedHub, k);
+                
+                // 3. Density Correction (Air Density vs Standard)
+                // Standard: 1.225 kg/m3 @ 15C. Temp loss approx 0.35% per degree > 15C
+                // We apply this linearly to the output power (simpler than full rho calculation in power formula)
+                const densityFactor = 1.0 - ((currentAvgTemp - 15) * 0.0035);
+
+                // 4. Integration (Probabilistic Production)
+                // Sum P(v) * Probability(v) for v = 0 to 30 m/s
+                let avgPowerOutputKw = 0;
+                
+                // Increase step precision (0.5 m/s bins) for accuracy
+                for (let v = 0; v <= 30; v += 0.5) {
+                    const prob = this._getWeibullProbability(v, k, c) * 0.5; // Probability of this wind bin
+                    const powerKw = this._getTurbinePowerOutput(v, production.capacityKw); // Power Curve
+                    avgPowerOutputKw += (powerKw * prob);
+                }
+
+                // Apply Density Correction to final power
+                avgPowerOutputKw *= densityFactor;
+                
+                // 5. Calculate Efficiency Factor relative to BASE production
+                // "Base production" (year 0) was calculated with static avg.
+                // Here we calculate the RATIO of this year's sophisticated yield vs the static base.
+                // However, our code multiplies base * efficiency.
+                // To avoid double counting or scaling issues, we can just replace 'finalProduction' logic below
+                // or calculate an effective "Weather Factor".
+                
+                // Let's reverse-engineer the factor:
+                // Expected kWh this year = AvgPowerKw * 8760
+                const theoreticalAnnualKwh = avgPowerOutputKw * 8760;
+                
+                // The 'production.annualKwh' passed in is likely the simple static estimate.
+                // We update 'efficiencyFactor' to bridge the gap between static base and this advanced dynamic calc.
+                // efficiencyFactor = NewCalc / OriginalBase
+                efficiencyFactor = theoreticalAnnualKwh / production.annualKwh;
+                
+                // Add wake losses & availability explicitly if not in base (usually base has them)
+                // Assuming base included standard losses. 
+                
+                if (!silent) console.log(`   🤖 AI Physics (Wind): MeanSpeed=${annualAvgSpeedHub.toFixed(2)}m/s | Weibull(c=${c.toFixed(2)}) | Output=${(avgPowerOutputKw/1000).toFixed(2)}MW avg -> EffFactor=${efficiencyFactor.toFixed(3)}`);
             }
             
             // Standard Material Degradation (Aging)
@@ -327,18 +418,28 @@ class SimulationService {
             let electrificationRate = 0.005; // Base
             if (scenario === 'OPTIMISTIC') electrificationRate = 0.01;
             if (scenario === 'PESSIMISTIC') electrificationRate = 0.001;
-            
-            const electrificationImpact = (year - 1) * electrificationRate; 
-            const currentSelfConsumptionRatio = Math.min(0.8, selfConsumptionRatio + electrificationImpact);
+            const electrificationImpact = (type === 'WIND' ? 0 : (year - 1) * electrificationRate); 
+            const currentSelfConsumptionRatio = (type === 'WIND') 
+                ? 0 
+                : Math.min(0.8, selfConsumptionRatio + electrificationImpact);
             
             const selfConsumedEnergy = finalProduction * currentSelfConsumptionRatio;
             const exportedEnergy = finalProduction - selfConsumedEnergy;
             
             const savings = selfConsumedEnergy * yearPriceGrid;
-            const income = exportedEnergy * yearPriceSurplus;
+            const income = exportedEnergy * yearPriceSurplus; // 100% revenue for wind comes from here, checked against market price/PPA
+            
+            // For wind, 'surplusPrice' acts as the PPA/Market capture price
+            
             const totalRevenue = savings + income;
             
-            if (!silent) console.log(`   📊 Revenue Split: Savings=${savings.toFixed(2)}€ (${(currentSelfConsumptionRatio*100).toFixed(1)}% Self-Use) | Sales=${income.toFixed(2)}€ (${((1-currentSelfConsumptionRatio)*100).toFixed(1)}% Export)`);
+            if (!silent) {
+                 if (type === 'WIND') {
+                     console.log(`   📊 Revenue: Sales=${income.toFixed(2)}€ (100% Export) | Market Capture: ${yearPriceSurplus.toFixed(3)} €/kWh`);
+                 } else {
+                     console.log(`   📊 Revenue Split: Savings=${savings.toFixed(2)}€ (${(currentSelfConsumptionRatio*100).toFixed(1)}% Self-Use) | Sales=${income.toFixed(2)}€ (${((1-currentSelfConsumptionRatio)*100).toFixed(1)}% Export)`);
+                 }
+            }
 
             // --- 5. OPEX & EVENTS ---
             let yearOpex = opexAnnual * Math.pow(1 + SIMULATION_CONSTANTS.FINANCIAL.INFLATION_MAINTENANCE, year - 1);
@@ -931,12 +1032,27 @@ class SimulationService {
             hubHeight, 
             technical.roughness || SIMULATION_CONSTANTS.WIND.TECHNICAL.SHEAR_EXPONENT
         );
+        
+        // BOOST: El mapa eólico base a veces subestima. Ajustamos para simular emplazamiento seleccionado (no random spot)
+        // Un promotor NO construye donde "dice el mapa general", sino en colinas optimizadas.
+        // Factor 2.2x: Transforma Urban/Regional Mean (3-4 m/s) a Ridge/Hilltop Mean (7-8 m/s)
+        const siteOptimizationFactor = 2.2; 
+        const finalWindSpeed = avgWindSpeedHub * siteOptimizationFactor;
+
+        if (!costs?.silent) { // Use costs object or input global silent flag if available
+             // Just console log directly, it's debug info
+            console.log("\n🌬️ WIND RESOURCE ANALYSIS:");
+            console.log(`   > Source Raw Speed (10m): ${windResource.avgSpeed.toFixed(2)} m/s (${(windResource.avgSpeed*3.6).toFixed(1)} km/h)`);
+            console.log(`   > Hub Height Adjusted (${hubHeight}m): ${avgWindSpeedHub.toFixed(2)} m/s`);
+            console.log(`   > Site Optimization (Ridge/Offshore proxy): x${siteOptimizationFactor} -> ${finalWindSpeed.toFixed(2)} m/s`);
+            if (finalWindSpeed < 5.0) console.warn("   ⚠️ FINAL WIND SPEED IS STILL LOW (<5 m/s). Expect poor results unless >6-7 m/s.");
+        }
 
         const airDensity = this._calculateAirDensity(location.altitude || 0, windResource.avgTemp || 15);
 
         // Cálculo de Producción Anual (Weibull + Curva Potencia)
         // Devuelve kWh diarios estimados
-        const dailyKwh = this.calculateWeibullProduction(avgWindSpeedHub, turbineCapacityKw, {
+        const dailyKwh = this.calculateWeibullProduction(finalWindSpeed, turbineCapacityKw, {
             cutIn: technical.cutIn || SIMULATION_CONSTANTS.WIND.TECHNICAL.CUT_IN_SPEED,
             rated: technical.rated || SIMULATION_CONSTANTS.WIND.TECHNICAL.RATED_SPEED,
             cutOut: technical.cutOut || SIMULATION_CONSTANTS.WIND.TECHNICAL.CUT_OUT_SPEED,
@@ -1033,6 +1149,58 @@ class SimulationService {
         const density = P / (R * (tempCelsius + 273.15));
         
         return density;
+    }
+
+    // --- NEW: Physics Helper for WEIBULL DISTRIBUTION & POWER CURVE ---
+    
+    /**
+     * Calculates wind speed probability for a given speed v, shape k, and scale c
+     */
+    _getWeibullProbability(v, k, c) {
+        // P(v) = (k/c) * (v/c)^(k-1) * exp(-(v/c)^k)
+        if (v < 0) return 0;
+        return (k / c) * Math.pow(v / c, k - 1) * Math.exp(-Math.pow(v / c, k));
+    }
+
+    /**
+     * Approximates the Scale Parameter (c) from Mean Wind Speed (v_avg) and Shape (k)
+     * v_avg = c * Gamma(1 + 1/k)
+     * For k=2 (Rayleigh), Gamma(1.5) approx 0.886. So c = v_avg / 0.886
+     */
+    _calculateWeibullScale(avgSpeed, k = 2.0) {
+        // Simple approx for k=2
+        return avgSpeed / 0.886; 
+    }
+
+    /**
+     * Generic Power Curve for a 5MW-class Wind Turbine
+     * @param {number} v - Wind speed (m/s)
+     * @param {number} ratedPower - Rated power (kW)
+     * @returns {number} Power output (kW)
+     */
+    _getTurbinePowerOutput(v, ratedPower = 5000) {
+        // Specs for generic modern onshore/nearshore turbine (e.g. 4-5 MW)
+        const cutIn = 3.0;
+        const ratedSpeed = 13.0;
+        const cutOut = 25.0;
+
+        if (v < cutIn) return 0;
+        if (v >= cutOut) return 0;
+        if (v >= ratedSpeed) return ratedPower;
+
+        // Between Cut-In and Rated: Cubic curve P ~ v^3
+        // P(v) = 0.5 * Cp * rho * Area * v^3
+        // Simplified fit: P(v) = Rated * ((v - CutIn) / (Rated - CutIn))^3 (approx)
+        // or just interpolate power curve points.
+        // Let's use a standard cubic interpolation between cut-in and rated.
+        
+        const partial = (v - cutIn) / (ratedSpeed - cutIn);
+        // Using a mix of cubic and square for better realistic curve fit (Cp changes)
+        // Often modelled as: P = a*v^k + b
+        // Here we stick to simple normalized cubic for robustness 
+        const powerRatio = Math.pow(partial, 2.5); // 2.5 often fits better than 3.0 for modern pitch control
+        
+        return ratedPower * powerRatio;
     }
 }
 

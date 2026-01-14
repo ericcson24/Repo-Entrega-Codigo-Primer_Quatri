@@ -36,18 +36,20 @@ const SIMULATION_CONSTANTS = {
       WEIBULL_K_DEFAULT: 2.0, // Factor de forma Rayleigh por defecto
       ROUGHNESS_CLASS_DEFAULT: 1.5, // Rugosidad media
       SHEAR_EXPONENT: 0.143, // Ley logarítmica perfil viento (terreno neutral)
-      CUT_IN_SPEED: 3.5, // m/s
+      CUT_IN_SPEED: 3.0, // m/s (Modern low-wind machines)
       CUT_OUT_SPEED: 25.0, // m/s
-      RATED_SPEED: 12.0, // m/s
-      AVAILABILITY_FACTOR: 0.97, // 97% disponiblidad técnica
-      WAKE_LOSSES: 0.05, // 5% perdidas por efecto estela
-      DEGRADATION_RATE: 0.01, // 1% anual (mayor que solar por partes mecánicas)
-      LIFETIME_YEARS: 25, // Extensión común hoy en día
+      RATED_SPEED: 13.0, // m/s (Standard for large rotors)
+      AVAILABILITY_FACTOR: 0.96, // 96% availability for onshore
+      WAKE_LOSSES: 0.08, // 8% total system losses (Wake + Grid + Hysteresis)
+      DEGRADATION_RATE: 0.0, // No degradation in power curve usually, done via events
+      LIFETIME_YEARS: 25, 
       REPOWERING_YEAR: 20
     },
     FINANCIAL: {
-        OPEX_PERCENTAGE: 0.035, // 3-4% del CAPEX (mucho más alto que solar)
-        DISMANTLING_PROVISION: 0.05, // 5% del CAPEX reservado para final de vida
+        OPEX_PERCENTAGE: 0.0, // Calculated explicitly now (EUR/MW/year)
+        OPEX_EUR_PER_KW_YEAR: 45, // ~45k€/MW/year = 225k/year for 5MW 
+        DEFAULT_CAPEX_PER_KW: 1500, // 1.5M€/MW -> 7.5M€ for 5MW (Realista 2024 onshore)
+        DISMANTLING_PROVISION: 0.05
     }
   },
   

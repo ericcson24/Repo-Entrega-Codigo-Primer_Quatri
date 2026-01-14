@@ -1,47 +1,52 @@
-// Parámetros Físicos Universales
+// Parámetros Físicos Universales (Synced with Backend)
 export const PHYSICS_CONSTANTS = {
-  AIR_DENSITY: 1.225, // kg/m3 a nivel del mar (15ºC)
+  // --- GENERALES ---
+  AIR_DENSITY: 1.225, // kg/m3 (Match Backend WIND.TECHNICAL.AIR_DENSITY_SEA_LEVEL)
   HOURS_IN_YEAR: 8760,
   
-  // Parámetros Solar Fotovoltaica (Alineados con Backend PVGIS)
-  SOLAR_DEFAULT_EFFICIENCY: 0.21, // Paneles modernos promedio ~21%
-  PERFORMANCE_RATIO_DEFAULT: 0.85, // Performance Ratio estándar (antes 0.75 era muy bajo)
-  OPTIMAL_TILT: 35, // Inclinación óptima España promedio
-  OPTIMAL_AZIMUTH: 180, // 180 = Sur (PVGIS standard)
-  TEMP_LOSS_COEFFICIENT: 0.0035, // -0.35%/ºC
-  STANDARD_TEMP: 25, // STC
-  SOLAR_LIFETIME_YEARS: 25, // Vida útil estándar Paneles
-  SOLAR_DEGRADATION: 0.005, // 0.5% anual
+  // --- FOTOVOLTAICA (SOLAR) ---
+  SOLAR_DEFAULT_EFFICIENCY: 0.21,
+  PERFORMANCE_RATIO_DEFAULT: 0.85, // Match Backend SOLAR.TECHNICAL.SYSTEM_PERFORMANCE_RATIO
+  OPTIMAL_TILT: 35, // Match Backend OPTIMAL_ANGLE
+  OPTIMAL_AZIMUTH: 180, // Front uses 180 for South (Backend uses 0 for aspect, logic differs but physics ok)
+  TEMP_LOSS_COEFFICIENT: 0.0035, // Match Backend TEMP_COEFF_PMAX (-0.35%)
+  STANDARD_TEMP: 25, 
+  SOLAR_LIFETIME_YEARS: 25, // Match Backend LIFETIME_YEARS
+  SOLAR_DEGRADATION: 0.0055, // Match Backend DEGRADATION_RATE
   
-  // Parámetros Eólica (Alineados con Backend Weibull)
-  WIND_CUT_IN_SPEED: 3.5, // m/s
-  WIND_RATED_SPEED: 12.0, // m/s
-  WIND_CUT_OUT_SPEED: 25.0, // m/s
-  WIND_ROUGHNESS: 0.143, // Terreno neutral promedio
-  WIND_AVAILABILITY: 0.97, // 97% disponibilidad técnica
-  WIND_CP_DEFAULT: 0.40, // Coeficiente de potencia moderno (turbinas grandes)
-  WIND_SYSTEM_LOSS_FACTOR: 0.85, // Factor de pérdidas del sistema (wake effects, eléctrico, transmisión)
-  WIND_LIFETIME_YEARS: 20, // Vida útil estándar
-  WIND_DEGRADATION: 0.01, // 1.0% anual (mayor desgaste mecánico)
-
+  // --- EÓLICA (WIND) ---
+  // Must match Backend SIMULATION_CONSTANTS.WIND.TECHNICAL
+  WIND_CUT_IN_SPEED: 3.0, 
+  WIND_RATED_SPEED: 13.0,
+  WIND_CUT_OUT_SPEED: 25.0,
+  WIND_ROUGHNESS: 0.143, // Match SHEAR_EXPONENT
+  WIND_AVAILABILITY: 0.96, // Match AVAILABILITY_FACTOR
+  WIND_CP_DEFAULT: 0.45,
+  WIND_SYSTEM_LOSS_FACTOR: 0.92, // 1 - WAKE_LOSSES(0.08)
+  WIND_LIFETIME_YEARS: 25,
+  WIND_DEGRADATION: 0.0,
 };
 
 export const ECONOMIC_DEFAULTS = {
-  // Precios base (Backend provee reales, estos son fallbacks visuales)
-  DEFAULT_ELECTRICITY_PRICE: 0.15, // €/kWh (Media regulada/libre)
-  WHOLESALE_ELECTRICITY_PRICE: 0.065, // €/kWh (Precio mayorista promedio para productores industriales)
-  LARGE_SYSTEM_THRESHOLD: 100, // kW (Umbral para considerar productor industrial)
-  WIND_REPLACEMENT_COST_PERCENT: 0.20, // % del CAPEX para grandes reparaciones (año 15)
-  CONSUMER_PRICE_TOLLS: 0.04, // Peajes aprox €/kWh
-  SURPLUS_PRICE: 0.05, // €/kWh (Precio venta excedentes autoproducción)
-  DEFAULT_SELF_CONSUMPTION_RATIO: 0.40, // 40% autoconsumo directo sin baterías
-  VAT: 1.21, // 21% IVA
+  // --- PRECIOS & MERCADO ---
+  DEFAULT_ELECTRICITY_PRICE: 0.15,
+  WHOLESALE_ELECTRICITY_PRICE: 0.050, // 50 €/MWh
+  LARGE_SYSTEM_THRESHOLD: 100,
   
-  // Factores Financieros
-  INFLATION_ENERGY: 0.03, // 3%
-  DISCOUNT_RATE: 0.06, // 6% WACC
-  MAINTENANCE_SOLAR: 0.015, // 1.5% del CAPEX anual
-  MAINTENANCE_WIND: 0.035, // 3.5% del CAPEX anual
+  // --- COSTES ESPECÍFICOS ---
+  WIND_REPLACEMENT_COST_PERCENT: 0.05, // Match DISMANTLING_PROVISION logic partially
+  CONSUMER_PRICE_TOLLS: 0.08, // Match Backend ECONOMICS.TOLLS_AND_CHARGES (was 0.04)
+  SURPLUS_PRICE: 0.05,
+  DEFAULT_SELF_CONSUMPTION_RATIO: 0.40, 
+  
+  // --- MACROECONOMÍA ---
+  VAT: 0.21, // Match Backend ECONOMICS.VAT
+  INFLATION_ENERGY: 0.035, // Match Backend FINANCIAL.INFLATION_ENERGY
+  DISCOUNT_RATE: 0.05, // Match Backend FINANCIAL.DISCOUNT_RATE
+  
+  // --- MANTENIMIENTO (OPEX) ---
+  MAINTENANCE_SOLAR: 0.015, // Match Backend SOLAR.FINANCIAL.OPEX_PERCENTAGE
+  MAINTENANCE_WIND: 45.0, // Match Backend WIND.FINANCIAL.OPEX_EUR_PER_KW_YEAR
 };
 
 export const UI_DEFAULTS = {
@@ -64,11 +69,11 @@ export const UI_DEFAULTS = {
   },
   
   WIND: {
-    DEFAULT_TURBINE_POWER: 5000, // kW (5MW - Industrial/Parque)
-    DEFAULT_TURBINE_HEIGHT: 100, // m
-    DEFAULT_ROTOR_DIAMETER: 120, // m
-    DEFAULT_BUDGET: 6000000, // € (~1.2M/MW)
-    DEFAULT_CONSUMPTION: 50000, // kWh/mes (Industrial)
+    DEFAULT_TURBINE_POWER: 5000, 
+    DEFAULT_TURBINE_HEIGHT: 100,
+    DEFAULT_ROTOR_DIAMETER: 145, 
+    DEFAULT_BUDGET: 7500000, // Match Backend (5MW * 1500€/kW)
+    DEFAULT_CONSUMPTION: 0,
   },
   SIMPLE: {
     DEFAULT_SYSTEM_SIZE: 5, // kWp
@@ -82,17 +87,21 @@ export const CALCULATION_CONSTANTS = {
   W_TO_KW: 1000,
   MWH_TO_KWH: 1000,
   PERCENTAGE_DIVISOR: 100,
-  INSTALLATION_COST_FACTOR: 1.25, // 25% extra for installation
+  INSTALLATION_COST_FACTOR: 1.25, // +25% Instalación/Legalización
   MIN_PRICE_THRESHOLD: 0.01,
   INTERPOLATION_WEIGHT_FACTOR: 1000,
   INTERPOLATION_DISTANCE_OFFSET: 0.01,
-  ORIENTATION_LOSS_MIN: 0.5,
-  ORIENTATION_LOSS_MAX: 1,
-  SEASONALITY_AMPLITUDE: 0.3,
-  WIND_CF_SLOPE: 0.08,
+  
+  // --- SOLAR TÉCNICO ---
+  ORIENTATION_LOSS_MIN: 0.60,
+  ORIENTATION_LOSS_MAX: 1.00,
+  SEASONALITY_AMPLITUDE: 0.35, // Variación Verano/Invierno
+  
+  // --- EÓLICA CURVA POTENCIA (Simplificada UI) ---
+  WIND_CF_SLOPE: 0.08, // Pendiente curva CP
   WIND_CF_INTERCEPT: 0.15,
-  WIND_CF_MAX: 0.50,
-  WIND_REF_HEIGHT: 10,
+  WIND_CF_MAX: 0.52, // Max teórico UI
+  WIND_REF_HEIGHT: 10, // Altura referencia datos meteo
   MONTHS_IN_YEAR: 12,
 };
 
