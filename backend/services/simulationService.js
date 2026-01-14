@@ -298,28 +298,32 @@ class SimulationService {
             if (rotorDiameter > 0) {
                 const area = Math.PI * Math.pow(rotorDiameter / 2, 2);
                 const rho = params.airDensity || SIMULATION_CONSTANTS.WIND.TECHNICAL.AIR_DENSITY_SEA_LEVEL || 1.225;
-                const cp = 0.35; // Coeficiente de potencia más realista (Betz limit es 0.59, pequeños aeros ~0.30-0.35)
+                const cp = 0.35; // Coeficiente de potencia más realista
                 const powerW = 0.5 * rho * area * cp * Math.pow(v, 3);
+                // La fórmula física pura puede exceder la capacidad nominal antes del rated speed
+                // si el modelo no está perfectamente alineado. Capped.
                 return Math.min(powerW / 1000, capacityKw);
             } else {
-                // Modelo cúbico simple si no hay diámetro
+                // Modelo cúbico simple interpolado si no hay diámetro
                 const factor = Math.pow((v - cutIn) / (rated - cutIn), 3);
                 return capacityKw * factor;
             }
         };
 
         // Integración numérica (Regla del trapecio)
-        let totalPower = 0;
+        let totalWeightedPower = 0; // kW Weighted Average
         const step = 0.5; // m/s precísion
 
         for (let v = 0; v <= cutOut + 5; v += step) {
             const p = turbinePower(v);
             const prob = weibullPDF(v);
-            totalPower += p * prob * step;
+            totalWeightedPower += p * prob * step;
         }
 
-        // totalPower es la potencia media esperada (kW)
-        return totalPower * 24; // kWh diarios estimados
+        // totalWeightedPower es la Potencia Instantánea Promedio (kW) esperada para este día
+        // Energía Diaria = Potencia Media * 24 horas
+        
+        return totalWeightedPower * 24; 
     }
 
     // ==========================================

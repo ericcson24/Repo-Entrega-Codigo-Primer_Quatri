@@ -11,24 +11,34 @@ exports.calculateWind = async (req, res) => {
             return res.status(400).json({ error: 'Missing required parameters: lat, lon, capacity' });
         }
 
-        const result = await simulationService.runFullWindSimulation({
-            location: { 
-                lat: parseFloat(lat), 
-                lon: parseFloat(lon),
-                altitude: req.body.location?.altitude || 0
-            },
-            technical: {
-                ...req.body.technical,
-                turbineCapacityKw: parseFloat(capacity)
-            },
-            financial: req.body.financial,
-            costs: req.body.costs // CAPEX y OPEX específicos de eólica
+        // Recuperar parámetros técnicos avanzados
+        const rotorDiameter = req.body.technical?.rotorDiameter;
+        const hubHeight = req.body.technical?.hubHeight;
+        
+        // Ejecutar simulación Weibul real en backend
+        const simulationResult = await simulationService.simulateWind(
+            parseFloat(lat), 
+            parseFloat(lon), 
+            parseFloat(capacity),
+            { 
+               height: hubHeight || 80, 
+               diameter: rotorDiameter,
+               cutIn: req.body.technical?.cutIn,
+               rated: req.body.technical?.rated 
+            }
+        );
+
+        // Devolver formato estandarizado
+        res.json({
+            annualProduction: simulationResult.annualProduction,
+            monthly: simulationResult.monthlyDistribution.map(m => m.production),
+            meta: simulationResult.meta,
+            simulation_type: 'Physics (Weibull)'
         });
 
-        res.json(result);
     } catch (error) {
         console.error('Wind Simulation Error:', error);
-        res.status(500).json({ error: 'Internal Simulation Error' });
+        res.status(500).json({ error: 'Internal Simulation Error: ' + error.message });
     }
 };
 

@@ -279,6 +279,19 @@ const AdvancedSolarCalculator = ({ onCalculate }) => {
       // Valor estándar: 14% (0.14).
       const systemLossPercent = 14; 
 
+      // Calcular coste REAL basado en componentes, no solo presupuesto
+      // Si tenemos datos de panel, usamos: (Coste Panel + BOS) * Cantidad + Base
+      let calculatedCost = parseFloat(formData.budget);
+      
+      // Si el usuario ha seleccionado un panel y tenemos el coste unitario calculado previamente
+      if (formData.currentTotalCostPerPanel && formData.panelCount) {
+          calculatedCost = (formData.panelCount * formData.currentTotalCostPerPanel) + 1500; // 1500€ base (legalización, inversor base)
+      } else {
+         // Fallback mejorado: 1200€/kWp si no hay detalle
+         const estimated = parseFloat(formData.systemSize) * 1200;
+         if (!isNaN(estimated) && estimated > 0) calculatedCost = estimated;
+      }
+
       const simulationParams = {
         location: {
            lat: formData.lat,
@@ -293,11 +306,11 @@ const AdvancedSolarCalculator = ({ onCalculate }) => {
         },
         financial: {
            electricityPrice: parseFloat(formData.electricityPrice),
-           systemCost: parseFloat(formData.budget),
+           systemCost: calculatedCost,
            annualConsumption: parseFloat(formData.consumption) * 12
         },
         costs: {
-            totalOverride: parseFloat(formData.budget)
+            totalOverride: calculatedCost
         }
       };
 

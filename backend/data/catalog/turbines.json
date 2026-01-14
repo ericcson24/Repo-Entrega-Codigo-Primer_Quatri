@@ -16,6 +16,38 @@
     "lastUpdated": "2025-01-15"
   },
   {
+      "id": "northern-power-100",
+      "manufacturer": "Northern Power Systems",
+      "model": "NPS 100C-21",
+      "power": 100,
+      "rotorDiameter": 21,
+      "hubHeight": 30,
+      "cutInSpeed": 3,
+      "ratedSpeed": 11,
+      "cutOutSpeed": 25,
+      "price": 350000,
+      "warranty": 10,
+      "expectedLife": 20,
+      "annualProduction": 250, 
+      "lastUpdated": "2025-01-15"
+  },
+  {
+      "id": "bornay-wind-25",
+      "manufacturer": "Bornay",
+      "model": "Wind 25.3+",
+      "power": 5,
+      "rotorDiameter": 4,
+      "hubHeight": 12,
+      "cutInSpeed": 2,
+      "ratedSpeed": 10,
+      "cutOutSpeed": 20,
+      "price": 12000,
+      "warranty": 5,
+      "expectedLife": 15,
+      "annualProduction": 12,
+      "lastUpdated": "2025-01-15"
+  },
+  {
     "id": "siemens-g114",
     "manufacturer": "Siemens Gamesa",
     "model": "G114-2.0 MW",

@@ -410,31 +410,6 @@ class DynamicAPIService {
   }
 
   /**
-   * Obtener catálogo de aerogeneradores REAL
-   */
-  async getWindTurbines() {
-    const cacheKey = 'wind_turbines';
-    const cached = this.getFromCache(cacheKey);
-    if (cached) return cached;
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/wind-turbines`);
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const result = await response.json();
-      const turbines = result.data || result;
-      
-      this.saveToCache(cacheKey, turbines);
-      return turbines;
-
-    } catch (error) {
-      console.error('Error fetching wind turbines:', error);
-      throw new Error('Configurar endpoint /api/wind-turbines en backend');
-    }
-  }
-
-  /**
    * Obtener catálogo de torres REAL
    */
   async getWindTowers() {
@@ -456,6 +431,31 @@ class DynamicAPIService {
     } catch (error) {
       console.error('Error fetching wind towers:', error);
       throw new Error('Configurar endpoint /api/wind-towers en backend');
+    }
+  }
+
+  /**
+   * Obtener catálogo de turbinas REAL
+   */
+  async getWindTurbines() {
+    const cacheKey = 'wind_turbines';
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/wind-turbines`);
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const result = await response.json();
+      const turbines = result.data || result;
+      
+      this.saveToCache(cacheKey, turbines);
+      return turbines;
+
+    } catch (error) {
+      console.error('Error fetching wind turbines:', error);
+      throw new Error('Configurar endpoint /api/wind-turbines en backend');
     }
   }
 
@@ -515,27 +515,36 @@ class DynamicAPIService {
       
       // Adaptar formato al esperado por el frontend (ResultsView)
       const firstYear = aiResult.results[0];
-      const annualKwh = firstYear.totalEnergy;
+      const annualKwh = firstYear.totalEnergy || 0;
       const monthlyKwh = firstYear.monthly.map(m => m.energy_kwh);
 
       // Financial Calculation (Frontend Side using AI Production)
       const financialParams = params.financial || {};
       const costsParams = params.costs || {};
       
-      const priceKwh = financialParams.electricityPrice || 0.15;
-      const annualConsumption = financialParams.annualConsumption || 3000;
-      const systemCost = costsParams.totalOverride || 5000;
-      const years = 20; // Standard projection
-      const inflation = 0.02;
+      const priceKwh = parseFloat(financialParams.electricityPrice) || 0.15;
+      const annualConsumption = parseFloat(financialParams.annualConsumption) || 3000;
+      const systemCost = parseFloat(costsParams.totalOverride) || 5000;
+      const years = 20; 
       const energyInflation = 0.03;
 
       const cashFlows = [];
+      
+      // Year 0: Investment
+      cashFlows.push({
+          year: 0,
+          cumulative: -systemCost,
+          savings: 0,
+          income: 0,
+          opex: systemCost // Hack for charts perceiving 'costs' as investment at year 0
+      });
+
       let cumulative = -systemCost;
       let currentPrice = priceKwh;
 
       for(let y=1; y<=years; y++) {
           const production = annualKwh * Math.pow(0.995, y-1); // 0.5% degradation
-          const selfConsumptionRatio = 0.4; // Conservative assumption or from inputs
+          const selfConsumptionRatio = 0.4;
           const selfConsumed = Math.min(production, annualConsumption) * selfConsumptionRatio;
           const exported = Math.max(0, production - selfConsumed);
           
@@ -550,27 +559,45 @@ class DynamicAPIService {
               cumulative: cumulative,
               savings: savings,
               income: income,
-              opex: 0 // Simplification for now
+              opex: 0 
           });
 
           currentPrice *= (1 + energyInflation);
       }
 
-      const roi = ((cashFlows[years-1].cumulative + systemCost) / systemCost) * 100;
-      const paybackYear = cashFlows.findIndex(c => c.cumulative >= 0);
-      const payback = paybackYear !== -1 ? paybackYear + 1 : 25;
+      const finalBalance = cashFlows[years].cumulative;
+      const roi = (finalBalance / systemCost) * 100;
+
+      // Calculate LCOE (Levelized Cost of Energy)
+      // Simplification: Total Cost (Initial + Opex) / Total Production
+      const totalProductionLifetime = annualKwh * years * 0.95; // Rough degradation avg
+      const lcoe = systemCost / totalProductionLifetime;
+      
+      // Find First positive year
+      const breakdownYear = cashFlows.find(c => c.cumulative >= 0);
+      const payback = breakdownYear ? breakdownYear.year : 25;
 
       return {
         source: aiResult.simulation_type,
+        timestamp: new Date().toISOString(),
+        parameters: {
+            location: { lat: lat, lon: lon },
+            capacity: systemSizeKw,
+            tilt: params.technical?.tilt || 35,
+            azimuth: params.technical?.azimuth || 0,
+            price: priceKwh
+        },
         technical: {
             production: {
                 annualKwh: annualKwh,
                 monthlyKwh: monthlyKwh,
-                dailyAverage: annualKwh / 365
+                dailyAverage: annualKwh / 365,
+                peakPower: Math.max(...monthlyKwh) / 30 / 8
             },
             system: {
                 sizeKw: systemSizeKw,
-                efficiency: firstYear.monthly.reduce((acc, m) => acc + m.avg_efficiency, 0) / 12
+                efficiency: firstYear.monthly.reduce((acc, m) => acc + m.avg_efficiency, 0) / 12,
+                area: systemSizeKw * 6 // Approx 6m2 per kW
             }
         },
         financial: {
@@ -578,20 +605,150 @@ class DynamicAPIService {
             metrics: {
                 roi: roi,
                 paybackPeriod: payback,
-                totalSavings: cashFlows[years-1].cumulative + systemCost
+                totalSavings: finalBalance + systemCost,
+                lcoe: lcoe,
+                netPresentValue: finalBalance 
             }
         },
         summary: {
+            annualProduction: annualKwh, // Critical for KPI Grid
             roi: roi,
             payback: payback,
-            annualSaving: cashFlows[0].savings + cashFlows[0].income,
-            co2Abatement: annualKwh * 0.2 // Tons approx
+            annualSaving: cashFlows[1].savings + cashFlows[1].income,
+            totalSavings: finalBalance + systemCost, // Net Profit + Cost = Gross Savings
+            co2Abatement: annualKwh * 0.25, // kg per kWh
+            treesEquiv: (annualKwh * 0.25) / 20
         }
       };
 
     } catch (error) {
       console.error('Error in AI solar simulation:', error);
       throw new Error('Error en Simulación IA. Verifique conexión.');
+    }
+  }
+
+  /**
+   * Ejecutar simulación EÓLICA (Nuevo)
+   */
+  async calculateWindProduction(params) {
+    try {
+      // 1. Send data to Backend for Physics/AI Simulation
+      const response = await fetch(`${this.backendURL}/api/simulate/wind`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params)
+      });
+
+      if (!response.ok) throw new Error("Wind Simulation Failed");
+      const simResult = await response.json();
+
+      // 2. Process Financials (similar to Solar but adapted for Wind)
+      const investment = params.financial.budget;
+      
+      // REALISM ADJUSTMENT: Apply 15% system losses (Availability, Wake, Electrical)
+      // The Physics engine calculates 'Ideal' production at hub height.
+      const SYSTEM_LOSS_FACTOR = 0.85; 
+      const rawAnnual = simResult.annualProduction || (simResult.monthly || []).reduce((a,b)=>a+b,0);
+      const annualKwh = rawAnnual * SYSTEM_LOSS_FACTOR;
+      
+      const monthlyKwh = (simResult.monthly || []).map(m => m * SYSTEM_LOSS_FACTOR);
+
+      // PRICE CORRECTION: Large Turbines (>100kW) sell at wholesale market price, not retail.
+      // If user selected 5000kW, they are an IPP (Independent Power Producer).
+      const capacity = params.technical.turbineCapacityKw;
+      let effectivePrice = params.financial.electricityPrice;
+
+      if (capacity >= 100) {
+          // Force realistic pool price for industrial/utility scale (0.05-0.08 range)
+          // We use 0.06 as a safe conservative average for long term PPA/Market
+          const POOL_PRICE_AVG = 0.065; 
+          if (effectivePrice > 0.10) { 
+               // User probably left the residential default (0.15+). Correct it.
+               console.warn(`[Wind Financials] Correcting price for Utility Scale (${capacity}kW). Retail ${effectivePrice} -> Pool ${POOL_PRICE_AVG}`);
+               effectivePrice = POOL_PRICE_AVG;
+          }
+      }
+      
+      const years = 20; 
+      const cashFlows = [];
+      let cumulative = -investment;
+      let currentPrice = effectivePrice;
+      
+      // Init Loop
+      cashFlows.push({ year: 0, cumulative: -investment, savings: 0, opex: investment });
+
+      for(let y=1; y<=years; y++) {
+          const prodObj = annualKwh * Math.pow(0.99, y-1); // 1% degradation for turbines (higher wear)
+          const savings = prodObj * currentPrice; 
+          const maintenance = investment * 0.03; // ~3% O&M cost annually for wind
+          
+          cumulative += (savings - maintenance);
+          
+          cashFlows.push({
+              year: y,
+              cumulative: cumulative,
+              savings: savings,
+              opex: maintenance
+          });
+          currentPrice *= 1.03;
+      }
+
+      // 3. Metrics (Enhanced for Wind)
+      const totalProductionLife = annualKwh * years * 0.9;
+      // LCOE Real = (Investment + O&M + Replacement) / Lifetime Energy
+      // Assume inverter/gearbox replacement at year 15 (20% of capex)
+      const replacementCost = investment * 0.2; // approx
+      const totalLifetimeCost = investment + (investment * 0.03 * years) + replacementCost;
+      const lcoe = totalLifetimeCost / totalProductionLife;
+      
+      const roi = ((cashFlows[years].cumulative + investment) / investment) * 100; // Net Profit / Inv
+      const breakdown = cashFlows.find(c => c.cumulative >= 0);
+      const payback = breakdown ? breakdown.year : 25;
+
+      return {
+          source: 'Physics (Weibull) + AI Correction',
+          parameters: {
+              location: params.location,
+              capacity: params.technical.turbineCapacityKw,
+              height: params.technical.hubHeight,
+              price: effectivePrice
+          },
+          technical: {
+              production: {
+                  annualKwh: annualKwh,
+                  monthlyKwh: monthlyKwh,
+                  dailyAverage: annualKwh / 365,
+                  capacityFactor: (annualKwh / (params.technical.turbineCapacityKw * 24 * 365)) * 100
+              },
+              system: {
+                  rotorDiameter: params.technical.rotorDiameter,
+                  area: Math.PI * Math.pow(params.technical.rotorDiameter/2, 2)
+              }
+          },
+          financial: {
+              cashFlows: cashFlows,
+              metrics: {
+                  roi: roi,
+                  paybackPeriod: payback,
+                  totalSavings: cashFlows[years].cumulative + investment,
+                  lcoe: lcoe,
+                  netPresentValue: cashFlows[years].cumulative
+              }
+          },
+          summary: {
+            annualProduction: annualKwh,
+            roi: roi,
+            payback: payback,
+            annualSaving: cashFlows[1].savings - cashFlows[1].opex, // Use Net Saving (Income - Opex)
+            totalSavings: cashFlows[years].cumulative + investment,
+            co2Abatement: annualKwh * 0.45, // Wind displaces more baseload/gas than solar (avg 0.45kg/kWh)
+            treesEquiv: (annualKwh * 0.45) / 20
+          }
+      };
+
+    } catch (e) {
+        console.error("Wind Calculation Error:", e);
+        throw e;
     }
   }
 

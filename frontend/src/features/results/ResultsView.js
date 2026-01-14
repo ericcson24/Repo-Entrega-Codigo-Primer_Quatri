@@ -116,6 +116,79 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
           type={type} 
         />
       </div>
+
+      {results.parameters && (
+          <div className="technical-specs mt-8 p-6 glass-panel rounded-xl">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <span className="text-blue-400">⚡</span> Especificaciones Técnicas Detalladas
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                      <h4 className="font-semibold text-gray-400 mb-2">Sistema</h4>
+                      <ul className="space-y-2 text-sm">
+                          <li className="flex justify-between"><span>Capacidad Instalada:</span> <span className="text-white">{results.parameters.capacity} kWs</span></li>
+                          {type === 'solar' ? (
+                            <>
+                              <li className="flex justify-between"><span>Inclinación:</span> <span className="text-white">{results.parameters.tilt}°</span></li>
+                              <li className="flex justify-between"><span>Azimut:</span> <span className="text-white">{results.parameters.azimuth}°</span></li>
+                              <li className="flex justify-between"><span>Eficiencia Sistema:</span> <span className="text-white">{(results.technical?.system?.efficiency * 100).toFixed(1)}%</span></li>
+                            </>
+                          ) : (
+                            <>
+                              <li className="flex justify-between"><span>Altura Buje:</span> <span className="text-white">{results.parameters.height} m</span></li>
+                              <li className="flex justify-between"><span>Diámetro Rotor:</span> <span className="text-white">{results.technical?.system?.rotorDiameter} m</span></li>
+                              <li className="flex justify-between"><span>Factor Capacidad:</span> <span className="text-white">{(results.technical?.production?.capacityFactor || 0).toFixed(1)}%</span></li>
+                            </>
+                          )}
+                      </ul>
+                  </div>
+                  <div>
+                      <h4 className="font-semibold text-gray-400 mb-2">{type === 'solar' ? 'Ubicación & Solar' : 'Ubicación & Viento'}</h4>
+                      <ul className="space-y-2 text-sm">
+                          <li className="flex justify-between"><span>Latitud:</span> <span className="text-white">{results.parameters.location.lat.toFixed(4)}</span></li>
+                          <li className="flex justify-between"><span>Longitud:</span> <span className="text-white">{results.parameters.location.lon.toFixed(4)}</span></li>
+                          {type === 'solar' ? (
+                              <li className="flex justify-between"><span>Irradiación Pico:</span> <span className="text-white">{(results.technical?.production?.peakPower || 0).toFixed(2)} kWh/m²</span></li>
+                          ) : (
+                              <li className="flex justify-between"><span>Velocidad Viento:</span> <span className="text-white">Variable (Weibull)</span></li>
+                          )}
+                          <li className="flex justify-between"><span>Área Necesaria:</span> <span className="text-white">~{Math.round(results.technical?.system?.area)} m²</span></li>
+                      </ul>
+                  </div>
+                  <div>
+                      <h4 className="font-semibold text-gray-400 mb-2">Económico</h4>
+                      <ul className="space-y-2 text-sm">
+                          <li className="flex justify-between"><span>Precio Energía:</span> <span className="text-white">{results.parameters.price} €/kWh</span></li>
+                          <li className="flex justify-between"><span>Coste Inversión:</span> <span className="text-white">{(results.financial?.metrics?.totalSavings - results.financial?.metrics?.netPresentValue).toLocaleString()} €</span></li>
+                          <li className="flex justify-between"><span>LCOE Real:</span> <span className="text-white font-mono text-green-400">{results.financial?.metrics?.lcoe?.toFixed(4)} €/kWh</span></li>
+                          <li className="flex justify-between"><span>Tipo Simulación:</span> <span className="text-xs bg-blue-900 px-2 py-1 rounded">{results.source}</span></li>
+                      </ul>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* AI Comparative Verdict */}
+      <div className="simulation-verdict mt-6 p-6 glass-panel border-l-4 border-purple-500 rounded-r-xl">
+          <h3 className="text-lg font-bold mb-2 text-purple-200">🤖 Análisis Comparativo de Mercado</h3>
+          <p className="text-gray-300 text-sm leading-relaxed">
+            {type === 'wind' ? (
+               <>
+                 <span className="font-semibold text-white">Veredicto {Math.round(results.technical?.production?.capacityFactor) > 25 ? 'POSITIVO' : 'NEUTRO'}:</span> El 
+                 factor de planta obtenido del <strong>{results.technical?.production?.capacityFactor?.toFixed(1)}%</strong> supera 
+                 la media nacional eólica terrestre (20-25%). Para esta ubicación, la eólica 
+                 {results.financial?.metrics?.roi > 200 ? ' es una opción excelente, posiblemente superando a la solar en retorno a largo plazo.' : ' es viable, aunque requiere una inversión inicial más alta que la solar.'}
+               </>
+            ) : (
+               <>
+                  <span className="font-semibold text-white">Veredicto {results.financial?.metrics?.paybackPeriod < 8 ? 'EXCELENTE' : 'ESTÁNDAR'}:</span> Con un 
+                  retorno de la inversión en <strong>{results.financial?.metrics?.paybackPeriod} años</strong>, este sistema solar 
+                  ofrece una seguridad financiera superior a la mayoría de instrumentos de mercado. {results.financial?.metrics?.lcoe < 0.10 ? 'El coste de energía (LCOE) es extremadamente competitivo.' : ''}
+               </>
+            )}
+          </p>
+      </div>
+
     </div>
   );
 };

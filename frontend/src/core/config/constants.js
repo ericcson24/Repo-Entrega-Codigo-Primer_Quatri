@@ -18,11 +18,15 @@ export const PHYSICS_CONSTANTS = {
   WIND_ROUGHNESS: 0.143, // Terreno neutral promedio
   WIND_AVAILABILITY: 0.97, // 97% disponibilidad técnica
   WIND_CP_DEFAULT: 0.40, // Coeficiente de potencia moderno (turbinas grandes)
+  WIND_SYSTEM_LOSS_FACTOR: 0.85, // Factor de pérdidas del sistema (wake effects, eléctrico, transmisión)
+
 };
 
 export const ECONOMIC_DEFAULTS = {
   // Precios base (Backend provee reales, estos son fallbacks visuales)
   DEFAULT_ELECTRICITY_PRICE: 0.15, // €/kWh (Media regulada/libre)
+  WHOLESALE_ELECTRICITY_PRICE: 0.065, // €/kWh (Precio mayorista promedio para productores industriales)
+  LARGE_SYSTEM_THRESHOLD: 100, // kW (Umbral para considerar productor industrial)
   CONSUMER_PRICE_TOLLS: 0.04, // Peajes aprox €/kWh
   VAT: 1.21, // 21% IVA
   

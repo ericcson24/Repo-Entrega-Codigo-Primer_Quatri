@@ -14,6 +14,7 @@ const AppContent = () => {
   const { config, loading, error } = useConfig();
   const [activeView, setActiveView] = useState('solar');
   const [results, setResults] = useState(null);
+  const [resultType, setResultType] = useState('solar'); // Track type
 
   useEffect(() => {
     if (config) {
@@ -21,8 +22,9 @@ const AppContent = () => {
     }
   }, [config]);
 
-  const handleCalculate = (newResults) => {
+  const handleCalculate = (newResults, type = 'solar') => {
     setResults(newResults);
+    setResultType(type);
     setActiveView('results');
   };
 
@@ -48,15 +50,15 @@ const AppContent = () => {
   const renderContent = () => {
     switch (activeView) {
       case 'solar':
-        return <AdvancedSolarCalculator onCalculate={handleCalculate} />;
+        return <AdvancedSolarCalculator onCalculate={(res) => handleCalculate(res, 'solar')} />;
       case 'simple-solar':
-        return <SolarPaybackCalculator onCalculate={handleCalculate} />;
+        return <SolarPaybackCalculator onCalculate={(res) => handleCalculate(res, 'solar')} />;
       case 'wind':
-        return <AdvancedWindCalculator onCalculate={handleCalculate} />;
+        return <AdvancedWindCalculator onCalculate={(res) => handleCalculate(res, 'wind')} />;
       case 'results':
-        return <ResultsView results={results} />;
+        return <ResultsView results={results} type={resultType} onBack={() => setActiveView(resultType)} />;
       default:
-        return <AdvancedSolarCalculator onCalculate={handleCalculate} />;
+        return <AdvancedSolarCalculator onCalculate={(res) => handleCalculate(res, 'solar')} />;
     }
   };
   return (

@@ -315,21 +315,31 @@ const AdvancedCharts = ({ financialData, productionData, type }) => {
             <div>
               <span className="text-secondary">Inversión Inicial:</span>
               <span className="ml-2 font-semibold text-primary">
-                {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(finalYear.investment)}
+                {new Intl.NumberFormat('es-ES', { 
+                    style: 'currency', 
+                    currency: 'EUR', 
+                    maximumFractionDigits: 0 
+                }).format(data.length > 0 ? (data[0].costs || data[0].opex || 0) : 0)}
               </span>
             </div>
             <div>
               <span className="text-secondary">Valor Final:</span>
               <span className="ml-2 font-semibold text-primary">
-                {new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(finalYear.acumulado)}
+                {new Intl.NumberFormat('es-ES', { 
+                    style: 'currency', 
+                    currency: 'EUR', 
+                    maximumFractionDigits: 0 
+                }).format(data.length > 0 ? data[data.length - 1].balance : 0)}
               </span>
             </div>
-            <div>
-              <span className="text-secondary">ROI Total:</span>
-              <span className="ml-2 font-semibold text-accent-success">
-                {finalYear.roi}%
-              </span>
-            </div>
+            {data.length > 0 && data[data.length-1].balance > 0 && (
+                <div>
+                <span className="text-secondary">ROI Total:</span>
+                <span className="ml-2 font-semibold text-accent-success">
+                    {(((data[data.length-1].balance - (data[0].costs || 0)) / (data[0].costs || 1)) * 100).toFixed(0)}%
+                </span>
+                </div>
+            )}
           </div>
         </div>
       </div>
