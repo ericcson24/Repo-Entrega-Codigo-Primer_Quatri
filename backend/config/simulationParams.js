@@ -48,22 +48,42 @@ const SIMULATION_CONSTANTS = {
     FINANCIAL: {
         OPEX_PERCENTAGE: 0.035, // 3-4% del CAPEX (mucho más alto que solar)
         DISMANTLING_PROVISION: 0.05, // 5% del CAPEX reservado para final de vida
-        CAPTURE_PRICE_FACTOR: 0.90, // 90% (Canibalización de precio)
-        DEFAULT_CAPEX_PER_KW: 1600 // Higher initial cost for Wind
     }
   },
-
-  // === GENERALES / FINANCIEROS ===
+  
+  // === PARAMETROS FINANCIEROS (DEFAULTS) ===
   FINANCIAL: {
-    DISCOUNT_RATE: 0.065, // 6.5% Tasa de descuento (WACC) - Riesgo ponderado
-    INFLATION_ENERGY: 0.03, // 3% Inflación energética anual
-    INFLATION_MAINTENANCE: 0.025, // 2.5% IPC industrial
-    TAX_RATE: 0.25, // 25% Impuesto de sociedades
-    LOAN_TERM: 12,
-    LOAN_INTEREST: 0.055
+    INFLATION_ENERGY: 0.035, // 3.5% anual (historico largo plazo España)
+    INFLATION_MAINTENANCE: 0.02, // 2% anual (IPC normal)
+    DISCOUNT_RATE: 0.05, // 5% WACC / Tasa de descuento
   },
 
-  // === MERCADO ===
+  // === ESCENARIOS DE SIMULACIÓN (NUEVO: Ajuste por Feedback Inversor) ===
+  SCENARIOS: {
+      PESSIMISTIC: {
+          PRICE_CAP: 0.30, // Techo de precio bajo
+          VOLATILITY: 0.35, // Alta volatilidad (+/- 17.5% base)
+          INFLATION_ADJUSTMENT: -0.025, // Deflación energética relativa
+          STARTING_PRICE_FACTOR: 0.9,
+          CURTAILMENT_RISK: 0.4 // Alto riesgo de vertidos
+      },
+      BASE: { // "Real Base" - Más conservador que antes
+          PRICE_CAP: 0.35, // Techo realista
+          VOLATILITY: 0.25, // Volatilidad media (+/- 12.5% base) + Shocks
+          INFLATION_ADJUSTMENT: -0.01, // Ligera corrección a la baja vs inflación general
+          STARTING_PRICE_FACTOR: 1.0,
+          CURTAILMENT_RISK: 0.2
+      },
+      OPTIMISTIC: { // El escenario original (Inflationary)
+          PRICE_CAP: 0.45, // Techo alto
+          VOLATILITY: 0.10, // Mercado estable
+          INFLATION_ADJUSTMENT: 0.015, // Inflación energética positiva
+          STARTING_PRICE_FACTOR: 1.05,
+          CURTAILMENT_RISK: 0.05
+      }
+  },
+
+  // === MARKET DEFAULTS ===
   MARKET: {
     FEED_IN_TARIFF_SOLAR: 0.05, 
     FEED_IN_TARIFF_WIND: 0.045, // Eólica suele vender más barato (noche/viento fuerte)

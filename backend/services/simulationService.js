@@ -99,6 +99,10 @@ class SimulationService {
     _generateCashFlowProjection(data) {
         const { production, capex, financialParams, technicalParams, type = 'SOLAR', scenario = 'BASE', silent = false } = data;
 
+        // SCENARIO CONFIG (Hoisted)
+        const scenarioConfig = SIMULATION_CONSTANTS.SCENARIOS[scenario] || SIMULATION_CONSTANTS.SCENARIOS.BASE;
+        const priceCap = scenarioConfig.PRICE_CAP;
+
         if (!silent) {
             console.log("\n============================================================");
             console.log(` 🛰️  SIMULATION CORE | SCENARIO: ${scenario} | TYPE: ${type} 🛰️`);
@@ -107,9 +111,9 @@ class SimulationService {
             // --- MANIFEST SELECTION ---
             console.log("📜 SIMULATION MANIFEST & ACTIVE MODULES:");
             console.log(`   [✅] PHYSICS ENGINE:       ${type} Degradation & Efficiency Curves`);
-            console.log(`   [✅] AI NEURAL NETWORKS:   Enabled (Solar/Wind Physics + Market Economy)`);
+            console.log(`   [✅] MARKET DYNAMICS:      Parametric Engine (Volatility & Cannibalization)`);
             console.log(`   [✅] FINANCIAL MODEL:      DCF (Discounted Cash Flow) with Inflation`);
-            console.log(`   [✅] MARKET DYNAMICS:      Cannibalization & Volatility enabled`);
+            console.log(`   [✅] SCENARIO MODE:        ${scenario} (Cap: ${priceCap}€/kWh)`);
         }
         
         if (technicalParams.batteryCapacityKw && technicalParams.batteryCapacityKw > 0) {
@@ -158,24 +162,20 @@ class SimulationService {
             ? financialParams.selfConsumptionRatio 
             : defaultSelfConsumption;
 
-        // SCENARIO LOGIC: Adjust basic params
-        let energyInflation = financialParams.energyInflation || SIMULATION_CONSTANTS.FINANCIAL.INFLATION_ENERGY;
-        let volatilityRange = 0.2; // Base volatility
-        let curtailmentRiskFactor = 0.2;
+        // SCENARIO LOGIC: Load from Constants
+        // scenarioConfig & priceCap already loaded at top
+        
+        let energyInflation = (financialParams.energyInflation || SIMULATION_CONSTANTS.FINANCIAL.INFLATION_ENERGY) + scenarioConfig.INFLATION_ADJUSTMENT;
+        let volatilityRange = scenarioConfig.VOLATILITY;
+        let curtailmentRiskFactor = scenarioConfig.CURTAILMENT_RISK;
+        
+        // Adjust starting price
+        electricityPrice *= scenarioConfig.STARTING_PRICE_FACTOR;
+        
+        // const priceCap = ... (hoisted)
 
         if (scenario === 'OPTIMISTIC') {
-            energyInflation += 0.015; // +1.5% inflation (Higher savings over time)
-            volatilityRange = 0.1; // More stable
-            curtailmentRiskFactor = 0.05; // Low risk
-            electricityPrice *= 1.05; // Start slightly higher
-        } else if (scenario === 'PESSIMISTIC') {
-            energyInflation = Math.max(0, energyInflation - 0.025); // Stagnation
-            volatilityRange = 0.35; // High chaos
-            curtailmentRiskFactor = 0.4; // High risk
-            electricityPrice *= 0.9; // Start lower
-        } else {
-             // BASE
-             // No changes
+            // Additional custom override if needed, otherwise handled by config
         }
 
         const discountRate = financialParams.discountRate || SIMULATION_CONSTANTS.FINANCIAL.DISCOUNT_RATE;
@@ -216,8 +216,10 @@ class SimulationService {
             currentAvgTemp += 0.05; // +0.05 degrees per year
             // Wind speed slightly more volatile
             currentWindAvg += (Math.random() * 0.2 - 0.1);
+            // Solar Irradiance fluctuation (Natural annual variability) - Fixes "Constant 1000W/m2" critique
+            currentIrradiation += (Math.random() * 20 - 10); 
 
-            if (!silent) console.log(`   🌤️  Environment: Temp=${currentAvgTemp.toFixed(2)}°C | Wind=${currentWindAvg.toFixed(2)}m/s`);
+            if (!silent) console.log(`   🌤️  Environment: Temp=${currentAvgTemp.toFixed(2)}°C | Wind=${currentWindAvg.toFixed(2)}m/s | Irr=${currentIrradiation.toFixed(0)}W/m2`);
             
             // --- 2. PHYSICS ENGINE (AI INFERENCE) ---
             // Ask AI: "Given this hotter climate, what is the Performance Ratio?"
@@ -277,18 +279,28 @@ class SimulationService {
             // Apply Inflation & Price Factors
             const inflationFactor = Math.pow(1 + energyInflation, year - 1);
             
-            // --- ENHANCEMENT 1: Market Volatility & Shocks (User Feedback) ---
-            // Random fluctuation ±10% to represent market instability
-            // SCENARIO ADJUSTMENT: volatilityRange
-            const marketVolatility = 1 + (Math.random() * volatilityRange - (volatilityRange/2)); 
+            // --- ENHANCEMENT 1: Market Volatility & Shocks ---
+            // Base Volatility
+            let marketVolatility = 1 + (Math.random() * volatilityRange - (volatilityRange/2));
             
-            // Limit Price (User Request: Max 0.35€ real constant equivalent - soft cap)
-            const MAX_PRICE_CAP = 0.45;
+            // SHOCKS (Per User Feedback: "Years with -15% / +25% price")
+            const shockRoll = Math.random();
+            if (scenario !== 'OPTIMISTIC') {
+                 if (shockRoll < 0.10) { // 10% chance of negative shock
+                     marketVolatility -= 0.15;
+                     if (!silent) console.log("      📉 MARKET SHOCK: Negative Event (-15%)");
+                 } else if (shockRoll > 0.90) { // 10% chance of positive spike
+                     marketVolatility += 0.25;
+                     if (!silent) console.log("      📈 MARKET SHOCK: Price Spike (+25%)");
+                 }
+            }
+
+            // Calculate Projected Price
             let yearPriceGrid = electricityPrice * inflationFactor * marketVolatility; 
 
-            if (yearPriceGrid > MAX_PRICE_CAP) {
-                if (!silent) console.warn(`      ⚠️  Price Cap Hit (${yearPriceGrid.toFixed(3)} > ${MAX_PRICE_CAP}). Limiting.`);
-                yearPriceGrid = MAX_PRICE_CAP;
+            if (yearPriceGrid > priceCap) {
+                if (!silent && Math.random() < 0.3) console.warn(`      🔒 Price Cap Hit (${yearPriceGrid.toFixed(3)} > ${priceCap}). Limiting.`);
+                yearPriceGrid = priceCap;
             }
 
             // --- ENHANCEMENT 2: Curtailment & Price Floor ---
