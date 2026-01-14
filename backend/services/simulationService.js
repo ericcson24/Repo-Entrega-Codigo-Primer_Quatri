@@ -57,7 +57,8 @@ class SimulationService {
                 roi: baseScenario.metrics.roi,
                 paybackYears: baseScenario.metrics.paybackPeriod,
                 npv: baseScenario.metrics.npv, // VAN
-                irr: baseScenario.metrics.irr  // TIR
+                irr: baseScenario.metrics.irr,  // TIR
+                lcoe: baseScenario.metrics.lcoe // Coste Levelizado
             },
             technical: solarData,
             financial: {
@@ -858,6 +859,7 @@ class SimulationService {
      * Análisis Financiero (ROI, NPV, Payback)
      */
     async calculateFinancials(investment, annualProduction, selfConsumptionRate, params = {}) {
+        console.log(`[SimulationService] Running Simple Financials: Inv=${investment}, Prod=${annualProduction}`);
         let {
             electricityPrice,
             surplusPrice
@@ -892,7 +894,8 @@ class SimulationService {
 
         const {
             inflationRate = 0.03,
-            years = 25
+            years = 25,
+            discountRate = 0.05
         } = params;
 
         // --- NEW ROI ENGINE UPGRADE (Using AI Economy) ---
@@ -945,7 +948,7 @@ class SimulationService {
         });
 
         const capex = investment;
-        const opexRate = costs.maintenanceAnnual || (investment * 0.01); 
+        const opexRate = params.maintenanceAnnual || (investment * 0.01); 
 
         for (let year = 1; year <= years; year++) {
             // Apply Degradation (Non-linear? Simple linear for now but could be AI)
@@ -993,9 +996,9 @@ class SimulationService {
             });
         }
 
-        const totalBenefit = cashFlows.slice(1).reduce((a, b) => a + b, 0);
-        const roi = ((totalBenefit - investment) / investment) * 100;
-        const npv = cashFlows.reduce((acc, val, t) => acc + (val / Math.pow(1 + discountRate, t)), 0);
+        const totalBenefit = cashFlows.slice(1).reduce((a, b) => a + b.netFlow, 0);
+        const roi = ((totalBenefit) / investment) * 100;
+        const npv = cashFlows.reduce((acc, val, t) => acc + (val.netFlow / Math.pow(1 + discountRate, t)), 0);
 
         return {
             roi: parseFloat(roi.toFixed(2)),
@@ -1102,7 +1105,8 @@ class SimulationService {
                 roi: baseScenario.metrics.roi,
                 paybackYears: baseScenario.metrics.paybackPeriod,
                 npv: baseScenario.metrics.npv,
-                irr: baseScenario.metrics.irr
+                irr: baseScenario.metrics.irr,
+                lcoe: baseScenario.metrics.lcoe
             },
             technical: {
                 avgWindSpeedHub,

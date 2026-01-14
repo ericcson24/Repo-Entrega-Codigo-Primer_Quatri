@@ -76,7 +76,9 @@ exports.calculateSolar = async (req, res) => {
 
 exports.calculateFinancials = async (req, res) => {
     try {
+        console.log("-> [SimulationController] Recibida petición Financiera Simple");
         const { investment, annualProduction, selfConsumption, ...params } = req.body;
+        console.log(`   > Params: Inv=${investment}€, Prod=${annualProduction}kWh, Self=${selfConsumption}`);
 
         if (!investment || !annualProduction) {
             return res.status(400).json({ error: 'Missing parameters: investment, annualProduction' });
