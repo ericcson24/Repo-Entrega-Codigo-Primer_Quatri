@@ -2,11 +2,16 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const apis = require('../config/apis');
-const { MARKET } = require('../config/constants');
+const SIMULATION_CONSTANTS = require('../config/simulationParams');
 
 class MarketService {
   constructor() {
-    this.pricesFile = path.join(__dirname, '../data/prices/electricity_prices_2020.json');
+    // Busca el archivo de precios más reciente/completo (2020-2024)
+    this.pricesFile = path.join(__dirname, '../data/prices/electricity_prices_2020-2024.json');
+    // Si no existe, fallback al 2020 original o null
+    if (!fs.existsSync(this.pricesFile)) {
+        this.pricesFile = path.join(__dirname, '../data/prices/electricity_prices_2020.json');
+    }
   }
 
   async getPriceStatistics() {
@@ -32,12 +37,12 @@ class MarketService {
     } catch (error) {
       console.warn('Could not load price statistics from file, using defaults:', error.message);
       return {
-        avgPriceEurKWh: MARKET.DEFAULT_PRICE / 1000,
-        avgPriceEurMWh: MARKET.DEFAULT_PRICE,
-        minPrice: 0.01,
-        maxPrice: 0.20,
+        avgPriceEurKWh: SIMULATION_CONSTANTS.MARKET.GRID_PRICE,
+        avgPriceEurMWh: SIMULATION_CONSTANTS.MARKET.GRID_PRICE * 1000,
+        minPrice: SIMULATION_CONSTANTS.MARKET.GRID_PRICE * 0.5,
+        maxPrice: SIMULATION_CONSTANTS.MARKET.GRID_PRICE * 2.0,
         monthlyAverage: [],
-        source: 'Default Fallback',
+        source: 'Default Fallback (simulationParams)',
         lastUpdate: new Date().toISOString()
       };
     }
@@ -45,34 +50,43 @@ class MarketService {
 
   async getMarketData(marketType) {
     try {
-      // Get Spanish electricity market data from REE
+      // Intentar obtener datos reales de REE primero
       const response = await axios.get(`${apis.electricity.ree}/mercados/precios-mercados-tiempo-real`, {
         params: {
           start_date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           end_date: new Date().toISOString().split('T')[0],
           time_trunc: 'hour'
-        }
+        },
+        timeout: 5000 // Timeout corto para no bloquear
       });
+
+      const values = response.data.included[0]?.attributes?.values;
+      const lastValue = values ? values[values.length - 1].value : SIMULATION_CONSTANTS.MARKET.GRID_PRICE;
 
       return {
         source: 'Red Eléctrica España (REE)',
-        currentPrice: response.data.included[0]?.attributes?.values?.[0]?.value || MARKET.DEFAULT_PRICE,
-        renewableShare: MARKET.DEFAULT_RENEWABLE_SHARE, // Approximate for Spain 2025
-        co2Intensity: MARKET.DEFAULT_CO2_INTENSITY, // gCO2/kWh
-        demand: MARKET.DEFAULT_DEMAND, // MW
-        marketType: MARKET.MARKET_TYPE
+        currentPrice: lastValue,
+        renewableShare: SIMULATION_CONSTANTS.MARKET.DEFAULT_RENEWABLE_SHARE || 0.60, 
+        co2Intensity: SIMULATION_CONSTANTS.MARKET.DEFAULT_CO2_INTENSITY || 140, 
+        demand: SIMULATION_CONSTANTS.MARKET.DEFAULT_DEMAND || 30000, 
+        marketType: SIMULATION_CONSTANTS.MARKET.MARKET_TYPE || 'Iberian'
       };
     } catch (error) {
-      console.error('Market API error:', error.message);
-      // Fallback data
-      return {
-        source: 'Fallback Data',
-        currentPrice: MARKET.DEFAULT_PRICE,
-        renewableShare: MARKET.DEFAULT_RENEWABLE_SHARE,
-        co2Intensity: MARKET.DEFAULT_CO2_INTENSITY,
-        demand: MARKET.DEFAULT_DEMAND,
-        marketType: MARKET.MARKET_TYPE
-      };
+      console.error('Market API error (REE):', error.message);
+      // Fallback a base de datos histórica si la API falla, no inventar datos.
+      try {
+          const storedStats = await this.getPriceStatistics();
+           return {
+            source: 'Historical Database (Local Fallback)',
+            currentPrice: storedStats.avgPriceEurMWh, 
+            renewableShare: 0.50, // Estimación conservadora
+            co2Intensity: 150,
+            demand: 28000,
+            marketType: 'Iberian'
+          };
+      } catch (dbError) {
+          throw new Error("Market Data Unavailable: API failed and no historical data found.");
+      }
     }
   }
 }

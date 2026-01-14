@@ -2,18 +2,28 @@ const simulationService = require('../services/simulationService');
 
 exports.calculateWind = async (req, res) => {
     try {
-        const { lat, lon, capacity, ...params } = req.body;
-        
+        // Nuevo flujo "Full Stack" para Eólica
+        const lat = req.body.lat || req.body.location?.lat;
+        const lon = req.body.lon || req.body.location?.lon;
+        const capacity = req.body.capacity || req.body.technical?.turbineCapacityKw;
+
         if (!lat || !lon || !capacity) {
             return res.status(400).json({ error: 'Missing required parameters: lat, lon, capacity' });
         }
 
-        const result = await simulationService.simulateWind(
-            parseFloat(lat), 
-            parseFloat(lon), 
-            parseFloat(capacity), 
-            params
-        );
+        const result = await simulationService.runFullWindSimulation({
+            location: { 
+                lat: parseFloat(lat), 
+                lon: parseFloat(lon),
+                altitude: req.body.location?.altitude || 0
+            },
+            technical: {
+                ...req.body.technical,
+                turbineCapacityKw: parseFloat(capacity)
+            },
+            financial: req.body.financial,
+            costs: req.body.costs // CAPEX y OPEX específicos de eólica
+        });
 
         res.json(result);
     } catch (error) {
@@ -24,18 +34,33 @@ exports.calculateWind = async (req, res) => {
 
 exports.calculateSolar = async (req, res) => {
     try {
-        const { lat, lon, capacity, ...params } = req.body;
+        // Nuevo flujo "Full Stack" - recibimos un objeto de configuración más completo
+        // Se espera que el frontend envíe algo como:
+        // {
+        //   location: { lat, lon },
+        //   technical: { angle, capacity, ... },
+        //   financial: { ... }
+        // }
+        // Para compatibilidad hacia atrás, también aceptamos lat, lon en el root
         
+        const lat = req.body.lat || req.body.location?.lat;
+        const lon = req.body.lon || req.body.location?.lon;
+        const capacity = req.body.capacity || req.body.technical?.capacityKw;
+
         if (!lat || !lon || !capacity) {
             return res.status(400).json({ error: 'Missing required parameters: lat, lon, capacity' });
         }
 
-        const result = await simulationService.simulateSolar(
-            parseFloat(lat), 
-            parseFloat(lon), 
-            parseFloat(capacity), 
-            params
-        );
+        // Llamamos al nuevo método de simulación completa
+        const result = await simulationService.runFullSolarSimulation({
+            location: { lat: parseFloat(lat), lon: parseFloat(lon) },
+            technical: {
+                ...req.body.technical,
+                capacityKw: parseFloat(capacity)
+            },
+            financial: req.body.financial,
+            costs: req.body.costs // CAPEX y OPEX explícitos
+        });
 
         res.json(result);
     } catch (error) {

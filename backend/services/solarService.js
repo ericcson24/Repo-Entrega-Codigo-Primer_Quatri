@@ -1,50 +1,131 @@
 const axios = require('axios');
 const apis = require('../config/apis');
-const { SOLAR } = require('../config/constants');
+const SIMULATION_CONSTANTS = require('../config/simulationParams');
 
 class SolarService {
+  /**
+   * Comprehensive solar simulation using PVGIS
+   * Maps user detailed parameters to PVGIS API calls and calculates physics-based losses
+   */
+  async getAdvancedSolarData(coords, params) {
+    try {
+      // 1. Extract Physics & Tech params
+      const {
+        tilt = SIMULATION_CONSTANTS.SOLAR.TECHNICAL.OPTIMAL_ANGLE, 
+        azimuth = SIMULATION_CONSTANTS.SOLAR.TECHNICAL.OPTIMAL_ASPECT, 
+        peakPowerKw = 1,
+        systemLoss = (1 - SIMULATION_CONSTANTS.SOLAR.TECHNICAL.SYSTEM_PERFORMANCE_RATIO) * 100, // 14-15% typical
+        technology = 'crystSi', // "crystSi", "CIS", "CdTe", "Unknown"
+        mountingPlace = 'free' // "free" or "building"
+      } = params;
+
+      // 2. Call PVGIS Market/SeriesCalc
+      // Using Hourly Data for maximum precision is ideal, but Monthly is often sufficient for faster estimates.
+      // We will use Monthly (PVcalc) for generation profiling.
+      const pvgisResponse = await axios.get(`${apis.electricity.pvgis}/PVcalc`, {
+        params: {
+          lat: coords.lat,
+          lon: coords.lon,
+          peakpower: peakPowerKw,
+          loss: systemLoss,
+          angle: tilt,
+          aspect: azimuth,
+          mountingplace: mountingPlace,
+          pvtechchoice: technology,
+          outputformat: 'json'
+        }
+      });
+
+      const outputs = pvgisResponse.data.outputs;
+      const meta = pvgisResponse.data.inputs;
+
+      // 3. Process Monthly Data for Seasonality
+      const monthlyData = outputs.monthly.fixed.map(m => ({
+        month: m.month,
+        productionKwh: m.E_m,         // Energy production
+        irradiationKwhM2: m['H(i)_m'],   // Plane of array irradiation
+        stdDeviation: m.SD_m          // Variability
+      }));
+
+      // 4. Calculate Annual Metrics
+      const annualProduction = outputs.totals.fixed.E_y; // Yearly PV production (kWh)
+      const annualIrradiation = outputs.totals.fixed['H(i)_y']; // Yearly in-plane irradiation (kWh/m2)
+      
+      // Calculate specific yield (kWh / kWp)
+      const specificYield = annualProduction / peakPowerKw;
+
+      // 5. Advanced Temperature Loss Estimation (If we wanted to go deeper than PVGIS internal)
+      // PVGIS already accounts for temperature loosely based on "mountingPlace" and "pvtechchoice".
+      
+      return {
+        success: true,
+        source: 'PVGIS (European Commission)',
+        location: coords,
+        specs: {
+          installedCapacityKw: peakPowerKw,
+          tilt: meta.mounting_system.fixed.slope.value,
+          azimuth: meta.mounting_system.fixed.azimuth.value,
+          technology: meta.pv_module.technology,
+          systemLossPercent: meta.economic_data.system_loss
+        },
+        production: {
+          annualKwh: annualProduction,
+          monthly: monthlyData,
+          specificYieldInfo: "kWh/kWp/year",
+          specificYield: specificYield
+        },
+        climate: {
+          annualIrradiation: annualIrradiation // In-plane
+        }
+      };
+
+    } catch (error) {
+      console.error('Advanced Solar API error:', error.message);
+      throw new Error(`Solar Simulation Failed: ${error.message}`);
+    }
+  }
+
+  // Legacy wrapper for compatibility
+  // PVGIS API usage with correct PVcalc endpoint
   async getSolarData(regionCoords, options = {}) {
     try {
-      // Use options or defaults
-      const loss = options.loss || SOLAR.SYSTEM_LOSS;
-      const angle = options.tilt || options.angle || SOLAR.OPTIMAL_ANGLE;
-      const aspect = options.azimuth || options.aspect || SOLAR.OPTIMAL_ASPECT;
+      const loss = options.loss || (1 - SIMULATION_CONSTANTS.SOLAR.TECHNICAL.SYSTEM_PERFORMANCE_RATIO)*100 || 14;
+      const angle = options.angle || SIMULATION_CONSTANTS.SOLAR.TECHNICAL.OPTIMAL_ANGLE || 35;
+      const aspect = options.azimuth || options.aspect || SIMULATION_CONSTANTS.SOLAR.TECHNICAL.OPTIMAL_ASPECT || 0;
 
       // Get solar irradiation data from PVGIS
-      const response = await axios.get(`${apis.electricity.pvgis}/seriescalc`, {
+       const pvgisResponse = await axios.get(`${apis.electricity.pvgis}/PVcalc`, {
         params: {
           lat: regionCoords.lat,
           lon: regionCoords.lon,
-          pvcalculation: 1,
-          peakpower: 1,
+          peakpower: 1, // Normalized to 1kWp
           loss: loss,
           angle: angle,
           aspect: aspect,
           outputformat: 'json'
         }
       });
+      
+      const outputs = pvgisResponse.data.outputs;
 
+      // Mapping old structure to new data
       return {
         source: 'PVGIS (European Commission)',
-        solarIrradiation: response.data.outputs.totals?.irradiation || response.data.outputs.totals?.H_i || SOLAR.DEFAULT_IRRADIATION,
-        annualProduction: response.data.outputs.totals?.fixed?.E_y || response.data.outputs.yearly?.E_y, 
-        monthlyData: response.data.outputs.monthly?.fixed || response.data.outputs.monthly,
+        solarIrradiation: outputs.totals.fixed['H(i)_y'] || 1600,
+        annualProduction: outputs.totals.fixed.E_y, 
+        monthlyData: outputs.monthly.fixed.map(m => ({
+            month: m.month,
+            production: m.E_m
+        })),
         optimalAngle: angle,
-        optimalAspect: aspect,
-        capacityFactor: response.data.outputs.totals?.capacity_factor || SOLAR.DEFAULT_CAPACITY_FACTOR
+        capacityFactor: (outputs.totals.fixed.E_y / (1 * 8760)) // CF = Energy / (Capacity * Hours)
       };
     } catch (error) {
-      console.error('Solar API error:', error.message); //, error.response?.data);
-      return {
-        source: 'Fallback Data',
-        solarIrradiation: SOLAR.DEFAULT_IRRADIATION,
-        annualProduction: SOLAR.DEFAULT_IRRADIATION * 0.75, // Rough estimate
-        optimalAngle: SOLAR.OPTIMAL_ANGLE,
-        optimalAspect: SOLAR.OPTIMAL_ASPECT,
-        capacityFactor: SOLAR.DEFAULT_CAPACITY_FACTOR
-      };
+      console.error('Solar API error:', error.message); 
+      throw new Error("PVGIS API Failed and Fallbacks are disabled.");
     }
   }
+
 }
 
 module.exports = new SolarService();

@@ -41,6 +41,27 @@ class DynamicAPIService {
   }
 
   /**
+   * Obtener configuración global del sistema (Economía, Constantes)
+   */
+  async getSystemConfig() {
+    const cacheKey = 'system_config';
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch(`${this.backendURL}/api/config`);
+      if (!response.ok) throw new Error('Failed to fetch system config');
+      const data = await response.json();
+      
+      this.saveToCache(cacheKey, data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching system config:', error);
+      return null;
+    }
+  }
+
+  /**
    * Obtener ciudades españolas DINÁMICAMENTE desde Backend
    */
   async getSpanishCities() {
@@ -98,17 +119,17 @@ class DynamicAPIService {
         data: data.daily.time.map((time, i) => ({
              date: time,
              temperature_mean: data.daily.temperature_2m_mean[i],
-             windspeed_mean: data.daily.windspeed_10m_mean ? data.daily.windspeed_10m_mean[i] : (data.daily.windspeed_10m_max[i] * 0.6), // Fallback
+             windspeed_mean: data.daily.windspeed_10m_mean ? data.daily.windspeed_10m_mean[i] : null,
              windspeed_max: data.daily.windspeed_10m_max[i],
              solar_radiation: data.daily.shortwave_radiation_sum[i]
-        })),
+        })).filter(d => d.windspeed_mean !== null), // Filter invalid data, no 0.6 fallback
         solar: {
           avgDailyRadiation: this.average(data.daily.shortwave_radiation_sum),
           monthlyAvg: this.groupByMonth(data.daily.time, data.daily.shortwave_radiation_sum)
         },
         wind: {
-          avgSpeed: this.average(data.daily.windspeed_10m_mean || data.daily.windspeed_10m_max), // Prefer mean
-          monthlyAvg: this.groupByMonth(data.daily.time, data.daily.windspeed_10m_mean || data.daily.windspeed_10m_max)
+          avgSpeed: this.average(data.daily.windspeed_10m_mean),
+          monthlyAvg: this.groupByMonth(data.daily.time, data.daily.windspeed_10m_mean)
         },
         temperature: {
           avgTemp: this.average(data.daily.temperature_2m_mean),
@@ -460,6 +481,117 @@ class DynamicAPIService {
     } catch (error) {
       console.error('Error fetching batteries:', error);
       throw new Error('Configurar endpoint /api/batteries en backend');
+    }
+  }
+
+  /**
+   * Ejecutar simulación solar completa (IA Powered)
+   */
+  async calculateSolarProduction(params) {
+    try {
+      // Extract parameters correctly whether they come flat or nested
+      const lat = params.location ? params.location.lat : params.lat;
+      const lon = params.location ? params.location.lon : params.lon;
+      const systemSizeKw = params.technical ? params.technical.capacityKw : (params.systemSizeKw || params.capacityKw);
+
+      // Uso del nuevo endpoint AI Full Loop
+      const response = await fetch(`${this.backendURL}/api/ai/simulate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            location: { lat, lon },
+            systemParams: { systemSizeKw },
+            years: 1 // Default to 1 year of hourly analysis
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Simulation Failed: ${response.status}`);
+      }
+
+      const aiResult = await response.json();
+      
+      // Adaptar formato al esperado por el frontend (ResultsView)
+      const firstYear = aiResult.results[0];
+      const annualKwh = firstYear.totalEnergy;
+      const monthlyKwh = firstYear.monthly.map(m => m.energy_kwh);
+
+      // Financial Calculation (Frontend Side using AI Production)
+      const financialParams = params.financial || {};
+      const costsParams = params.costs || {};
+      
+      const priceKwh = financialParams.electricityPrice || 0.15;
+      const annualConsumption = financialParams.annualConsumption || 3000;
+      const systemCost = costsParams.totalOverride || 5000;
+      const years = 20; // Standard projection
+      const inflation = 0.02;
+      const energyInflation = 0.03;
+
+      const cashFlows = [];
+      let cumulative = -systemCost;
+      let currentPrice = priceKwh;
+
+      for(let y=1; y<=years; y++) {
+          const production = annualKwh * Math.pow(0.995, y-1); // 0.5% degradation
+          const selfConsumptionRatio = 0.4; // Conservative assumption or from inputs
+          const selfConsumed = Math.min(production, annualConsumption) * selfConsumptionRatio;
+          const exported = Math.max(0, production - selfConsumed);
+          
+          const savings = selfConsumed * currentPrice;
+          const income = exported * 0.05; // Surplus price
+          const totalRevenue = savings + income;
+
+          cumulative += totalRevenue;
+          
+          cashFlows.push({
+              year: y,
+              cumulative: cumulative,
+              savings: savings,
+              income: income,
+              opex: 0 // Simplification for now
+          });
+
+          currentPrice *= (1 + energyInflation);
+      }
+
+      const roi = ((cashFlows[years-1].cumulative + systemCost) / systemCost) * 100;
+      const paybackYear = cashFlows.findIndex(c => c.cumulative >= 0);
+      const payback = paybackYear !== -1 ? paybackYear + 1 : 25;
+
+      return {
+        source: aiResult.simulation_type,
+        technical: {
+            production: {
+                annualKwh: annualKwh,
+                monthlyKwh: monthlyKwh,
+                dailyAverage: annualKwh / 365
+            },
+            system: {
+                sizeKw: systemSizeKw,
+                efficiency: firstYear.monthly.reduce((acc, m) => acc + m.avg_efficiency, 0) / 12
+            }
+        },
+        financial: {
+            cashFlows: cashFlows,
+            metrics: {
+                roi: roi,
+                paybackPeriod: payback,
+                totalSavings: cashFlows[years-1].cumulative + systemCost
+            }
+        },
+        summary: {
+            roi: roi,
+            payback: payback,
+            annualSaving: cashFlows[0].savings + cashFlows[0].income,
+            co2Abatement: annualKwh * 0.2 // Tons approx
+        }
+      };
+
+    } catch (error) {
+      console.error('Error in AI solar simulation:', error);
+      throw new Error('Error en Simulación IA. Verifique conexión.');
     }
   }
 

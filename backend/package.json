@@ -11,7 +11,8 @@
     "download:solar": "node scripts/download-solar-data.js",
     "download:prices": "node scripts/download-price-data.js",
     "download:all": "npm run download:weather && npm run download:solar && npm run download:prices",
-    "train:ai": "node scripts/train-ai-model.js",
+    "train:ai": "node scripts/train-advanced-ai.js",
+    "seed:db": "node scripts/seed-firestore.js",
     "update:all": "npm run download:all && npm run train:ai"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "firebase-admin": "^13.6.0",
     "node-cache": "^5.1.2"
   },
   "devDependencies": {

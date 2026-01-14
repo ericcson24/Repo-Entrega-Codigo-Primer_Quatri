@@ -8,6 +8,7 @@ const componentsController = require('../controllers/componentsController');
 const modelsController = require('../controllers/modelsController');
 const configController = require('../controllers/configController');
 const simulationController = require('../controllers/simulationController');
+const aiController = require('../controllers/aiController');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -18,6 +19,12 @@ router.get('/health', (req, res) => {
 router.post('/simulate/wind', simulationController.calculateWind);
 router.post('/simulate/solar', simulationController.calculateSolar);
 router.post('/simulate/financials', simulationController.calculateFinancials);
+
+// AI & Optimization Routes
+router.post('/ai/predict', aiController.predictEnergy);
+router.post('/ai/optimize', aiController.optimizeSystem);
+router.post('/ai/simulate', aiController.runFullSimulation);
+router.post('/ai/train', aiController.trainModel); // New training endpoint
 
 // Config routes
 router.get('/config', configController.getConfig);

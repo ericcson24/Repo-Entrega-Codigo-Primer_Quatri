@@ -152,71 +152,42 @@ const AdvancedWindCalculator = ({ onCalculate }) => {
 
   // Cálculo principal
   const handleCalculate = async () => {
+    setLoading(true);
     setCalculating(true);
+
     try {
-      // 1. Predicción de producción eólica
-      const prediction = await energyService.predictWind(
-        formData.lat, 
-        formData.lon, 
-        formData.turbinePower,
-        {
-          height: formData.turbineHeight,
-          rotorDiameter: formData.rotorDiameter,
-          cutIn: formData.minWindSpeed,
-          rated: formData.ratedSpeed || PHYSICS_CONSTANTS.WIND_RATED_SPEED,
-          cutOut: formData.cutOutSpeed || PHYSICS_CONSTANTS.WIND_CUT_OUT_SPEED,
-          minSpeed: formData.minWindSpeed // Keep legacy if needed by other methods
+      const simulationParams = {
+        location: {
+           lat: formData.lat,
+           lon: formData.lon,
+           altitude: 0 // Debería venir de mapa o API
+        },
+        technical: {
+           turbineCapacityKw: parseFloat(formData.turbinePower),
+           hubHeight: parseFloat(formData.turbineHeight),
+           rotorDiameter: parseFloat(formData.rotorDiameter),
+           cutIn: parseFloat(formData.minWindSpeed),
+           roughness: PHYSICS_CONSTANTS.WIND_ROUGHNESS
+        },
+        financial: {
+           electricityPrice: parseFloat(formData.electricityPrice),
+           budget: parseFloat(formData.budget),
+           annualConsumption: parseFloat(formData.consumption) * 12
+        },
+        costs: {
+            totalOverride: parseFloat(formData.budget)
         }
-      );
-
-      const annualProduction = prediction.annualProduction;
-
-      // 2. Análisis Económico
-      const economics = await energyService.analyzeEconomics(
-        formData.budget,
-        annualProduction,
-        ECONOMIC_DEFAULTS.DEFAULT_SELF_CONSUMPTION,
-        ECONOMIC_DEFAULTS.DEFAULT_PROJECT_LIFESPAN,
-        {
-          electricityPrice: formData.electricityPrice
-        }
-      );
-
-      // 3. Preparar datos para gráficas
-      const monthlyData = prediction.monthlyDistribution.map((m, i) => ({
-        name: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][i],
-        production: m.production,
-        consumo: formData.consumption
-      }));
-
-      const financialData = economics.cashFlows.map((flow, i) => {
-        const acumulado = economics.cashFlows.slice(0, i + 1).reduce((a, b) => a + b, 0);
-        return {
-          year: i,
-          acumulado,
-          profit: flow,
-          roi: formData.budget > 0 ? ((acumulado / formData.budget) * CALCULATION_CONSTANTS.PERCENTAGE_DIVISOR).toFixed(1) : 0,
-          investment: formData.budget,
-          income: flow + (i === 0 ? formData.budget : 0),
-          maintenance: formData.budget * ECONOMIC_DEFAULTS.MAINTENANCE_RATE
-        };
-      });
-
-      const results = {
-        annualProduction,
-        capacityFactor: prediction.capacityFactor ? (prediction.capacityFactor * 100).toFixed(1) : 0,
-        annualSavings: economics.annualSavings,
-        roi: economics.roi,
-        paybackPeriod: economics.payback,
-        monthlyData,
-        financialData
       };
 
-      onCalculate(results);
+      // Llamada al backend real
+      const result = await dynamicAPIService.calculateWindProduction(simulationParams);
 
-    } catch (error) {
-      console.error("Error en cálculo:", error);
+      if (onCalculate) onCalculate(result);
+
+    } catch (err) {
+      console.error(err);
     } finally {
+      setLoading(false);
       setCalculating(false);
     }
   };

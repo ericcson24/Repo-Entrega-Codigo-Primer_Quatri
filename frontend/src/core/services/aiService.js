@@ -16,24 +16,46 @@ class EnergyService {
   }
 
   /**
-   * Predicción Solar via Backend
+   * Predicción Solar via Backend (Advanced Deep Learning)
    */
   async predictSolar(lat, lon, capacityKw, params = {}) {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/simulate/solar`, {
+      // Use new AI Simulation Endpoint
+      const response = await fetch(`${BACKEND_URL}/api/ai/simulate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat, lon, capacity: capacityKw, ...params })
+        body: JSON.stringify({ 
+            location: { lat, lon }, 
+            systemParams: { systemSizeKw: capacityKw },
+            years: 1 
+        })
       });
 
       if (!response.ok) throw new Error('Backend simulation failed');
-      return await response.json();
+      
+      const data = await response.json();
+      
+      // Parse AI Result to expected format
+      // AI returns: { results: [ { totalEnergy, monthly: [ {month, energy_kwh, ...} ] } ] }
+      const yearData = data.results[0];
+      
+      return {
+        annualProduction: yearData.totalEnergy,
+        monthlyDistribution: yearData.monthly.map(m => m.energy_kwh),
+        performanceRatio: yearData.monthly.reduce((acc, m) => acc + m.avg_efficiency, 0) / 12,
+        metadata: {
+            simulation_type: data.simulation_type,
+            hours_processed: data.total_hours_processed
+        }
+      };
+
     } catch (error) {
       console.error('Solar Simulation Error:', error);
       // Fallback básico para no romper UI
       return { 
         annualProduction: capacityKw * 1600 * 0.75, 
-        monthlyDistribution: [] 
+        monthlyDistribution: Array(12).fill(capacityKw * 133),
+        error: true 
       };
     }
   }

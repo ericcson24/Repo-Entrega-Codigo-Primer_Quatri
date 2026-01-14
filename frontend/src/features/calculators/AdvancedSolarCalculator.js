@@ -92,51 +92,60 @@ const AdvancedSolarCalculator = ({ onCalculate }) => {
     const loadData = async () => {
       setError(null);
       try {
-        const [citiesData, panelsData, batteriesData, pricesData] = await Promise.all([
+        const [citiesData, panelsData, batteriesData, pricesData, configData] = await Promise.all([
           dynamicAPIService.getSpanishCities(),
-          dynamicAPIService.getSolarPanels().catch(e => []),
-          dynamicAPIService.getBatteries().catch(e => []),
-          dynamicAPIService.getEnergyPrices().catch(e => null)
+          dynamicAPIService.getSolarPanels().catch(e => { console.warn("Panels API failed", e); return []; }),
+          dynamicAPIService.getBatteries().catch(e => { console.warn("Batteries API failed", e); return []; }),
+          dynamicAPIService.getEnergyPrices().catch(e => { console.warn("Prices API failed", e); return null; }),
+          dynamicAPIService.getSystemConfig().catch(e => { console.warn("Config API failed", e); return null; })
         ]);
         
         if (!citiesData || citiesData.length === 0) {
-            throw new Error("No se pudieron cargar las ciudades disponibles.");
+            // Check if config failed
+            console.error("Cities data is empty. Backend might be down or /api/config failed.");
+            throw new Error("No se pudo establecer conexión con el servidor de datos (Ciudades no encontradas).");
         }
 
         setCities(citiesData || []);
         setPanels(panelsData || []);
         setBatteries(batteriesData || []);
         
-        if (pricesData && pricesData.averagePrice) {
+        // Calcular precio electricidad usuario final
+        let electricityPrice = ECONOMIC_DEFAULTS.DEFAULT_ELECTRICITY_PRICE; // Fallback válido desde constantes
+
+        if (pricesData && pricesData.averagePrice && configData && configData.economics) {
           // El precio de mercado (Pool) suele ser ~30-50% del precio final.
-          // Aplicamos factor corrector para estimar precio consumidor (Peajes + Cargos + Impuestos)
-          // aprox: (Pool + 0.08) * 1.21 (IVA)
+          // Cálculo REAL basado en constantes del backend (Peajes + Cargos + IVAs)
           const poolPriceKwh = pricesData.averagePrice / CALCULATION_CONSTANTS.MWH_TO_KWH;
-          const estimatedConsumerPrice = (poolPriceKwh + ECONOMIC_DEFAULTS.CONSUMER_PRICE_TOLLS) * ECONOMIC_DEFAULTS.VAT; 
           
-          setFormData(prev => ({
-            ...prev,
-            electricityPrice: parseFloat(estimatedConsumerPrice.toFixed(4)) 
-          }));
-        } else {
-             // Si falla API o es nulo, usar default definido en constantes (ya actualizado a 0.22)
-            setFormData(prev => ({
-                ...prev,
-                electricityPrice: ECONOMIC_DEFAULTS.CONSUMER_PRICE || 0.22
-            }));
+          // Constantes económicas del servidor
+          const { TOLLS_AND_CHARGES, VAT, ELECTRICITY_TAX } = configData.economics;
+          
+          // Precio Base = Pool + Peajes
+          const basePrice = poolPriceKwh + TOLLS_AND_CHARGES;
+          // Precio Final = Base * (1 + Impuesto Eléctrico) * (1 + IVA)
+          // Nota: El impuesto eléctrico se aplica sobre la base imponible en España antes de IVA
+          
+          const priceWithTax = basePrice * (1 + ELECTRICITY_TAX) * (1 + VAT);
+          electricityPrice = parseFloat(priceWithTax.toFixed(4));
         }
+        
+        setFormData(prev => ({
+            ...prev,
+            electricityPrice: electricityPrice
+        }));
         
         // Inicializar servicio de energía
         await energyService.initialize();
       } catch (error) {
         console.error("Error cargando datos iniciales:", error);
-        setError("Error al cargar datos del servidor. Comprueba tu conexión o intenta recargar.");
+        setError(`Error de Inicialización: ${error.message || "No se pudo conectar con el Backend."}`);
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [CALCULATION_CONSTANTS.MWH_TO_KWH, ECONOMIC_DEFAULTS.CONSUMER_PRICE]);
+  }, [CALCULATION_CONSTANTS.MWH_TO_KWH, ECONOMIC_DEFAULTS.DEFAULT_ELECTRICITY_PRICE]);
 
   // Manejadores de cambios
   const handleCityChange = (e) => {
@@ -257,121 +266,51 @@ const AdvancedSolarCalculator = ({ onCalculate }) => {
 
   // Cálculo principal
   const handleCalculate = async () => {
+    setLoading(true);
     setCalculating(true);
-    setCalculationStep('Iniciando simulador...');
-    
+    setCalculationStep('Conectando con servidores de simulación...');
+
     try {
-      // Step 1: Data Gathering
-      setCalculationStep('Recopilando datos meteorológicos...');
-      await new Promise(r => setTimeout(r, 600)); // UX delay
+      // Usar servicio backend real en lugar de cálculo local
+      setCalculationStep('Analizando radiación solar real (PVGIS)...');
+      
+      // NOTA: 'losses' en PVGIS refiere a pérdidas del sistema (cableado, inversor, dirt),
+      // NO a la eficiencia del panel (que ya se considera en la potencia pico).
+      // Valor estándar: 14% (0.14).
+      const systemLossPercent = 14; 
 
-      // 1. Predicción de producción solar (IA/Estadística)
-      const prediction = await energyService.predictSolar(
-        formData.lat, 
-        formData.lon, 
-        formData.systemSize,
-        {
-          tilt: formData.tilt,
-          azimuth: formData.azimuth,
-          efficiency: formData.efficiency
+      const simulationParams = {
+        location: {
+           lat: formData.lat,
+           lon: formData.lon
+        },
+        technical: {
+           capacityKw: parseFloat(formData.systemSize),
+           tilt: parseFloat(formData.tilt),
+           azimuth: parseFloat(formData.azimuth),
+           losses: systemLossPercent, 
+           panelEfficiency: parseFloat(formData.efficiency) // Pasamos esto por si el backend quiere calcular area
+        },
+        financial: {
+           electricityPrice: parseFloat(formData.electricityPrice),
+           systemCost: parseFloat(formData.budget),
+           annualConsumption: parseFloat(formData.consumption) * 12
+        },
+        costs: {
+            totalOverride: parseFloat(formData.budget)
         }
-      );
-
-      // Step 2: AI Optimization
-      setCalculationStep('Optimizando modelo neuronal...');
-      await new Promise(r => setTimeout(r, 800)); // UX delay for "Intelligence" effect
-
-      const annualProduction = prediction.annualProduction;
-
-      // 1.b Calculo dinamico de Autoconsumo (Self-Consumption Rate)
-      // Basado en perfil de consumo vs producción.
-      // Heurística simplificada profesional:
-      // Si la producción es mucho mayor que el consumo, el autoconsumo (%) baja.
-      // Si hay baterías, el autoconsumo sube significativamente.
-      
-      let selfConsumptionRate = ECONOMIC_DEFAULTS.DEFAULT_SELF_CONSUMPTION; // Valor base por defecto
-      
-      if (annualProduction > 0 && formData.consumption > 0) {
-          const annualConsumption = formData.consumption * 12;
-          const productionToConsumptionRatio = annualProduction / annualConsumption;
-          
-          if (formData.hasBattery) {
-               // Con Batería: Curva logística optimizada.
-               // R=1 -> SC ~75-85%. R=2 -> SC ~45%. R=0.5 -> SC ~95%
-               // selfConsumptionRate = 1.0 / (1.0 + 0.3 * Math.pow(productionToConsumptionRatio, 1.5)); // Modelo simplificado
-               // Modelo ajustado para baterias residenciales típicas (5-10kWh):
-               selfConsumptionRate = Math.min(0.95, 0.95 / (0.6 + 0.4 * productionToConsumptionRatio));
-          } else {
-               // Sin Batería: Curva estándar (curva de coincidencia carga-generación)
-               // R=1 -> SC ~30-40%. R=2 -> SC ~20%. R=0.5 -> SC ~60%
-               // selfConsumptionRate = 1.0 / (1.0 + productionToConsumptionRatio + Math.pow(productionToConsumptionRatio, 2)); // Modelo conservador
-               // Modelo más realista residencial:
-               selfConsumptionRate = Math.min(1.0, 1.0 / (1.2 + 1.2 * productionToConsumptionRatio));
-          }
-          
-          // Clamp safe values
-          selfConsumptionRate = Math.max(0.1, Math.min(1.0, selfConsumptionRate));
-      }
-
-      // Step 3: Financials
-      setCalculationStep('Calculando proyecciones financieras...');
-      
-      // 2. Análisis Económico
-      const economics = await energyService.analyzeEconomics(
-        formData.budget,
-        annualProduction,
-        selfConsumptionRate,
-        ECONOMIC_DEFAULTS.DEFAULT_PROJECT_LIFESPAN,
-        {
-          electricityPrice: formData.electricityPrice
-        }
-      );
-
-      // 3. Preparar datos para gráficas
-      const monthlyData = prediction.monthlyDistribution.map((m, i) => ({
-        name: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][i],
-        production: m.production,
-        consumo: formData.consumption
-      }));
-
-      const financialData = economics.cashFlows.map((flow, i) => {
-        // economics.cashFlows ya incluye la inversión negativa en el año 0.
-        // Por tanto, el acumulado es simplemente la suma del array hasta i.
-        const accumulatedValue = economics.cashFlows.slice(0, i + 1).reduce((a, b) => a + b, 0);
-        
-        return {
-           year: i,
-           acumulado: accumulatedValue, 
-           profit: flow, // Flujo anual neto
-           // ROI = (Beneficio Neto Total / Inversión) * 100
-           // Beneficio Neto Total (acumulado final) = accumulatedValue
-           roi: (accumulatedValue >= 0) 
-                ? ((accumulatedValue / formData.budget) * 100).toFixed(1)
-                : (((accumulatedValue + formData.budget) / formData.budget) * 100 - 100).toFixed(1),
-        
-           investment: formData.budget,
-           // Income real si flow year 0 es -investment.
-           income: i === 0 ? 0 : flow + (formData.budget * ECONOMIC_DEFAULTS.MAINTENANCE_RATE), // Aprox revertir costes para visualizar "Ingreso Bruto"? 
-           // Mejor simplificar: visualizamos Flujo Neto (profit) y Acumulado (value)
-           maintenance: i === 0 ? 0 : formData.budget * ECONOMIC_DEFAULTS.MAINTENANCE_RATE
-        };
-      });
-
-      // Ajuste de datos para ResultsView
-      const results = {
-        annualProduction,
-        annualSavings: economics.annualSavings,
-        roi: economics.roi,
-        paybackPeriod: economics.payback,
-        monthlyData,
-        financialData
       };
 
-      onCalculate(results);
+      // Si existe el servicio real, lo usamos
+      const result = await dynamicAPIService.calculateSolarProduction(simulationParams);
 
+      if (onCalculate) onCalculate(result);
+      
     } catch (error) {
-      console.error("Error en cálculo:", error);
+      console.error("Calculation error:", error);
+      setError("Error en la simulación remota. Revisa los parámetros.");
     } finally {
+      setLoading(false);
       setCalculating(false);
       setCalculationStep('');
     }

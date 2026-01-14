@@ -1,40 +1,63 @@
+// Parámetros Físicos Universales
 export const PHYSICS_CONSTANTS = {
-  AIR_DENSITY: 1.225, // kg/m3
-  WIND_CP_DEFAULT: 0.35, // Coeficiente de potencia típico
-  WIND_ROUGHNESS: 0.14, // Coeficiente de rugosidad Hellmann
-  SOLAR_RADIATION_CONVERSION: 0.2777, // Conversión de unidades
-  TEMP_LOSS_COEFFICIENT: 0.004, // 0.4% por grado Celsius
-  STANDARD_TEMP: 25, // Grados Celsius
-  OPTIMAL_TILT: 35,
-  OPTIMAL_AZIMUTH: 180,
-  TILT_LOSS_FACTOR: 0.0005,
-  AZIMUTH_LOSS_FACTOR: 0.00005,
-  PERFORMANCE_RATIO_DEFAULT: 0.75,
-  WIND_CUT_IN_SPEED: 3, // m/s
-  WIND_RATED_SPEED: 12, // m/s
-  WIND_CUT_OUT_SPEED: 25, // m/s
+  AIR_DENSITY: 1.225, // kg/m3 a nivel del mar (15ºC)
   HOURS_IN_YEAR: 8760,
-  DAYS_IN_YEAR: 365,
-  WIND_DAILY_CAPACITY_FACTOR: 0.35, // Factor de carga diario estimado
-  WIND_SEASONALITY_FACTOR: 0.4,
-  SOLAR_DEFAULT_EFFICIENCY: 0.20,
+  
+  // Parámetros Solar Fotovoltaica (Alineados con Backend PVGIS)
+  SOLAR_DEFAULT_EFFICIENCY: 0.21, // Paneles modernos promedio ~21%
+  PERFORMANCE_RATIO_DEFAULT: 0.85, // Performance Ratio estándar (antes 0.75 era muy bajo)
+  OPTIMAL_TILT: 35, // Inclinación óptima España promedio
+  OPTIMAL_AZIMUTH: 180, // 180 = Sur (PVGIS standard)
+  TEMP_LOSS_COEFFICIENT: 0.0035, // -0.35%/ºC
+  STANDARD_TEMP: 25, // STC
+
+  // Parámetros Eólica (Alineados con Backend Weibull)
+  WIND_CUT_IN_SPEED: 3.5, // m/s
+  WIND_RATED_SPEED: 12.0, // m/s
+  WIND_CUT_OUT_SPEED: 25.0, // m/s
+  WIND_ROUGHNESS: 0.143, // Terreno neutral promedio
+  WIND_AVAILABILITY: 0.97, // 97% disponibilidad técnica
+  WIND_CP_DEFAULT: 0.40, // Coeficiente de potencia moderno (turbinas grandes)
+};
+
+export const ECONOMIC_DEFAULTS = {
+  // Precios base (Backend provee reales, estos son fallbacks visuales)
+  DEFAULT_ELECTRICITY_PRICE: 0.15, // €/kWh (Media regulada/libre)
+  CONSUMER_PRICE_TOLLS: 0.04, // Peajes aprox €/kWh
+  VAT: 1.21, // 21% IVA
+  
+  // Factores Financieros
+  INFLATION_ENERGY: 0.03, // 3%
+  DISCOUNT_RATE: 0.06, // 6% WACC
+  MAINTENANCE_SOLAR: 0.015, // 1.5% del CAPEX anual
+  MAINTENANCE_WIND: 0.035, // 3.5% del CAPEX anual
 };
 
 export const UI_DEFAULTS = {
+  // Configuración Inicial de Interfaz
+  INITIAL_CITY: 'Madrid',
+  INITIAL_LAT: 40.4168,
+  INITIAL_LON: -3.7038,
+  
+  WIND_INITIAL_CITY: 'Zaragoza',
+  WIND_INITIAL_LAT: 41.6488,
+  WIND_INITIAL_LON: -0.8891,
+
   SOLAR: {
-    DEFAULT_SYSTEM_SIZE: 5.4, // kWp
-    DEFAULT_PANEL_POWER: 450, // W
-    DEFAULT_PANEL_COUNT: 12,
-    DEFAULT_BUDGET: 8000, // €
-    DEFAULT_CONSUMPTION: 350, // kWh/mes
-    DEFAULT_BATTERY_CAPACITY: 0,
+    DEFAULT_SYSTEM_SIZE: 5.0, // kWp (Residencial típico)
+    DEFAULT_PANEL_POWER: 550, // W (Paneles actuales son de 500-600W)
+    DEFAULT_PANEL_COUNT: 10,
+    DEFAULT_BUDGET: 6000, // € (Bajada precios 2024-25)
+    DEFAULT_CONSUMPTION: 400, // kWh/mes
+    DEFAULT_BATTERY_CAPACITY: 5.0, // kWh
   },
+  
   WIND: {
-    DEFAULT_TURBINE_POWER: 5, // kW
-    DEFAULT_TURBINE_HEIGHT: 12, // m
-    DEFAULT_ROTOR_DIAMETER: 4, // m
-    DEFAULT_BUDGET: 12000, // €
-    DEFAULT_CONSUMPTION: 350, // kWh/mes
+    DEFAULT_TURBINE_POWER: 5000, // kW (5MW - Industrial/Parque)
+    DEFAULT_TURBINE_HEIGHT: 100, // m
+    DEFAULT_ROTOR_DIAMETER: 120, // m
+    DEFAULT_BUDGET: 6000000, // € (~1.2M/MW)
+    DEFAULT_CONSUMPTION: 50000, // kWh/mes (Industrial)
   },
   SIMPLE: {
     DEFAULT_SYSTEM_SIZE: 5, // kWp
@@ -42,12 +65,6 @@ export const UI_DEFAULTS = {
     DEFAULT_INSTALLATION_COST: 400, // €/kWp
     DEFAULT_ANNUAL_INCREASE: 2.5, // %
   },
-  INITIAL_CITY: 'Madrid',
-  INITIAL_LAT: 40.4168,
-  INITIAL_LON: -3.7038,
-  WIND_INITIAL_CITY: 'Zaragoza',
-  WIND_INITIAL_LAT: 41.6488,
-  WIND_INITIAL_LON: -0.8891,
 };
 
 export const CALCULATION_CONSTANTS = {
@@ -73,25 +90,7 @@ export const CACHE_CONSTANTS = {
   LONG_EXPIRY: 86400000, // 24 hours
 };
 
-export const ECONOMIC_DEFAULTS = {
-  INFLATION_RATE: 0.02,
-  DEGRADATION_RATE: 0.005,
-  DISCOUNT_RATE: 0.04,
-  MAINTENANCE_RATE: 0.01,
-  INVERTER_REPLACEMENT_COST: 0.15, // % del coste inicial
-  INVERTER_REPLACEMENT_YEAR: 10,
-  DEFAULT_ELECTRICITY_PRICE: 0.15,
-  DEFAULT_SURPLUS_PRICE: 0.05,
-  DEFAULT_GRID_PRICE: 0.18,
-  DEFAULT_SELL_PRICE: 0.06,
-  MARKET_SELL_RATIO: 0.4, // Ratio precio venta / precio compra
-  DEFAULT_SELF_CONSUMPTION: 0.4,
-  DEFAULT_PROJECT_LIFESPAN: 25,
-  DEFAULT_IRR: 0.15,
-  MAX_PAYBACK_YEARS: 25,
-  CONSUMER_PRICE_TOLLS: 0.10,
-  VAT: 1.21
-};
+
 
 export const FALLBACK_DATA = {
   SOLAR_BASE_PRODUCTION: 1500, // kWh/kWp anual

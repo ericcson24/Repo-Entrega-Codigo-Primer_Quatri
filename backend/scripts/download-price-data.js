@@ -17,49 +17,64 @@ class EnergyPriceDownloader {
     }
   }
 
-  async downloadMarketPrices(years = 1) {
+  async downloadMarketPrices(startYear = 2020, endYear = 2024) {
     console.log(`\n Descargando precios del mercado eléctrico español...`);
-    console.log(`   Periodo: año 2020 (datos estables disponibles en REE)`);
+    console.log(`   Periodo: ${startYear} - ${endYear}`);
 
     let allPrices = [];
-    // Definir rangos mensuales para evitar errores 500 por exceso de datos
-    const months = [
-      { start: '2020-01-01T00:00', end: '2020-01-31T23:59' },
-      { start: '2020-02-01T00:00', end: '2020-02-29T23:59' },
-      { start: '2020-03-01T00:00', end: '2020-03-31T23:59' },
-      { start: '2020-04-01T00:00', end: '2020-04-30T23:59' },
-      { start: '2020-05-01T00:00', end: '2020-05-31T23:59' },
-      { start: '2020-06-01T00:00', end: '2020-06-30T23:59' },
-      { start: '2020-07-01T00:00', end: '2020-07-31T23:59' },
-      { start: '2020-08-01T00:00', end: '2020-08-31T23:59' },
-      { start: '2020-09-01T00:00', end: '2020-09-30T23:59' },
-      { start: '2020-10-01T00:00', end: '2020-10-31T23:59' },
-      { start: '2020-11-01T00:00', end: '2020-11-30T23:59' },
-      { start: '2020-12-01T00:00', end: '2020-12-31T23:59' }
-    ];
+    const years = [];
+    for (let y = startYear; y <= endYear; y++) {
+        years.push(y);
+    }
 
     try {
-      for (const month of months) {
-        process.stdout.write(`    Descargando mes: ${month.start.split('T')[0]}... `);
-        
-        const response = await axios.get(`${this.baseURL}/mercados/precios-mercados-tiempo-real`, {
-          params: {
-            start_date: month.start,
-            end_date: month.end,
-            time_trunc: 'hour'
-          },
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json'
-          }
-        });
+      for (const year of years) {
+         console.log(`   Procesando Año: ${year}`);
+         const months = [
+            { start: `${year}-01-01T00:00`, end: `${year}-01-31T23:59` },
+            { start: `${year}-02-01T00:00`, end: `${year}-02-28T23:59` }, 
+            { start: `${year}-03-01T00:00`, end: `${year}-03-31T23:59` },
+            { start: `${year}-04-01T00:00`, end: `${year}-04-30T23:59` },
+            { start: `${year}-05-01T00:00`, end: `${year}-05-31T23:59` },
+            { start: `${year}-06-01T00:00`, end: `${year}-06-30T23:59` },
+            { start: `${year}-07-01T00:00`, end: `${year}-07-31T23:59` },
+            { start: `${year}-08-01T00:00`, end: `${year}-08-31T23:59` },
+            { start: `${year}-09-01T00:00`, end: `${year}-09-30T23:59` },
+            { start: `${year}-10-01T00:00`, end: `${year}-10-31T23:59` },
+            { start: `${year}-11-01T00:00`, end: `${year}-11-30T23:59` },
+            { start: `${year}-12-01T00:00`, end: `${year}-12-31T23:59` }
+         ];
+          
+         // Fix leap year for Feb (simple check)
+         if ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) {
+             months[1].end = `${year}-02-29T23:59`;
+         }
 
-        const rawPrices = response.data.included[0]?.attributes?.values || [];
-        allPrices = [...allPrices, ...rawPrices];
-        console.log(`OK (${rawPrices.length} registros)`);
-        
-        // Pequeña pausa para no saturar la API
-        await new Promise(resolve => setTimeout(resolve, 500));
+         for (const month of months) {
+            process.stdout.write(`    Descargando mes: ${month.start.split('T')[0]}... `);
+            
+            try {
+                const response = await axios.get(`${this.baseURL}/mercados/precios-mercados-tiempo-real`, {
+                params: {
+                    start_date: month.start,
+                    end_date: month.end,
+                    time_trunc: 'hour'
+                },
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'application/json'
+                }
+                });
+
+                const rawPrices = response.data.included[0]?.attributes?.values || [];
+                allPrices = [...allPrices, ...rawPrices];
+                console.log(`OK (${rawPrices.length} registros)`);
+            } catch(e) {
+                console.log(`ERROR: ${e.message}`);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+         }
       }
       
       // Procesar datos
@@ -73,9 +88,9 @@ class EnergyPriceDownloader {
       // Calcular estadísticas
       const prices = structured.map(e => e.priceEurMWh);
       const stats = {
-        avgPrice: prices.reduce((a, b) => a + b, 0) / prices.length,
-        minPrice: Math.min(...prices),
-        maxPrice: Math.max(...prices),
+        avgPrice: prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
+        minPrice: prices.length ? Math.min(...prices) : 0,
+        maxPrice: prices.length ? Math.max(...prices) : 0,
         medianPrice: this.calculateMedian(prices),
         stdDev: this.calculateStdDev(prices)
       };
@@ -86,8 +101,8 @@ class EnergyPriceDownloader {
       const result = {
         metadata: {
           period: {
-            start: '2020-01-01',
-            end: '2020-12-31'
+            start: `${startYear}-01-01`,
+            end: `${endYear}-12-31`
           },
           dataPoints: structured.length,
           source: 'Red Eléctrica Española (REE)',
@@ -98,23 +113,16 @@ class EnergyPriceDownloader {
         monthlyAverage: monthly,
         dailyPrices: structured
       };
-
-      // Guardar archivo
-      const filename = `electricity_prices_2020.json`;
-      const filepath = path.join(this.dataDir, filename);
       
-      fs.writeFileSync(filepath, JSON.stringify(result, null, 2));
-
+      const filename = `electricity_prices_${startYear}-${endYear}.json`;
+      fs.writeFileSync(path.join(this.dataDir, filename), JSON.stringify(result, null, 2));
       console.log(`\n    Descarga completada: ${structured.length} registros totales`);
-      console.log(`    Precio medio: ${stats.avgPrice.toFixed(2)} €/MWh`);
-      console.log(`    Rango: ${stats.minPrice.toFixed(2)} - ${stats.maxPrice.toFixed(2)} €/MWh`);
       console.log(`    Guardado en: ${filename}`);
-      
+
       return result;
 
     } catch (error) {
-      console.error(`\n    Error descargando precios:`, error.response?.data || error.message);
-      throw error;
+       console.error('Fatal Error downloading prices:', error);
     }
   }
 
@@ -242,7 +250,8 @@ async function main() {
 }
 
 if (require.main === module) {
-  main();
+  const downloader = new EnergyPriceDownloader();
+  downloader.downloadMarketPrices(2020, 2024);
 }
 
 module.exports = EnergyPriceDownloader;

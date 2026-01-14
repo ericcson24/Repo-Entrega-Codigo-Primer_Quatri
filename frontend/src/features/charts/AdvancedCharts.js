@@ -19,8 +19,12 @@ import { CHART_CONSTANTS } from '../../core/config/constants';
 /**
  * Componente de gráficos avanzados para visualización de datos de inversión
  */
-const AdvancedCharts = ({ data, investmentData, metrics }) => {
+const AdvancedCharts = ({ financialData, productionData, type }) => {
   const [activeChart, setActiveChart] = useState('evolution');
+
+  // Adaptación robusta de datos si financialData no está presente
+  // ResultsView pasa 'financialData' con la estructura mapeada { year, balance, savings, costs }
+  const data = financialData || [];
 
   if (!data || data.length === 0) {
     return (
@@ -36,49 +40,40 @@ const AdvancedCharts = ({ data, investmentData, metrics }) => {
     );
   }
 
-  // Preparar datos para gráficos
+  // Preparar datos extendidos para gráficos avanzados
+  // data viene mapeada de ResultsView como:
+  // { year: f.year, balance: f.cumulative, savings: f.savings + f.income, costs: f.opex }
   const chartData = data.map(item => ({
     year: item.year,
-    value: item.acumulado, // Use acumulado directly
-    profit: item.profit,
-    // ROI as number
-    roi: parseFloat(item.roi),
-    income: item.income || 0,
-    production: item.production || 0,
-    maintenance: item.maintenance || 0,
-    cumulativeIncome: item.acumulado - (item.investment || 0)
+    value: item.balance, // Acumulado
+    profit: item.balance, // En este contexto, profit acumulado es el balance
+    roi: item.balance > 0 ? (item.balance / (data[0].costs || 1)) * 100 : 0, // Aproximacion visual
+    income: item.savings,
+    maintenance: item.costs
   }));
 
-  // Datos para gráfico de pastel (costos vs beneficios)
-  const finalYear = data[data.length - 1]; // Use original data
-  const finalChartData = chartData[chartData.length - 1]; // Use processed data
-
+  // Datos para gráfico de pastel (Inversión vs Beneficio Final)
+  // El año 0 tiene costs = Inversion (Capex) y balance = -Capex
+  const initialInvestment = data.length > 0 ? data[0].costs : 0; // Approx Year 0 cost is investment
+  const finalYear = chartData[chartData.length - 1];
+  
   const pieData = [
     {
       name: 'Inversión Inicial',
-      value: finalYear.investment,
+      value: Math.abs(initialInvestment),
       color: CHART_CONSTANTS.COLORS.INVESTMENT
     },
     {
-      name: 'Beneficios Acumulados',
-      value: finalYear.acumulado, // Fixed key
+      name: 'Beneficios Totales',
+      value: Math.max(0, finalYear.value + Math.abs(initialInvestment)), // Total generado
       color: CHART_CONSTANTS.COLORS.PROFIT
     }
   ];
 
-  // Datos para gráfico de barras (ROI por año)
-  const roiData = chartData.map(item => ({
-    year: item.year,
-    roi: item.roi,
-    annualReturn: 0 // Simplified calculation or calculate properly based on profit/investment
-  }));
-
   const chartTypes = [
     { id: 'evolution', label: 'Evolución del Valor', icon: '📈' },
-    { id: 'roi', label: 'ROI por Año', icon: '💰' },
     { id: 'cashflow', label: 'Flujo de Caja', icon: '💸' },
-    { id: 'production', label: 'Producción Energética', icon: '⚡' },
-    { id: 'distribution', label: 'Distribución de Costos', icon: '🥧' }
+    { id: 'distribution', label: 'Inversión vs Retorno', icon: '🥧' }
   ];
 
   const renderChart = () => {
@@ -131,10 +126,16 @@ const AdvancedCharts = ({ data, investmentData, metrics }) => {
         );
 
       case 'roi':
+        // Prepare simplified ROI data if not present on chartData
+        const roiChartData = chartData.map(d => ({
+             year: d.year,
+             roi: d.roi || 0
+        }));
+
         return (
           <div className="h-96">
             <ResponsiveContainer width={CHART_CONSTANTS.WIDTH.FULL} height={CHART_CONSTANTS.HEIGHT.FULL}>
-              <BarChart data={roiData}>
+              <BarChart data={roiChartData}>
                 <CartesianGrid strokeDasharray={CHART_CONSTANTS.STROKE.DASH_3_3} className="opacity-30" />
                 <XAxis
                   dataKey="year"
