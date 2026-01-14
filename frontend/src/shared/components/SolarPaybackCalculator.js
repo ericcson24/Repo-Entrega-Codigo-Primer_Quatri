@@ -83,20 +83,25 @@ const SolarPaybackCalculator = ({ onCalculate }) => {
       );
 
        // Generar datos para gráficos (compatibilidad con ResultsView)
-      const monthlyData = prediction.monthlyDistribution.map((m, i) => ({
+      // Aseguramos que monthlyDistribution sea un array de números
+      const monthlyValues = Array.isArray(prediction.monthlyDistribution) 
+           ? prediction.monthlyDistribution 
+           : [];
+           
+      const monthlyData = monthlyValues.map((val, i) => ({
         name: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][i],
-        production: m.production,
+        production: val,
         consumo: formData.monthlyConsumption 
       }));
 
-      const financialData = economics.cashFlows.map((flow, i) => {
-        const accumulatedValue = economics.cashFlows.slice(0, i + 1).reduce((a, b) => a + b, 0);
+      // Backend ya devuelve cashFlows completos con cumulative y netFlow
+      const financialData = economics.cashFlows.map((flow) => {
         return {
-           year: i,
-           acumulado: accumulatedValue,
-           profit: flow,
+           year: flow.year,
+           acumulado: flow.cumulative,
+           profit: flow.netFlow,
            investment: totalCost,
-           roi: totalCost > 0 ? ((accumulatedValue / totalCost) * CALCULATION_CONSTANTS.PERCENTAGE_DIVISOR).toFixed(1) : 0
+           roi: totalCost > 0 ? ((flow.cumulative / totalCost) * CALCULATION_CONSTANTS.PERCENTAGE_DIVISOR).toFixed(1) : 0
         };
       });
       

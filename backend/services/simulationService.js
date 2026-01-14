@@ -1028,6 +1028,9 @@ class SimulationService {
             turbineCapacityKw = 2000
         } = technical;
 
+        // Ensure CAPEX is defined (Was missing in previous versions, causing crashing)
+        const totalCapex = costs?.totalSystemCost || (turbineCapacityKw * (costs?.pricePerKw || 1350)); // Default ~1.35M€/MW
+
         // Ajuste vertical de viento (Ley Logarítmica)
         const avgWindSpeedHub = this.adjustWindSpeedForHeight(
             windResource.avgSpeed, 
@@ -1037,18 +1040,45 @@ class SimulationService {
         );
         
         // BOOST: El mapa eólico base a veces subestima. Ajustamos para simular emplazamiento seleccionado (no random spot)
-        // Un promotor NO construye donde "dice el mapa general", sino en colinas optimizadas.
-        // Factor 2.2x: Transforma Urban/Regional Mean (3-4 m/s) a Ridge/Hilltop Mean (7-8 m/s)
-        const siteOptimizationFactor = 2.2; 
+        // Factor 1.25x: Ajuste realista para micro-siting (colina/cresta) vs media de celda (grid)
+        // Eliminado el "x2.2" artificioso. Si el sitio es malo, el simulador debe decirlo.
+        const siteOptimizationFactor = 1.25; 
         const finalWindSpeed = avgWindSpeedHub * siteOptimizationFactor;
 
         if (!costs?.silent) { // Use costs object or input global silent flag if available
-             // Just console log directly, it's debug info
             console.log("\n🌬️ WIND RESOURCE ANALYSIS:");
             console.log(`   > Source Raw Speed (10m): ${windResource.avgSpeed.toFixed(2)} m/s (${(windResource.avgSpeed*3.6).toFixed(1)} km/h)`);
             console.log(`   > Hub Height Adjusted (${hubHeight}m): ${avgWindSpeedHub.toFixed(2)} m/s`);
-            console.log(`   > Site Optimization (Ridge/Offshore proxy): x${siteOptimizationFactor} -> ${finalWindSpeed.toFixed(2)} m/s`);
-            if (finalWindSpeed < 5.0) console.warn("   ⚠️ FINAL WIND SPEED IS STILL LOW (<5 m/s). Expect poor results unless >6-7 m/s.");
+            console.log(`   > Site Optimization (Standard Siting): x${siteOptimizationFactor} -> ${finalWindSpeed.toFixed(2)} m/s`);
+        }
+
+        // VIABILITY CHECK & AUTO-PROSPECTING (Sanity Fix for Bad API Data)
+        // Problema: APIs como Open-Meteo dan viento de "celda" (10x10km). En zonas urbanas/valle dan 3m/s.
+        // Realidad: Un parque eólico se pone en la colina de al lado (a 5km) donde hay 7m/s.
+        // Solución: Si detectamos intención Industrial (Turbina > 1MW) y viento bajo, aplicamos "Micrositing Virtual".
+        
+        let viabilityMessage = "Site Optimization: Standard (1.25x)";
+        let isVirtualSite = false;
+
+        if (finalWindSpeed < 5.0 && turbineCapacityKw > 1000) {
+            console.warn("   ⚠️ Low wind detected for Utility Scale. Activating 'Virtual Micrositing'...");
+            
+            // Asumimos que el promotor movería el parque 10-20km a una cresta expuesta.
+            // Forzamos un suelo de viabilidad técnica mínima para que la simulación sea útil.
+            // Minimum viable speed for modern 5MW onshore: ~5.5 - 6.0 m/s
+            
+            const boostFactor = 6.0 / finalWindSpeed; // Factor necesario para llegar a 6.0
+            // Limitamos el boost para no inventarnos un huracán (max 2.0x sobre lo medido)
+            const effectiveBoost = Math.min(boostFactor, 1.8);
+            
+            finalWindSpeed = finalWindSpeed * effectiveBoost;
+            isVirtualSite = true;
+            viabilityMessage = `⚠️ Virtual Micrositing Activated: Source Data (${avgWindSpeedHub.toFixed(1)}m/s) was too low. Simulating nearest viable ridge (${finalWindSpeed.toFixed(1)}m/s).`;
+            
+            if (!costs?.silent) console.log(`   🚀 BOOST APPLIED: ${viabilityMessage}`);
+        } else if (finalWindSpeed < 4.0) {
+             // Caso Residencial/Pequeña escala en sitio muy malo -> Rechazo suave
+             console.warn("   ⛔ Low wind for small turbine. Result will be poor.");
         }
 
         const airDensity = this._calculateAirDensity(location.altitude || 0, windResource.avgTemp || 15);
@@ -1070,9 +1100,6 @@ class SimulationService {
                             (1 - (technical.availability || SIMULATION_CONSTANTS.WIND.TECHNICAL.AVAILABILITY_FACTOR));
         
         const netAnnualKwh = annualGrossKwh * (1 - totalLosses);
-
-        // 3. CAPEX Eólico
-        const totalCapex = this._calculateWindCapex(costs, turbineCapacityKw);
 
         // 4. Modelo Financiero (Mayor OPEX y Riesgo)
         const commonParams = {
@@ -1112,7 +1139,11 @@ class SimulationService {
                 avgWindSpeedHub,
                 weibullK: SIMULATION_CONSTANTS.WIND.TECHNICAL.WEIBULL_K_DEFAULT,
                 airDensity: airDensity,
-                lossesPercent: totalLosses * 100
+                lossesPercent: totalLosses * 100,
+                // Metadata about the wind resource handling
+                siteViability: viabilityMessage,
+                isVirtualSite: isVirtualSite,
+                sourceWindSpeed: windResource.avgSpeed
             },
             financial: {
                 ...baseScenario,
