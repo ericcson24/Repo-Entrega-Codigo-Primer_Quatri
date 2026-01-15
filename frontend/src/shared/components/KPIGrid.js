@@ -1,8 +1,11 @@
 import React from 'react';
-import { Zap, DollarSign, TrendingUp, Fan, Activity, Leaf, Coins, TreeDeciduous } from 'lucide-react';
+import { Zap, DollarSign, TrendingUp, Fan, Activity, Leaf, Coins, TreeDeciduous, Droplet, Flame } from 'lucide-react';
 
 export const KPIGrid = ({ metrics = {}, type = 'solar' }) => {
-  const Icon = type === 'solar' ? Zap : Fan;
+  let Icon = Zap;
+  if (type === 'wind') Icon = Fan;
+  if (type === 'hydro') Icon = Droplet;
+  if (type === 'biomass') Icon = Flame;
   
   // Extract normalized values
   const annualProd = metrics.annualProduction || metrics.totalGenerationFirstYear || 0;

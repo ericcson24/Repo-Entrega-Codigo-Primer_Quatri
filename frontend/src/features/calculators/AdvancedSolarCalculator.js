@@ -314,10 +314,20 @@ const AdvancedSolarCalculator = ({ onCalculate }) => {
         }
       };
 
-      // Si existe el servicio real, lo usamos
-      const result = await dynamicAPIService.calculateSolarProduction(simulationParams);
+      // DEBUG START
+      console.log("--- [SOLAR CALCULATOR] START SIMULATION ---");
+      console.log("1. Form Data:", formData);
+      console.log("2. Simulation Params Constructed:", simulationParams);
 
-      if (onCalculate) onCalculate(result);
+      // Use Unified Dynamic Service for Full Stack Simulation (Standardized vs Wind)
+      console.log("3. Calling dynamicAPIService.calculateSolarProduction...");
+      const result = await dynamicAPIService.calculateSolarProduction(simulationParams);
+      
+      console.log("4. Result received from Service:", result);
+      console.log("--- [SOLAR CALCULATOR] END SIMULATION ---");
+      // DEBUG END
+
+      onCalculate(result);
       
     } catch (error) {
       console.error("Calculation error:", error);
@@ -356,12 +366,13 @@ const AdvancedSolarCalculator = ({ onCalculate }) => {
         <div>
           <h2 className="page-title">
             <Sun className="icon-primary" />
-            Calculadora Solar {isAdvanced ? 'Avanzada' : 'Básica'}
+            IA Solar PV Simulation {isAdvanced ? 'Advanced' : ''}
+            <span className="ai-badge ml-3 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full border border-amber-200">AI POWERED</span>
           </h2>
           <p className="page-subtitle">
             {isAdvanced 
               ? 'Configuración detallada con parámetros técnicos y financieros' 
-              : 'Estimación rápida basada en ubicación y consumo'}
+              : 'Estimación rápida basada en IA y ubicación'}
           </p>
         </div>
         <button 

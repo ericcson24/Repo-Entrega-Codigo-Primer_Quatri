@@ -204,12 +204,13 @@ const AdvancedWindCalculator = ({ onCalculate }) => {
         <div>
           <h2 className="page-title">
             <Wind className="icon-primary" />
-            Calculadora Eólica {isAdvanced ? 'Avanzada' : 'Básica'}
+            IA Wind Simulation {isAdvanced ? 'Advanced' : ''}
+            <span className="ai-badge ml-3 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full border border-blue-200">AI POWERED</span>
           </h2>
           <p className="page-subtitle">
             {isAdvanced 
               ? 'Configuración detallada de aerogeneradores y condiciones de viento' 
-              : 'Estimación rápida de energía eólica doméstica'}
+              : 'Estimación rápida de energía eólica basada en IA'}
           </p>
         </div>
         <button 

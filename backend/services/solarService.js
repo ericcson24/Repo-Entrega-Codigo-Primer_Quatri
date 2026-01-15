@@ -22,14 +22,28 @@ class SolarService {
       // 2. Call PVGIS Market/SeriesCalc
       // Using Hourly Data for maximum precision is ideal, but Monthly is often sufficient for faster estimates.
       // We will use Monthly (PVcalc) for generation profiling.
+      
+      // AZIMUTH CORRECTION (CRITICAL):
+      // PVGIS API uses: 0=South, -90=East, 90=West.
+      // Frontends typically use Compass: 180=South.
+      // If we receive ~180, we MUST convert to 0 to avoid simulating North-facing panels (which yields ~50-60% less energy).
+      
+      let pvgisAzimuth = Number(azimuth);
+      if (Math.abs(pvgisAzimuth - 180) < 5) {
+          console.log(`[SolarService] ⚠️ Detected Azimuth ${pvgisAzimuth} (Compass South). Converting to PVGIS Standard (0=South).`);
+          pvgisAzimuth = 0;
+      }
+      
+      console.log(`[SolarService] Calling PVGIS with Capacity: ${peakPowerKw} kW, Loss: ${systemLoss}%, Tilt: ${tilt}, Azimuth: ${pvgisAzimuth} (Original: ${azimuth})`);
+
       const pvgisResponse = await axios.get(`${apis.electricity.pvgis}/PVcalc`, {
         params: {
-          lat: coords.lat,
-          lon: coords.lon,
-          peakpower: peakPowerKw,
-          loss: systemLoss,
-          angle: tilt,
-          aspect: azimuth,
+          lat: Number(coords.lat),
+          lon: Number(coords.lon),
+          peakpower: Number(peakPowerKw),
+          loss: Number(systemLoss),
+          angle: Number(tilt),
+          aspect: pvgisAzimuth,
           mountingplace: mountingPlace,
           pvtechchoice: technology,
           outputformat: 'json'

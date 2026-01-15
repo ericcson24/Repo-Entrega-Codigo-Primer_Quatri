@@ -7,9 +7,49 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const ResultsView = ({ results, type = 'solar', onBack }) => {
+const ResultsView = ({ data, type = 'solar', onBack }) => {
   const resultsRef = useRef(null);
   const { isDark } = useTheme();
+
+  // Determine Title based on type
+  const getTitle = () => {
+      switch(type) {
+          case 'wind': return 'Eólica';
+          case 'hydro': return 'Hidráulica';
+          case 'biomass': return 'Biomasa';
+          default: return 'Solar Fotovoltaica';
+      }
+  };
+  
+  // Normalize input data structure if coming from simulationService
+  const results = data.summary ? data : { 
+      summary: data, 
+      financial: { cashFlows: [], scenarios: { base: { cashFlows: [] } } },
+      technical: {},
+      parameters: { location: {}, capacity: 0 } // Fallback
+  }; 
+
+  // Enrich parameters for display if missing
+  if (!results.parameters) {
+      if (type === 'hydro') {
+          results.parameters = {
+              location: { name: 'Custom Site' },
+              capacity: results.technical?.capacityKw || 0,
+              type: 'Hydroelectric'
+          };
+      } else if (type === 'biomass') {
+          results.parameters = {
+              location: { name: 'Custom Site' },
+              capacity: results.technical?.capacityKw || 0,
+              type: 'Biomass'
+          };
+      } else {
+           results.parameters = {
+              location: { name: 'Unknown' },
+              capacity: results.technical?.capacityKw || results.technical?.peakPowerKw || 0
+          };
+      }
+  }
 
   const handleExportPDF = async () => {
     try {
@@ -21,7 +61,12 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
       // --- HEADER ---
       pdf.setFontSize(22);
       pdf.setTextColor(40, 40, 40);
-      pdf.text(`Informe de Rentabilidad ${type === 'solar' ? 'Solar' : 'Eólica'}`, margin, yPos);
+      let typeTitle = 'Solar';
+      if (type === 'wind') typeTitle = 'Eólica';
+      if (type === 'hydro') typeTitle = 'Hidráulica';
+      if (type === 'biomass') typeTitle = 'Biomasa';
+      
+      pdf.text(`Informe de Rentabilidad ${typeTitle}`, margin, yPos);
       
       yPos += 10;
       pdf.setFontSize(10);
@@ -91,9 +136,14 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
       const specs = [
           `Ubicación: ${results.parameters.location?.name || 'Coordenadas Personalizadas'} (${(results.parameters.location?.lat||0).toFixed(4)}, ${(results.parameters.location?.lon||0).toFixed(4)})`,
           `Capacidad: ${results.parameters.capacity} kW`,
-          type === 'solar' ? `Inclinación: ${results.parameters.tilt}° | Azimut: ${results.parameters.azimuth}°` : `Altura Buje: ${results.parameters.height}m`,
-          `LCOE Estimado: ${(results.financial?.metrics?.lcoe || 0).toFixed(4)} €/kWh`
       ];
+      
+      if (type === 'solar') specs.push(`Inclinación: ${results.parameters.tilt || 0}° | Azimut: ${results.parameters.azimuth || 0}°`);
+      if (type === 'wind') specs.push(`Altura Buje: ${results.parameters.height || 80}m`);
+      if (type === 'hydro') specs.push(`Caudal: ${results.technical?.flowRate} m3/s | Salto: ${results.technical?.headHeight}m`);
+      if (type === 'biomass') specs.push(`Combustible: ${results.technical?.fuelType || 'Biomasa'} | Tons/Año: ${results.summary?.fuelTonsPerYear}`);
+
+      specs.push(`LCOE Estimado: ${(results.financial?.metrics?.lcoe || 0).toFixed(4)} €/kWh`);
 
       specs.forEach(spec => {
           pdf.text(`• ${spec}`, margin, yPos);
@@ -121,7 +171,7 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
           <ArrowLeft size={32} className="opacity-50" />
         </div>
         <h3 className="text-xl font-semibold mb-2">Sin resultados</h3>
-        <p>Realiza un cálculo en la calculadora {type === 'solar' ? 'solar' : 'eólica'} para ver el análisis.</p>
+        <p>Realiza un cálculo en la calculadora {getTitle().toLowerCase()} para ver el análisis.</p>
         <button 
           onClick={onBack}
           className="btn-secondary mt-4"
@@ -161,7 +211,7 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
           Volver
         </button>
         <div className="header-actions">
-          <h2 className="text-2xl font-bold">Análisis de Rentabilidad {type === 'solar' ? 'Solar' : 'Eólica'}</h2>
+          <h2 className="text-2xl font-bold">Análisis de Rentabilidad {getTitle()}</h2>
           <button onClick={handleExportPDF} className="btn-icon" title="Exportar PDF">
             <Download size={20} />
           </button>
@@ -231,17 +281,29 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
                               <li className="flex justify-between"><span>Azimut:</span> <span className="font-medium">{results.parameters.azimuth}°</span></li>
                               <li className="flex justify-between"><span>Eficiencia Sistema:</span> <span className="font-medium">{(results.technical?.system?.efficiency * 100).toFixed(1)}%</span></li>
                             </>
-                          ) : (
+                          ) : type === 'wind' ? (
                             <>
                               <li className="flex justify-between"><span>Altura Buje:</span> <span className="font-medium">{results.parameters.height} m</span></li>
                               <li className="flex justify-between"><span>Diámetro Rotor:</span> <span className="font-medium">{results.technical?.system?.rotorDiameter} m</span></li>
                               <li className="flex justify-between"><span>Factor Capacidad:</span> <span className="font-medium">{(results.technical?.production?.capacityFactor || 0).toFixed(1)}%</span></li>
                             </>
+                          ) : type === 'hydro' ? (
+                             <>
+                              <li className="flex justify-between"><span>Caudal Diseño:</span> <span className="font-medium">{results.technical?.flowRate} m³/s</span></li>
+                              <li className="flex justify-between"><span>Salto Neto:</span> <span className="font-medium">{results.technical?.headHeight} m</span></li>
+                              <li className="flex justify-between"><span>Eficiencia:</span> <span className="font-medium">{(results.technical?.efficiency * 100).toFixed(1)}%</span></li>
+                             </>
+                          ) : (
+                             <>
+                              <li className="flex justify-between"><span>Combustible:</span> <span className="font-medium">{results.technical?.fuelType || 'Biomasa Std'}</span></li>
+                              <li className="flex justify-between"><span>Consumo:</span> <span className="font-medium">{results.summary?.fuelTonsPerYear} t/año</span></li>
+                              <li className="flex justify-between"><span>Factor Capacidad:</span> <span className="font-medium">{(results.technical?.capacityFactor * 100).toFixed(1)}%</span></li>
+                             </>
                           )}
                       </ul>
                   </div>
                   <div>
-                      <h4 className="font-semibold text-[var(--text-secondary)] mb-2">{type === 'solar' ? 'Ubicación & Solar' : 'Ubicación & Viento'}</h4>
+                      <h4 className="font-semibold text-[var(--text-secondary)] mb-2">{getTitle()} & Ubicación</h4>
                       <ul className="space-y-2 text-sm text-[var(--text-primary)]">
                           <li className="flex justify-between">
                             <span>Latitud:</span> 
@@ -253,10 +315,14 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
                           </li>
                           {type === 'solar' ? (
                               <li className="flex justify-between"><span>Irradiación Pico:</span> <span className="font-medium">{(results.technical?.production?.peakPower || 0).toFixed(2)} kWh/m²</span></li>
-                          ) : (
+                          ) : type === 'wind' ? (
                               <li className="flex justify-between"><span>Velocidad Viento:</span> <span className="font-medium">Variable (Weibull)</span></li>
+                          ) : type === 'hydro' ? (
+                              <li className="flex justify-between"><span>Recurso Hídrico:</span> <span className="font-medium">Fluyente (Run-of-River)</span></li>
+                          ) : (
+                              <li className="flex justify-between"><span>Ciclo Térmico:</span> <span className="font-medium">Rankine Orgánico</span></li>
                           )}
-                          <li className="flex justify-between"><span>Área Necesaria:</span> <span className="font-medium">~{Math.round(results.technical?.system?.area)} m²</span></li>
+                          <li className="flex justify-between"><span>Área Necesaria:</span> <span className="font-medium">~{Math.round(results.technical?.system?.area || results.parameters.capacity * 20)} m²</span></li>
                       </ul>
                   </div>
                   <div>

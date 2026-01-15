@@ -63,6 +63,11 @@ class MarketService {
       const values = response.data.included[0]?.attributes?.values;
       const lastValue = values ? values[values.length - 1].value : SIMULATION_CONSTANTS.MARKET.GRID_PRICE;
 
+      // --- FETCH REAL BIOMASS FUEL PRICES ---
+      // We'll add this to the output. Currently REE API doesn't have biomass fuel price.
+      // We simulate fetching from a commodity API or use a more accurate proxy.
+      // For now, we stick to keeping this extensible.
+      
       return {
         source: 'Red Eléctrica España (REE)',
         currentPrice: lastValue,

@@ -1,4 +1,5 @@
 const simulationService = require('../services/simulationService');
+const investmentService = require('../services/investmentService');
 
 exports.calculateWind = async (req, res) => {
     try {
@@ -37,16 +38,44 @@ exports.calculateWind = async (req, res) => {
     }
 };
 
+exports.calculateHydro = async (req, res) => {
+    try {
+        console.log("-> [SimulationController] Recibida petición Hidráulica");
+        // { technical: { flowRate, headHeight, ... }, financial: {}, costs: {} }
+        
+        const result = await simulationService.runFullHydroSimulation({
+             location: req.body.location || {}, // No crítico para física simple, útil para reporte
+             technical: req.body.technical || {},
+             financial: req.body.financial || {},
+             costs: req.body.costs || {}
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Hydro Simulation Error:', error);
+        res.status(500).json({ error: 'Internal Simulation Error: ' + error.message });
+    }
+};
+
+exports.calculateBiomass = async (req, res) => {
+    try {
+        console.log("-> [SimulationController] Recibida petición Biomasa");
+        // { technical: { capacityKw, ... }, financial: {}, costs: { fuelCostPerTon } }
+        
+        const result = await simulationService.runFullBiomassSimulation({
+             location: req.body.location || {},
+             technical: req.body.technical || {},
+             financial: req.body.financial || {},
+             costs: req.body.costs || {}
+        });
+        res.json(result);
+    } catch (error) {
+        console.error('Biomass Simulation Error:', error);
+        res.status(500).json({ error: 'Internal Simulation Error: ' + error.message });
+    }
+};
+
 exports.calculateSolar = async (req, res) => {
     try {
-        // Nuevo flujo "Full Stack" - recibimos un objeto de configuración más completo
-        // Se espera que el frontend envíe algo como:
-        // {
-        //   location: { lat, lon },
-        //   technical: { angle, capacity, ... },
-        //   financial: { ... }
-        // }
-        // Para compatibilidad hacia atrás, también aceptamos lat, lon en el root
         
         const lat = req.body.lat || req.body.location?.lat;
         const lon = req.body.lon || req.body.location?.lon;
@@ -83,8 +112,9 @@ exports.calculateFinancials = async (req, res) => {
         if (!investment || !annualProduction) {
             return res.status(400).json({ error: 'Missing parameters: investment, annualProduction' });
         }
-
-        const result = await simulationService.calculateFinancials(
+        
+        // Delegamos a investmentService en lugar de simulationService para desacoplar
+        const result = await investmentService.calculateSolarInvestment(
             parseFloat(investment),
             parseFloat(annualProduction),
             parseFloat(selfConsumption || 0.5), // Default 50%
@@ -94,6 +124,32 @@ exports.calculateFinancials = async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Financial Calculation Error:', error);
+        res.status(500).json({ error: 'Internal Calculation Error' });
+    }
+};
+
+exports.calculatePanelInvestment = async (req, res) => {
+    try {
+         console.log("-> [SimulationController] Recibida petición Inversión Paneles");
+         const { totalCost, monthlySavings } = req.body;
+         
+         if (!totalCost || !monthlySavings) {
+             return res.status(400).json({ error: 'Missing parameters: totalCost, monthlySavings' });
+         }
+
+         const result = investmentService.calculatePaybackSimple(
+             parseFloat(totalCost),
+             parseFloat(monthlySavings)
+         );
+         
+         res.json({
+             paybackMonths: result.months,
+             paybackYears: result.years,
+             message: `Tiempo de recuperación estimado: ${result.years.toFixed(1)} años`
+         });
+
+    } catch(error) {
+        console.error('Panel Investment calculation error', error);
         res.status(500).json({ error: 'Internal Calculation Error' });
     }
 };

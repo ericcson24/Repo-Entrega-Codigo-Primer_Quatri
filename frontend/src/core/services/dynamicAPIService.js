@@ -731,6 +731,159 @@ class DynamicAPIService {
     }
   }
 
+  /**
+   * Ejecutar simulación Hidráulica (Nuevo)
+   */
+  async calculateHydroProduction(params) {
+    try {
+      // 1. Prepare Payload
+      const lat = params.location ? params.location.lat : params.lat;
+      const lon = params.location ? params.location.lon : params.lon;
+      
+      const payload = {
+          location: { lat, lon, name: params.location?.name || "Hydro Site" },
+          technical: params.technical,
+          financial: {
+              ...params.financial,
+              discountRate: 0.05
+          },
+          costs: params.costs
+      };
+
+      // 2. Call Backend
+      const response = await fetch(`${this.backendURL}/api/simulate/hydro`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("Hydro Simulation Failed");
+      const backendResult = await response.json();
+
+      // 3. Map to UI
+      const metrics = backendResult.summary || {};
+      const financial = backendResult.financial || {};
+      
+      // Hydro normally constant flow, so flat monthly distribution
+      const annualKwh = metrics.totalGenerationFirstYear;
+      const monthlyKwh = Array(12).fill(annualKwh / 12);
+
+      return {
+          source: 'Backend Physics (Hydro) + Financials',
+          parameters: payload,
+          technical: {
+              production: {
+                  annualKwh: annualKwh,
+                  monthlyKwh: monthlyKwh,
+                  dailyAverage: annualKwh / 365,
+                  capacityFactor: metrics.capacityFactor || 50
+              },
+              system: {
+                  sizeKw: metrics.installedPowerKw,
+                  headHeight: params.technical.headHeight,
+                  flowRate: params.technical.flowRate
+              }
+          },
+          financial: {
+              cashFlows: financial.cashFlows || [],
+              metrics: {
+                  roi: metrics.roi,
+                  paybackPeriod: metrics.paybackYears,
+                  netPresentValue: metrics.npv,
+                  totalSavings: metrics.npv
+              }
+          },
+          summary: {
+            annualProduction: annualKwh,
+            roi: metrics.roi,
+            payback: metrics.paybackYears,
+            annualSaving: financial.cashFlows?.[1]?.savings || 0,
+            totalSavings: metrics.npv,
+            co2Abatement: annualKwh * 0.05 / 1000 * 25, // Less displacement if run-of-river?
+            treesEquiv: 0
+          }
+      };
+    } catch (e) {
+        console.error("Hydro Calculation Error:", e);
+        throw e;
+    }
+  }
+
+  /**
+   * Ejecutar simulación Biomasa (Nuevo)
+   */
+  async calculateBiomassProduction(params) {
+    try {
+      // 1. Prepare Payload
+      const lat = params.location ? params.location.lat : params.lat;
+      const lon = params.location ? params.location.lon : params.lon;
+      
+      const payload = {
+          location: { lat, lon, name: params.location?.name || "Biomass Site" },
+          technical: params.technical,
+          financial: {
+              ...params.financial,
+              discountRate: 0.06
+          },
+          costs: params.costs
+      };
+
+      // 2. Call Backend
+      const response = await fetch(`${this.backendURL}/api/simulate/biomass`, {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("Biomass Simulation Failed");
+      const backendResult = await response.json();
+
+      // 3. Map to UI
+      const metrics = backendResult.summary || {};
+      const financial = backendResult.financial || {};
+      
+      const annualKwh = metrics.totalGenerationFirstYear;
+      const monthlyKwh = Array(12).fill(annualKwh / 12);
+
+      return {
+          source: 'Backend Physics (Biomass) + Financials',
+          parameters: payload,
+          technical: {
+              production: {
+                  annualKwh: annualKwh,
+                  monthlyKwh: monthlyKwh,
+                  dailyAverage: annualKwh / 365,
+                  capacityFactor: 85 // high availability
+              },
+              system: {
+                  sizeKw: params.technical.capacityKw,
+                  fuelType: 'Biomass'
+              }
+          },
+          financial: {
+              cashFlows: financial.cashFlows || [],
+              metrics: {
+                  roi: metrics.roi,
+                  paybackPeriod: metrics.paybackYears,
+                  netPresentValue: metrics.npv,
+                  totalSavings: metrics.npv
+              }
+          },
+          summary: {
+            annualProduction: annualKwh,
+            roi: metrics.roi,
+            payback: metrics.paybackYears,
+            annualSaving: financial.cashFlows?.[1]?.savings || 0,
+            totalSavings: metrics.npv,
+            fuelTons: metrics.fuelTonsPerYear
+          }
+      };
+    } catch (e) {
+        console.error("Biomass Calculation Error:", e);
+        throw e;
+    }
+  }
+
   // ========== UTILIDADES ==========
 
   extractProvince(displayName) {

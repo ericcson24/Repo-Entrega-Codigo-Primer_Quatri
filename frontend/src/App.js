@@ -5,7 +5,10 @@ import { SettingsProvider } from './core/contexts/SettingsContext';
 import Layout from './shared/components/Layout';
 import AdvancedSolarCalculator from './features/calculators/AdvancedSolarCalculator';
 import AdvancedWindCalculator from './features/calculators/AdvancedWindCalculator';
+import HydroCalculator from './features/calculators/HydroCalculator';
+import BiomassCalculator from './features/calculators/BiomassCalculator';
 import SolarPaybackCalculator from './shared/components/SolarPaybackCalculator';
+import SimplePaybackWidget from './shared/components/SimplePaybackWidget';
 import ResultsView from './features/results/ResultsView';
 import aiService from './core/services/aiService';
 import './styles/dark-technical.css';
@@ -48,18 +51,42 @@ const AppContent = () => {
   }
 
   const renderContent = () => {
-    switch (activeView) {
-      case 'solar':
-        return <AdvancedSolarCalculator onCalculate={(res) => handleCalculate(res, 'solar')} />;
-      case 'simple-solar':
-        return <SolarPaybackCalculator onCalculate={(res) => handleCalculate(res, 'solar')} />;
-      case 'wind':
-        return <AdvancedWindCalculator onCalculate={(res) => handleCalculate(res, 'wind')} />;
-      case 'results':
-        return <ResultsView results={results} type={resultType} onBack={() => setActiveView(resultType)} />;
-      default:
-        return <AdvancedSolarCalculator onCalculate={(res) => handleCalculate(res, 'solar')} />;
+    if (activeView === 'results') {
+      return (
+        <ResultsView 
+          data={results} 
+          type={resultType} 
+          onBack={() => setActiveView('solar')} 
+        />
+      );
     }
+
+    // Vistas de Calculadoras (Renderizadas según el Sidebar)
+    return (
+      <div className="calculator-content animate-fade-in">
+        {activeView === 'solar' && (
+            <>
+              <AdvancedSolarCalculator onCalculate={(res) => handleCalculate(res, 'solar')} />
+              <div className="mt-8">
+                <SolarPaybackCalculator />
+                <SimplePaybackWidget />
+              </div>
+            </>
+        )}
+        {activeView === 'simple-solar' && (
+            <SolarPaybackCalculator />
+        )}
+        {activeView === 'wind' && (
+            <AdvancedWindCalculator onCalculate={(res) => handleCalculate(res, 'wind')} />
+        )}
+        {activeView === 'hydro' && (
+            <HydroCalculator onCalculate={(res) => handleCalculate(res, 'hydro')} />
+        )}
+        {activeView === 'biomass' && (
+            <BiomassCalculator onCalculate={(res) => handleCalculate(res, 'biomass')} />
+        )}
+      </div>
+    );
   };
   return (
     <Layout activeView={activeView} onViewChange={setActiveView}>

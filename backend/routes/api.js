@@ -17,8 +17,11 @@ router.get('/health', (req, res) => {
 
 // Simulation Routes (New)
 router.post('/simulate/wind', simulationController.calculateWind);
+router.post('/simulate/hydro', simulationController.calculateHydro);
+router.post('/simulate/biomass', simulationController.calculateBiomass);
 router.post('/simulate/solar', simulationController.calculateSolar);
 router.post('/simulate/financials', simulationController.calculateFinancials);
+router.post('/financial/panel-payback', simulationController.calculatePanelInvestment); // New payback calculation route
 
 // AI & Optimization Routes
 router.post('/ai/predict', aiController.predictEnergy);

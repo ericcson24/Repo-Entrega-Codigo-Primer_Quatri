@@ -90,8 +90,41 @@ const SIMULATION_CONSTANTS = {
     FEED_IN_TARIFF_SOLAR: 0.05, 
     FEED_IN_TARIFF_WIND: 0.045, // Eólica suele vender más barato (noche/viento fuerte)
     GRID_PRICE: 0.15,
-    SELF_CONSUMPTION_RATIO_WIND: 0.30, // UPDATED: More realistic default (30%). 70% is only for heavy industry with constant 24h load.
-    SELF_CONSUMPTION_RATIO: 0.40, // Base default
+    SELF_CONSUMPTION_RATIO_WIND: 0.30, 
+    SELF_CONSUMPTION_RATIO: 0.55, // 55% Realistic residential/SME
+  },
+
+  // === HIDROELÉCTRICA (HYDRO) ===
+  HYDRO: {
+      TECHNICAL: {
+          DEFAULT_HEAD_HEIGHT: 10, // Metros (Pequeña central)
+          DEFAULT_FLOW_RATE: 2.0, // m3/s
+          EFFICIENCY: 0.85, // Turbina + Generador
+          CAPACITY_FACTOR: 0.60, // 60% (Alta disponibilidad)
+          LIFETIME_YEARS: 40, // Vida útil larga
+          DEGRADATION_RATE: 0.002 // 0.2% anual (Muy baja)
+      },
+      FINANCIAL: {
+          DEFAULT_CAPEX_PER_KW: 2500, // Coste civil alto
+          OPEX_PERCENTAGE: 0.03, // 3%
+          DISMANTLING_PROVISION: 0.05
+      }
+  },
+
+  // === BIOMASA (BIOMASS) ===
+  BIOMASS: {
+      TECHNICAL: {
+          HEAT_RATE: 3.5, // kWh térmicos por kWh eléctrico (Eficiencia ~28%)
+          CALORIFIC_VALUE_WOOD_CHIPS: 3.5, // kWh/kg
+          CAPACITY_FACTOR: 0.85, // 85% (Operación base)
+          LIFETIME_YEARS: 25,
+          DEGRADATION_RATE: 0.01 // 1% anual
+      },
+      FINANCIAL: {
+          DEFAULT_CAPEX_PER_KW: 3000, 
+          OPEX_PERCENTAGE: 0.05, // Alto coste operación
+          FUEL_COST_PER_TON: 80 // Euros por tonelada de biomasa
+      }
   }
 };
 

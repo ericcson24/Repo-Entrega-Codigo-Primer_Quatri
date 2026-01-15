@@ -85,6 +85,44 @@ class EnergyService {
   }
 
   /**
+   * Predicción Hidroeléctrica via Backend
+   */
+  async predictHydro(lat, lon, capacityKw, params = {}) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/simulate/hydro`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lon, capacity: capacityKw, ...params })
+      });
+
+      if (!response.ok) throw new Error('Backend simulation failed');
+      return await response.json();
+    } catch (error) {
+       console.error('Hydro Simulation Error:', error);
+       return { annualProduction: 0, monthlyDistribution: [], error: true };
+    }
+  }
+
+  /**
+   * Predicción Biomasa via Backend
+   */
+  async predictBiomass(lat, lon, capacityKw, params = {}) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/simulate/biomass`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lon, capacity: capacityKw, ...params })
+      });
+
+      if (!response.ok) throw new Error('Backend simulation failed');
+      return await response.json();
+    } catch (error) {
+      console.error('Biomass Simulation Error:', error);
+      return { annualProduction: 0, monthlyDistribution: [], error: true };
+    }
+  }
+
+  /**
    * Análisis Financiero via Backend
    */
   async analyzeEconomics(investment, annualProduction, selfConsumption, years = 20, params = {}) {

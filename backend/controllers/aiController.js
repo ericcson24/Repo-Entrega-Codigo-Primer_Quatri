@@ -21,7 +21,7 @@ class AIController {
    */
   async runFullSimulation(req, res) {
       try {
-          const { location, systemParams, years = 1 } = req.body;
+          const { location, systemParams, years = 4 } = req.body;
           
           if (!location?.lat || !location?.lon) {
              return res.status(400).json({ error: "Location required" });

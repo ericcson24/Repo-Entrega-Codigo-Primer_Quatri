@@ -63,7 +63,15 @@ class WeatherService {
              const response = await axios.get(`${apis.weather.openweather}/weather`, {
                 params: { lat: regionCoords.lat, lon: regionCoords.lon, appid: process.env.OPENWEATHER_API_KEY, units: 'metric' }
              });
-             return { /* ... mapped data ... */ };
+             // Real mapping from OpenWeather Response
+             return {
+                 source: 'OpenWeatherMap (Live)',
+                 temperature: response.data.main.temp,
+                 windSpeed: response.data.wind.speed,
+                 irradiation: 0, // OpenWeather free tier doesn't verify irr usually, handled by SolarService
+                 pressure: response.data.main.pressure,
+                 humidity: response.data.main.humidity
+             };
         }
     } catch (e) { console.warn("OpenWeather failed, using fallback"); }
 

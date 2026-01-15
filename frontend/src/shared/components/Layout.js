@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Calculator, Zap, Sun, Wind } from 'lucide-react';
+import { LayoutDashboard, Calculator, Zap, Sun, Wind, Droplet, Flame } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
@@ -41,6 +41,18 @@ const Layout = ({ children, activeView, onViewChange }) => {
             active={activeView === 'wind'} 
             onClick={() => onViewChange('wind')} 
           />
+          <SidebarItem 
+            icon={Droplet} 
+            label="Energía Hidroeléctrica" 
+            active={activeView === 'hydro'} 
+            onClick={() => onViewChange('hydro')} 
+          />
+          <SidebarItem 
+            icon={Flame} 
+            label="Biomasa" 
+            active={activeView === 'biomass'} 
+            onClick={() => onViewChange('biomass')} 
+          />
 
           <div className="sidebar-section-title mt-8">Hogar</div>
           <SidebarItem 
@@ -75,6 +87,8 @@ const Layout = ({ children, activeView, onViewChange }) => {
             {activeView === 'solar' && 'Calculadora Solar Fotovoltaica'}
             {activeView === 'simple-solar' && 'Calculadora Solar Simple'}
             {activeView === 'wind' && 'Calculadora Eólica'}
+            {activeView === 'hydro' && 'Calculadora Hidroeléctrica'}
+            {activeView === 'biomass' && 'Calculadora Biomasa'}
             {activeView === 'results' && 'Dashboard de Resultados'}
           </h2>
           <div className="flex items-center gap-4">
