@@ -1,0 +1,41 @@
+[
+  {
+    "id": "vestas_v150_4.2mw",
+    "name": "Vestas V150-4.2 MW",
+    "manufacturer": "Vestas",
+    "rated_power_kw": 4200,
+    "rotor_diameter_m": 150,
+    "hub_height_m": 105,
+    "cut_in_speed": 3,
+    "cut_out_speed": 25,
+    "power_curve": [
+      [0, 0], [1, 0], [2, 0], [3, 22], [4, 153], [5, 345], [6, 629], [7, 1032], 
+      [8, 1564], [9, 2185], [10, 2855], [11, 3500], [12, 4000], [13, 4150], 
+      [14, 4200], [15, 4200], [25, 4200]
+    ]
+  },
+  {
+    "id": "siemens_sg_14_222_dd",
+    "name": "Siemens Gamesa SG 14-222 DD",
+    "manufacturer": "Siemens Gamesa",
+    "rated_power_kw": 14000,
+    "rotor_diameter_m": 222,
+    "hub_height_m": 135,
+    "cut_in_speed": 3,
+    "cut_out_speed": 30,
+    "power_curve": [
+      [0, 0], [3, 100], [5, 1000], [7, 3000], [9, 6500], [11, 10500], [13, 14000], [30, 14000]
+    ]
+  },
+  {
+    "id": "ge_halidade_x_12mw",
+    "name": "GE Haliade-X 12 MW",
+    "manufacturer": "GE Renewable Energy",
+    "rated_power_kw": 12000,
+    "rotor_diameter_m": 220,
+    "hub_height_m": 130,
+    "cut_in_speed": 3.5,
+    "cut_out_speed": 35,
+    "power_curve": "generic_offshore" 
+  }
+]

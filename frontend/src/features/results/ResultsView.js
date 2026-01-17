@@ -251,9 +251,12 @@ const ResultsView = ({ results, type = 'solar', onBack }) => {
                             <span>Longitud:</span> 
                             <span className="font-medium">{(results.parameters.location?.lon || results.parameters.lon || 0).toFixed(4)}</span>
                           </li>
-                          {type === 'solar' ? (
-                              <li className="flex justify-between"><span>Irradiación Pico:</span> <span className="font-medium">{(results.technical?.production?.peakPower || 0).toFixed(2)} kWh/m²</span></li>
-                          ) : (
+              {type === 'solar' ? (
+                <>
+                <li className="flex justify-between"><span>Irradiación mensual máx.:</span> <span className="font-medium">{(results.technical?.production?.peakIrradiationKwhM2 || results.technical?.production?.peakPower || 0).toFixed(2)} kWh/m²</span></li>
+                <li className="flex justify-between"><span>Irradiación anual:</span> <span className="font-medium">{(results.technical?.production?.annualIrradiationKwhM2 || 0).toFixed(2)} kWh/m²</span></li>
+                </>
+              ) : (
                               <li className="flex justify-between"><span>Velocidad Viento:</span> <span className="font-medium">Variable (Weibull)</span></li>
                           )}
                           <li className="flex justify-between"><span>Área Necesaria:</span> <span className="font-medium">~{Math.round(results.technical?.system?.area)} m²</span></li>

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Database Service (TimescaleDB + PostgreSQL)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: sim_renewable_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: renewables_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+
+  # Backend Service (Node.js)
+  backend:
+    build: ./backend
+    container_name: sim_renewable_backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASS=password123
+      - DB_NAME=renewables_db
+      - AI_ENGINE_URL=http://ai_engine:8000
+    depends_on:
+      - timescaledb
+      - ai_engine
+
+  # AI Engine Service (Python)
+  ai_engine:
+    build: ./ai_engine
+    container_name: sim_renewable_ai
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASS=password123
+      - DB_NAME=renewables_db
+    depends_on:
+      - timescaledb

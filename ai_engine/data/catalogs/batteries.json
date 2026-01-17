@@ -1,0 +1,21 @@
+[
+  {
+    "id": "tesla_megapack_2xl",
+    "name": "Tesla Megapack 2XL",
+    "manufacturer": "Tesla",
+    "energy_capacity_kwh": 3900,
+    "power_capacity_kw": 1900,
+    "round_trip_efficiency": 0.92,
+    "max_cycles": 10000,
+    "degradation_per_cycle": 0.00005
+  },
+  {
+    "id": "sungrow_st2752ux",
+    "name": "Sungrow PowderTitan ST2752UX",
+    "manufacturer": "Sungrow",
+    "energy_capacity_kwh": 2752,
+    "power_capacity_kw": 2500,
+    "round_trip_efficiency": 0.90,
+    "max_cycles": 8000
+  }
+]

@@ -557,10 +557,18 @@ class DynamicAPIService {
       // Extract monthly data correctly
       // Backend returns technical.production.monthly as objects sometimes, or we need to extract kwh
       let monthlyKwh = [];
+      let monthlyIrradiation = [];
       if (technical.production && Array.isArray(technical.production.monthly)) {
           // If it's an object with {productionKwh}, map it. If it's number, use it.
           monthlyKwh = technical.production.monthly.map(m => (typeof m === 'object' ? m.productionKwh : m));
+          monthlyIrradiation = technical.production.monthly
+            .map(m => (typeof m === 'object' ? m.irradiationKwhM2 : null))
+            .filter(v => typeof v === 'number');
       }
+
+      const peakIrradiationKwhM2 = monthlyIrradiation.length > 0
+        ? Math.max(...monthlyIrradiation)
+        : undefined;
 
       // Extract Year 1 Savings for display
       const year1Flow = financial.cashFlows ? financial.cashFlows.find(c => c.year === 1) : null;
@@ -571,12 +579,13 @@ class DynamicAPIService {
         timestamp: new Date().toISOString(),
         parameters: payload,
         technical: {
-            production: {
-                annualKwh: metrics.totalGenerationFirstYear,
-                monthlyKwh: monthlyKwh,
-                dailyAverage: metrics.totalGenerationFirstYear / 365,
-                peakPower: Math.max(...monthlyKwh) / 30 / 8
-            },
+      production: {
+        annualKwh: metrics.totalGenerationFirstYear,
+        monthlyKwh: monthlyKwh,
+        dailyAverage: metrics.totalGenerationFirstYear / 365,
+        peakIrradiationKwhM2: peakIrradiationKwhM2,
+        annualIrradiationKwhM2: technical?.climate?.annualIrradiation
+      },
             system: {
                 sizeKw: systemSizeKw,
                 efficiency: 0.20, // Avg panel

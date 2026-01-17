@@ -1,0 +1,33 @@
+[
+  {
+    "id": "jinko_tiger_pro_72hc_540",
+    "name": "Jinko Solar Tiger Pro 72HC 540W",
+    "manufacturer": "Jinko Solar",
+    "p_max_w": 540,
+    "efficiency": 0.21,
+    "temp_coef_pmax": -0.0035,
+    "area_m2": 2.58,
+    "is_bifacial": true,
+    "bifaciality_factor": 0.7
+  },
+  {
+    "id": "canadian_hiku7_650",
+    "name": "Canadian Solar HiKu7 650W",
+    "manufacturer": "Canadian Solar",
+    "p_max_w": 650,
+    "efficiency": 0.209,
+    "temp_coef_pmax": -0.0034,
+    "area_m2": 3.10,
+    "is_bifacial": false
+  },
+  {
+    "id": "sunpower_maxeon_6_440",
+    "name": "SunPower Maxeon 6 440W",
+    "manufacturer": "SunPower",
+    "p_max_w": 440,
+    "efficiency": 0.228,
+    "temp_coef_pmax": -0.0029,
+    "area_m2": 1.95,
+    "is_bifacial": false
+  }
+]
