@@ -21,6 +21,20 @@ export const SimulationService = {
             console.error("Simulation Error:", error);
             throw error.response ? error.response.data : new Error("Network Error");
         }
+    },
+
+    /**
+     * Get equipment catalog for a technology
+     * @param {string} technology - 'solar', 'wind', 'hydro', 'biomass', 'battery'
+     */
+    getCatalog: async (technology) => {
+        try {
+            const response = await api.get(`/catalog/${technology}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Catalog Error (${technology}):`, error);
+            return [];
+        }
     }
 };
 

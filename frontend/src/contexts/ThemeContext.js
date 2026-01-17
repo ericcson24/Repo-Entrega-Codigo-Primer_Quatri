@@ -1,70 +1,38 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { SYSTEM_CONSTANTS } from '../core/config/constants';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext();
 
-export const useTheme = () => {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
-
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState('dark'); 
+  const [isDark, setIsDark] = useState(true);
 
-  
   useEffect(() => {
-    const savedTheme = getCookie('theme');
+    const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
-      setTheme(savedTheme);
+      setIsDark(savedTheme === 'dark');
     } else {
-      // Check system preference
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(prefersDark ? 'dark' : 'light');
+      setIsDark(prefersDark);
     }
   }, []);
 
-  
   useEffect(() => {
-    setCookie('theme', theme, SYSTEM_CONSTANTS.COOKIE_EXPIRY_DAYS); //  1 year
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    const root = window.document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
 
-  const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-  };
-
-  const value = {
-    theme,
-    setTheme,
-    toggleTheme,
-    isDark: theme === 'dark',
-    isLight: theme === 'light'
-  };
+  const toggleTheme = () => setIsDark(!isDark);
 
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
-// Cookie 
-function setCookie(name, value, days) {
-  const expires = new Date();
-  expires.setTime(expires.getTime() + days * SYSTEM_CONSTANTS.MILLISECONDS_IN_DAY);
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Strict`;
-}
-
-function getCookie(name) {
-  const nameEQ = name + '=';
-  const ca = document.cookie.split(';');
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-  }
-  return null;
-}
+export const useTheme = () => useContext(ThemeContext);

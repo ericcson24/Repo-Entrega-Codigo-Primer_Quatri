@@ -19,7 +19,7 @@ def load_json(name):
 def get_catalog(technology: str):
     """
     Get equipment catalog for technology.
-    technology: solar, wind, battery
+    technology: solar, wind, battery, hydro, biomass
     """
     if technology == "solar":
         return load_json("panels.json")
@@ -27,5 +27,9 @@ def get_catalog(technology: str):
         return load_json("turbines.json")
     if technology == "battery":
         return load_json("batteries.json")
+    if technology == "hydro":
+        return load_json("hydro.json")
+    if technology == "biomass":
+        return load_json("biomass.json")
     
     return []

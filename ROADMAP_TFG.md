@@ -76,59 +76,55 @@ El sistema debe tener scripts de ETL (Extract, Transform, Load) que se ejecuten 
 
 ## 4. Hoja de Ruta Paso a Paso
 
-Esta sección está diseñada para que la ejecutes paso a paso con una IA asistente.
+Esta sección está diseñada para ser ejecutada iterativamente.
 
-### FASE 1: Configuración del Entorno y "Esqueleto" (Setup)
-*   **Paso 1.1:** Inicializar repositorio monorepo o carpetas separadas `backend` (Node), `frontend` y `ai_engine` (Python).
-*   **Paso 1.2:** Configurar Docker Compose para servicios y Base de Datos (PostgreSQL + TimescaleDB si es posible).
-*   **Paso 1.3:** Crear esquemas de base de datos iniciales (`prices_hourly`, `weather_data`, `biomass_prices`, `projects`).
+### FASE 1: Configuración del Entorno y "Esqueleto" (Setup) [x]
+*   **Paso 1.1:** Inicializar repositorio monorepo o carpetas separadas `backend` (Node), `frontend` y `ai_engine` (Python). [x]
+*   **Paso 1.2:** Configurar Docker Compose para servicios y Base de Datos (PostgreSQL + TimescaleDB). [x]
+*   **Paso 1.3:** Crear esquemas de base de datos iniciales (`prices_hourly`, `weather_data`, `biomass_prices`, `projects`). [x]
 
-### FASE 2: Ingeniería de Datos (El "Data Lake")
-*   **Paso 2.1:** Conector ESIOS (Precios luz).
-*   **Paso 2.2:** Conector Open-Meteo Multi-variable. Descargar no solo sol, sino viento y lluvia histórica para las coordenadas dadas.
-*   **Paso 2.3:** Limpieza y normalización de series temporales heterogéneas.
+### FASE 2: Ingeniería de Datos (El "Data Lake") [x]
+*   **Paso 2.1:** Conector ESIOS (Precios luz). [x]
+*   **Paso 2.2:** Conector Open-Meteo Multi-variable. Descargar no solo sol, sino viento y lluvia histórica. [x]
+*   **Paso 2.3:** Implementación de Caching en DB para no abusar de APIs externas. [x]
 
-### FASE 3: Núcleo de IA y Predicción Multi-Tecnología
-*Se desarrollarán 4 módulos de IA independientes ("Agents") orquestados por el servicio Python.*
+### FASE 3: Núcleo de IA y Predicción Multi-Tecnología [x]
+*Se desarrollan 4 módulos de IA independientes con correcciones físicas avanzadas.*
 
-*   **Paso 3.1 - IA Solar (Predictiva):**
-    *   Input: Radiación, Temperatura.
-    *   Modelo: Física de semiconductores + ML para corrección de bias.
-    *   Output: Serie temporal de generación FV.
-*   **Paso 3.2 - IA Eólica (Predictiva Aeroelástica):**
-    *   Input: Viento, Densidad aire, Altura.
-    *   Modelo: Extrapolación logarítmica de viento a altura de buje + Interpolación en Curva de Potencia de turbina (Clase PowerCurve).
-    *   Output: Serie temporal de generación Eólica.
-*   **Paso 3.3 - IA Hidráulica (Hidrología Simplificada):**
-    *   Input: Precipitación histórica del área (Catchment area).
-    *   Modelo: Modelo Lluvia-Escorrentía (Rainfall-Runoff) simple para estimar caudal disponible si no hay datos de aforo, o uso de datos SAIH históricos. Aplicar curva de eficiencia de turbina.
-    *   Output: Serie temporal de generación Hidro.
-*   **Paso 3.4 - IA Biomasa (Optimización de Despacho):**
-    *   *Diferencia clave:* La biomasa es gestionable.
-    *   Modelo: No predice "cuánto sol hace", sino "cuándo conviene encender".
-    *   Algoritmo: Optimización lineal. Dados los precios horarios de electricidad predichos y el coste de combustible, determinar las horas de funcionamiento óptimas para maximizar beneficio (Profit Maximization).
-    *   Output: Schedule de operación (0/1) y generación resultante.
+*   **Paso 3.1 - IA Solar (Completo):** [x]
+    *   Soporte para Bifacialidad.
+    *   Cálculo de radiación en plano inclinado (POA).
+*   **Paso 3.2 - IA Eólica (Completo):** [x]
+    *   Corrección por Densidad del Aire (IEC 61400-12).
+    *   Extrapolación Logarítmica.
+    *   Interpolación de Curvas de Potencia específicas.
+*   **Paso 3.3 - IA Hidráulica:** [x]
+    *   Modelo Lluvia-Escorrentía con retardo (Rolling Mean).
+    *   Soporte para Turbinas Pelton, Francis, Kaplan.
+*   **Paso 3.4 - IA Biomasa:** [x]
+    *   Optimización de Despacho Económico (Coste Marginal vs Precio Mercado).
+    *   Configuración de costes de combustible y eficiencia.
+*   **Paso 3.5 - Catálogo Industrial (Nuevo):** [x]
+    *   Base de datos JSON con máquinas reales (Vestas, Jinko, Tesla).
+    *   API `/catalog` para alimentar el frontend.
 
-### FASE 4: Motor Financiero (Backend)
-*   **Paso 4.1:** Crear endpoint `POST /simulate`. Recibe configuración (kW instalados, coste inversión, ubicación).
-*   **Paso 4.2:** Orquestación:
-    1.  Llama al servicio de Datos/IA para obtener la serie temporal de Generación Estimada (20-25 años proyectados).
-    2.  Llama al servicio de Datos/IA para obtener la serie temporal de Precios (o aplica escenario conservador/inflacionista).
-    3.  Calcula Ingresos Brutos = $\sum (Generación_h \times Precio_h)$.
-*   **Paso 4.3:** Implementar cálculo de Flujo de Caja (Cash Flow):
-    *   $CashFlow_n = Ingresos_n - (CosteO\&M \times (1+IPC)^n) - Impuestos$.
-*   **Paso 4.4:** Calcular métricas finales:
-    *   **VAN (NPV):** $-Inversión + \sum (CashFlow_n / (1+r)^n)$.
-    *   **TIR (IRR):** Tasa que hace VAN = 0.
-    *   **Payback:** Año en el que el flujo acumulado se vuelve positivo.
+### FASE 4: Motor Financiero y Proyección a Largo Plazo (Backend) [x]
+*   **Paso 4.1:** Endpoint `POST /simulate` orquestador. [x]
+*   **Paso 4.2:** Proyección Mensual a 20 años. [x]
+    *   Integración del "Long Term Generation" del AI Engine en el cálculo de flujos de caja.
+    *   Lógica de Inflación vs Degradación real.
+*   **Paso 4.3:** Modelos de Project Finance. [x]
+    *   Cálculo de WACC, Ratios de Deuda, Intereses.
+    *   Amortización Francesa de deuda.
+    *   Flujos de Caja (FCFF, FCFE).
 
-### FASE 5: Frontend y Visualización
-*   **Paso 5.1:** Formulario de entrada de datos "Pro". (Ubicación mapa, selección de modelo de panel, inversor, costes desglosados).
-*   **Paso 5.2:** Gráficas con librerías como Recharts o Chart.js.
-    *   Gráfica 1: Producción mensual estimada.
-    *   Gráfica 2: Flujo de caja acumulado (Curva de retorno de inversión).
-    *   Gráfica 3: Comparativa Precio de Venta vs Coste de Generación (LCOE).
-
+### FASE 5: Frontend y Visualización (React) [Pendiente]
+*   **Paso 5.1:** Formulario "Smart" conectado al Catálogo.
+    *   Selectores dinámicos (El usuario elige "Vestas V150" y se carga la curva).
+*   **Paso 5.2:** Visualización de Flujos de Caja.
+    *   Gráficas de VAN y TIR.
+    *   Gráficas mensuales de generación a 20 años.
+*   **Paso 5.3:** Panel de Configuración Financiera (Deuda, Impuestos).
 ## 5. Instrucciones para la IA Desarrolladora
 Cuando pidas a una IA que construya esto, usa estos prompts encadenados siguiendo la hoja de ruta:
 

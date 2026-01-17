@@ -2,11 +2,12 @@ import requests
 import pandas as pd
 import os
 from datetime import datetime
+from config.settings import settings
 
 class EsiosConnector:
     def __init__(self):
-        self.token = os.getenv("ESIOS_TOKEN", "") # Needs to be set in .env
-        self.base_url = "https://api.esios.ree.es/indicators/1001" # 1001 is PVPC 2.0TD usually, or closest equivalent
+        self.token = settings.ESIOS_TOKEN
+        self.base_url = settings.ESIOS_URL
         
     def fetch_prices(self, start_date, end_date):
         """

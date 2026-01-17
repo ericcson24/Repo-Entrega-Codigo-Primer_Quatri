@@ -2,6 +2,7 @@ import openmeteo_requests
 import requests_cache
 import pandas as pd
 from retry_requests import retry
+from config.settings import settings
 
 class WeatherConnector:
     def __init__(self):
@@ -9,7 +10,7 @@ class WeatherConnector:
         cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
         retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
         self.openmeteo = openmeteo_requests.Client(session=retry_session)
-        self.url = "https://archive-api.open-meteo.com/v1/archive"
+        self.url = settings.OPENMETEO_URL
 
     def fetch_historical_weather(self, lat, lon, start_date, end_date, tilt=None, azimuth=None):
         params = {

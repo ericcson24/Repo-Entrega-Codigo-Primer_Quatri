@@ -7,6 +7,7 @@ load_dotenv()
 class Settings:
     # API Keys & URLs
     ESIOS_TOKEN = os.getenv("ESIOS_TOKEN", "")
+    ESIOS_URL = os.getenv("ESIOS_URL", "https://api.esios.ree.es/indicators/1001")
     OPENMETEO_URL = os.getenv("OPENMETEO_URL", "https://archive-api.open-meteo.com/v1/archive")
 
     # Database Credentials

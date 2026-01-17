@@ -3,9 +3,10 @@ const cors = require('cors');
 const { Pool } = require('pg');
 require('dotenv').config();
 const simulationRoutes = require('./routes/simulationRoutes');
+const catalogRoutes = require('./routes/catalogRoutes');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors());
@@ -35,6 +36,7 @@ app.get('/', (req, res) => {
 
 // API Routes
 app.use('/api', simulationRoutes);
+app.use('/api', catalogRoutes);
 
 app.listen(port, () => {
   console.log(`Backend listening at http://localhost:${port}`);

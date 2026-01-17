@@ -74,29 +74,20 @@ class FinancialService {
     }
 
     /**
-     * Genera la proyección financiera completa a N años (Modelo Project Finance)
-     * @param {number} initialInvestment - Presupuesto (positivo)
-     * @param {number} year1Revenue - Ingresos brutos calculados para el año 1
-     * @param {number} capacityKw - Capacidad instalada
-     * @param {string} type - Tipo de tecnología
-     * @param {Object} financialParams - { debtRatio, interestRate, loanTerm }
-     * @returns {Object} { financials, cashFlows, breakdown }
+     * Genera la proyección financiera completa
      */
-    static generateProjection(initialInvestment, year1Revenue, capacityKw, type, financialParams = {}) {
+    static generateProjection(initialInvestment, year1Revenue, capacityKw, type, financialParams, longTermGeneration = null, year1Generation = null) {
+        
         const years = FINANCIAL.SIMULATION_YEARS;
+        const initialEquity = initialInvestment * (1 - (financialParams?.debtRatio || FINANCIAL.DEFAULT_DEBT_RATIO));
+        const initialDebt = initialInvestment * (financialParams?.debtRatio || FINANCIAL.DEFAULT_DEBT_RATIO);
+        const interestRate = financialParams?.interestRate || FINANCIAL.DEFAULT_INTEREST_RATE;
+        const loanTerm = financialParams?.loanTerm || FINANCIAL.DEFAULT_LOAN_TERM;
+        
         const inflation = FINANCIAL.INFLATION_RATE;
         const energyInflation = FINANCIAL.ENERGY_INFLATION_RATE;
-        
-        // Parámetros de Financiación
-        const debtRatio = financialParams.debtRatio ?? FINANCIAL.DEFAULT_DEBT_RATIO;
-        const interestRate = financialParams.interestRate ?? FINANCIAL.DEFAULT_INTEREST_RATE;
-        const loanTerm = financialParams.loanTerm ?? FINANCIAL.DEFAULT_LOAN_TERM;
 
-        const initialDebt = initialInvestment * debtRatio; // Principal de la deuda
-        const initialEquity = initialInvestment * (1 - debtRatio); // Capital propio
-
-        // Cálculo de la cuota anual del préstamo (Método Francés - Cuota Constante)
-        // PMT = P * r * (1 + r)^n / ((1 + r)^n - 1)
+        // Calculamos servicio de deuda (Pago anual constante - Método Francés)
         let annualDebtService = 0;
         if (initialDebt > 0 && interestRate > 0) {
             annualDebtService = initialDebt * interestRate * Math.pow(1 + interestRate, loanTerm) / (Math.pow(1 + interestRate, loanTerm) - 1);
@@ -104,7 +95,19 @@ class FinancialService {
             annualDebtService = initialDebt / loanTerm;
         }
 
-        // Obtener constantes específicas por tecnología
+        // Si tenemos proyección detallada de generación (AI Engine), la usamos.
+        // Si no, usamos fallback de degradación lineal simple.
+        let useDetailedGeneration = false;
+        let impliedPricePerKwh = 0;
+
+        if (longTermGeneration && Array.isArray(longTermGeneration) && year1Generation > 0) {
+             useDetailedGeneration = true;
+             // Calculamos el precio medio implícito del año 1 para extrapolar
+             // Precio = Ingresos Año 1 / Generación Año 1
+             impliedPricePerKwh = year1Revenue / year1Generation; 
+        }
+
+        // Obtener constantes específicas por tecnología (Solo usadas si fallamos al modo fallback)
         let degradation = 0;
         let omCostPerKw = 0;
 
@@ -147,8 +150,31 @@ class FinancialService {
 
         for (let y = 1; y <= years; y++) {
             // 1. Ingresos y O&M (Operativos)
+            if (useDetailedGeneration) {
+                 // Sumar los 12 meses correspondientes al año y
+                 // Indices en longTermGeneration: (y-1)*12 hasta y*12
+                 const startIdx = (y - 1) * 12;
+                 const endIdx = y * 12;
+                 // Si el array es más corto se asume 0 o ultimo valor (robustez)
+                 if (startIdx < longTermGeneration.length) {
+                     const yearGenSlice = longTermGeneration.slice(startIdx, endIdx);
+                     const yearGenTotal = yearGenSlice.reduce((a, b) => a + b, 0);
+                     
+                     // Precio ajustado por inflación energética
+                     const currentPrice = impliedPricePerKwh * Math.pow(1 + energyInflation, y - 1);
+                     currentRevenue = yearGenTotal * currentPrice;
+                 } else {
+                     // Fallback si array corto
+                     currentRevenue = currentRevenue * (1 + energyInflation);
+                 }
+            } else {
+                // Modo Fallback (Legacy)
+                if (y > 1) {
+                    currentRevenue = currentRevenue * (1 - degradation) * (1 + energyInflation);
+                }
+            }
+            // Costes O&M crecen con inflación general
             if (y > 1) {
-                currentRevenue = currentRevenue * (1 - degradation) * (1 + energyInflation);
                 currentOmCost = currentOmCost * (1 + inflation);
             }
             const ebitda = currentRevenue - currentOmCost;

@@ -72,7 +72,19 @@ class SimulationController {
             }
 
             // 4. Proyección Financiera con Servicio Dedicado
-            const projection = FinancialService.generateProjection(budget, year1Revenue, capacity_kw, project_type, financial_params);
+             // Extraer la generación mensual a largo plazo si existe
+            const longTermGen = generationData.long_term_monthly_generation_kwh || null;
+            const year1Gen = generationData.total_annual_generation_kwh || 0;
+
+            const projection = FinancialService.generateProjection(
+                budget, 
+                year1Revenue, 
+                capacity_kw, 
+                project_type, 
+                financial_params,
+                longTermGen,
+                year1Gen
+            );
 
             // 5. Respuesta
             res.json({
@@ -95,7 +107,8 @@ class SimulationController {
                 },
                 generation: {
                     annual_kwh: generationData.total_annual_generation_kwh,
-                    monthly_kwh: generationData.monthly_generation_kwh
+                    monthly_kwh: generationData.monthly_generation_kwh,
+                    long_term_monthly_kwh: generationData.long_term_monthly_generation_kwh // Return detailed series to frontend
                 },
                 graphs: {
                     cash_flow: projection.cashFlows,
