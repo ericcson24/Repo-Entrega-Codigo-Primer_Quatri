@@ -84,6 +84,9 @@ class SimulationController {
                 latitude, longitude, capacity_kw, project_type 
             });
             const hourlyPrices = priceResponse.data.prices_eur_mwh;
+            
+            // Console log to debug Financial Params reception
+            console.log("Controlador: Recibidos params financieros:", JSON.stringify(financial_params));
 
             // 3. Cálculos de Ingresos (Año 1)
             // Validar longitud de series
@@ -134,7 +137,9 @@ class SimulationController {
                     project_npv_eur: projection.financials.project_npv,
                     project_irr_percent: projection.financials.project_irr * 100,
                     total_investment: budget,
-                    leverage_ratio: financial_params?.debtRatio || 0.70
+                    initial_equity: projection.financials.initial_equity, // Send calculated equity
+                    initial_debt: projection.financials.initial_debt, // Send calculated debt
+                    leverage_ratio: projection.financials.leverage_ratio // Use calculated ratio from service
                 },
                 generation: {
                     annual_kwh: generationData.total_annual_generation_kwh,

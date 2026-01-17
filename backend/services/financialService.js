@@ -85,10 +85,39 @@ class FinancialService {
             ? parseInt(financialParams.project_lifetime) 
             : FINANCIAL.SIMULATION_YEARS;
 
-        // Debt Params
-        const debtRatio = (financialParams?.debtRatio !== undefined) ? financialParams.debtRatio : FINANCIAL.DEFAULT_DEBT_RATIO;
-        const interestRate = (financialParams?.interestRate !== undefined) ? financialParams.interestRate : FINANCIAL.DEFAULT_INTEREST_RATE;
-        const loanTerm = (financialParams?.loanTerm !== undefined) ? financialParams.loanTerm : FINANCIAL.DEFAULT_LOAN_TERM;
+        // Debt Params Extraction with explicit logging and fallback
+        let debtRatio = FINANCIAL.DEFAULT_DEBT_RATIO;
+        let interestRate = FINANCIAL.DEFAULT_INTEREST_RATE;
+        let loanTerm = FINANCIAL.DEFAULT_LOAN_TERM;
+
+        if (financialParams) {
+            // Debt Ratio: Check camelCase first, then snake_case
+            if (financialParams.debtRatio !== undefined && financialParams.debtRatio !== null) {
+                debtRatio = Number(financialParams.debtRatio);
+            } else if (financialParams.debt_ratio !== undefined && financialParams.debt_ratio !== null) {
+                // Heuristic: If value > 1, assume it's percentage and convert to decimal. 
+                // But frontend sends 0 for 0%.
+                const dr = Number(financialParams.debt_ratio);
+                debtRatio = (dr > 1) ? dr / 100.0 : dr;
+            }
+
+            // Interest Rate
+            if (financialParams.interestRate !== undefined && financialParams.interestRate !== null) {
+                interestRate = Number(financialParams.interestRate);
+            } else if (financialParams.interest_rate !== undefined && financialParams.interest_rate !== null) {
+                const ir = Number(financialParams.interest_rate);
+                interestRate = (ir > 1) ? ir / 100.0 : ir; 
+            }
+
+            // Loan Term
+            if (financialParams.loanTerm !== undefined && financialParams.loanTerm !== null) {
+                loanTerm = Number(financialParams.loanTerm);
+            } else if (financialParams.loan_term !== undefined && financialParams.loan_term !== null) {
+                loanTerm = Number(financialParams.loan_term);
+            }
+        }
+        
+        console.log(`[FinancialService] Params Used -> DebtRatio: ${debtRatio}, Interest: ${interestRate}, Term: ${loanTerm}`);
 
         const initialEquity = initialInvestment * (1 - debtRatio);
         const initialDebt = initialInvestment * debtRatio;
@@ -112,6 +141,29 @@ class FinancialService {
         const discountRate = (rawDiscount !== undefined) 
             ? parseFloat(rawDiscount) / 100.0 
             : FINANCIAL.WACC;
+
+        // --- NEW Advanced Parameters Extraction ---
+        const selfConsumptionRatio = parseFloat(financialParams?.self_consumption_ratio || 0); // 0.0 - 1.0
+        const priceSurplus = parseFloat(financialParams?.electricity_price_surplus || 0);
+        const priceSaved = parseFloat(financialParams?.electricity_price_saved || 0);
+        
+        const grants = parseFloat(financialParams?.grants_amount || 0);
+        const taxDeductionYear1 = parseFloat(financialParams?.tax_deduction || 0); // Treated as Year 1 Cash Inflow (or Year 0 reduction)
+        // Let's treat Grant as Year 0 reduction, Tax Deduction as Year 1 Benefit? Usually ICIO is upfront, IBI is annual. 
+        // User said "Deductions... reduce payback". I'll treat 'tax_deduction' as a lump sum upfront benefit for simplicity or Year 1.
+        // Let's deduct Grants from Initial Investment immediately.
+        
+        const inverterYear = parseInt(financialParams?.inverter_replacement_year || 12);
+        const inverterCost = parseFloat(financialParams?.inverter_replacement_cost || 0);
+
+        const annualInsurance = parseFloat(financialParams?.insurance_cost || 0);
+        const annualLease = parseFloat(financialParams?.land_roof_lease || 0);
+        const annualAdmin = parseFloat(financialParams?.asset_management_fee || 0);
+        
+        const corpTaxRate = (financialParams?.corporate_tax_rate !== undefined) 
+            ? parseFloat(financialParams.corporate_tax_rate) / 100.0
+            : FINANCIAL.TAX_RATE;
+
 
         // Calculamos servicio de deuda (Pago anual constante - Método Francés)
         let annualDebtService = 0;
@@ -156,7 +208,7 @@ class FinancialService {
                 break;
         }
 
-        const taxRate = FINANCIAL.TAX_RATE;
+        const taxRate = corpTaxRate;
         // El usuario invierte Equity, por lo tanto usamos Cost of Equity para descontar (Ke) o WACC.
         // Simularemos FCFF (Free Cash Flow to Firm) y FCFE (Free Cash Flow to Equity).
         // Usaremos WACC para FCFF y Cost of Equity (~8-10%) para FCFE. 
@@ -166,45 +218,81 @@ class FinancialService {
         // Use User's Discount Rate if provided (override WACC and Ke with specific user preference)
         const wacc = (financialParams?.discount_rate !== undefined) ? discountRate : FINANCIAL.WACC;
 
-        let cashFlowsProject = [-Math.abs(initialInvestment)]; // Año 0 Proyecto
-        let cashFlowsEquity = [-Math.abs(initialEquity)];      // Año 0 Accionista
+        // ADJUSTED YEAR 0: Investment minus Grants
+        // Grants reduce the cash outflow at T=0
+        let effectiveInvestment = initialInvestment - grants;
+        if (effectiveInvestment < 0) effectiveInvestment = 0; // Edge case
+        
+        // However, Depreciation usually applies to the FULL Asset Value (unless grant tax rules differ).
+        // For simplicity, we depreciate the FULL initialInvestment, but cash flow starts better.
+        
+        let cashFlowsProject = [-Math.abs(effectiveInvestment)]; // Año 0 Proyecto
+        
+        // Equity needs to cover the investment part NOT covered by debt.
+        // Usually Grants cover part of Equity need.
+        // Let's assume Grants reduce Equity requirement first? Or Pro-rata?
+        // Standard: Debt is negotiated on Asset Value. Equity puts the rest. Grants reimburse Equity.
+        // So Initial Equity Outflow = (Inv * (1-Dr)) - Grants
+        let effectiveEquity = initialEquity - grants;
+        let cashFlowsEquity = [-Math.abs(effectiveEquity)];      // Año 0 Accionista
 
         let annualBreakdown = [];
 
         let currentRevenue = year1Revenue;
-        let currentOmCost = capacityKw * omCostPerKw;
+        // O&M Base + Extras
+        let currentOmCost = (capacityKw * omCostPerKw) + annualInsurance + annualLease + annualAdmin;
+
         let remainingPrincipal = initialDebt;
 
         for (let y = 1; y <= years; y++) {
             // 1. Ingresos y O&M (Operativos)
+            let generationYear = 0;
+            
             if (useDetailedGeneration) {
-                 // Sumar los 12 meses correspondientes al año y
-                 // Indices en longTermGeneration: (y-1)*12 hasta y*12
                  const startIdx = (y - 1) * 12;
                  const endIdx = y * 12;
-                 // Si el array es más corto se asume 0 o ultimo valor (robustez)
                  if (startIdx < longTermGeneration.length) {
                      const yearGenSlice = longTermGeneration.slice(startIdx, endIdx);
-                     const yearGenTotal = yearGenSlice.reduce((a, b) => a + b, 0);
-                     
-                     // Precio ajustado por inflación energética
-                     const currentPrice = impliedPricePerKwh * Math.pow(1 + energyInflation, y - 1);
-                     currentRevenue = yearGenTotal * currentPrice;
-                 } else {
-                     // Fallback si array corto
-                     currentRevenue = currentRevenue * (1 + energyInflation);
+                     generationYear = yearGenSlice.reduce((a, b) => a + b, 0);
                  }
             } else {
-                // Modo Fallback (Legacy)
-                if (y > 1) {
-                    currentRevenue = currentRevenue * (1 - degradation) * (1 + energyInflation);
-                }
+                 // Fallback generation calculation if needed, but usually passed
+                 generationYear = year1Generation * Math.pow(1 - degradation, y - 1);
             }
+
+            // Calculate Revenue using Self-Consumption Split if provided
+            // Use impliedPrice if no advanced prices provided, else use advanced logic
+            if (selfConsumptionRatio > 0 || priceSaved > 0 || priceSurplus > 0) {
+                 const consumed = generationYear * selfConsumptionRatio;
+                 const surplus = generationYear * (1 - selfConsumptionRatio);
+                 
+                 // Inflate prices
+                 const pSaved = (priceSaved > 0 ? priceSaved : impliedPricePerKwh) * Math.pow(1 + energyInflation, y - 1);
+                 const pSurplus = (priceSurplus > 0 ? priceSurplus : 0.05) * Math.pow(1 + energyInflation, y - 1);
+                 
+                 currentRevenue = (consumed * pSaved) + (surplus * pSurplus);
+            } else {
+                 // Default Path (Inflation applied to total)
+                 if (useDetailedGeneration) {
+                     const currentPrice = impliedPricePerKwh * Math.pow(1 + energyInflation, y - 1);
+                     currentRevenue = generationYear * currentPrice;
+                 } else {
+                     if (y > 1) currentRevenue = currentRevenue * (1 - degradation) * (1 + energyInflation);
+                 }
+            }
+
             // Costes O&M crecen con inflación general
             if (y > 1) {
                 currentOmCost = currentOmCost * (1 + inflation);
             }
-            const ebitda = currentRevenue - currentOmCost;
+            
+            // Add Inverter Replacement / Major Maintenance (One-Offs)
+            let extraordinaryExpense = 0;
+            if (y === inverterYear) {
+                extraordinaryExpense = inverterCost;
+            }
+
+            const ebitda = currentRevenue - currentOmCost - extraordinaryExpense;
             
             // 2. Amortización Fiscal (Depreciation)
             const depreciation = initialInvestment / years;
@@ -230,14 +318,26 @@ class FinancialService {
 
             // 4. Impuestos
             const ebt = ebit - interestPayment; // Earnings Before Tax
-            const tax = ebt > 0 ? ebt * taxRate : 0;
+            let tax = ebt > 0 ? ebt * taxRate : 0;
+            
+            // Apply Tax Deductions (Credits) in Year 1 if applicable
+            if (y === 1 && taxDeductionYear1 > 0) {
+                tax -= taxDeductionYear1;
+                if (tax < 0) tax = 0; // Assuming no refund, just 0 tax. Or carry forward? 
+                // Let's assume simpler: It's a benefit added to Net Income directly if tax < 0? 
+                // "Deduction" usually reduces Taxable Income. "Credit" reduces Tax.
+                // User said "Deducciones IBI/ICIO". ICIO is a tax paid at start (Capex). IBI is annual expense.
+                // If they input "Tax Deduction" as a lump sum value in Euros, let's treat it as a Tax Credit in Year 1.
+            }
+            
             const netIncome = ebt - tax;
 
             // 5. Flujos de Caja
-            // FCFF (Unlevered): Project View -> EBITDA - Tax(on EBIT) - Capex - ChangeWC
-            // Simplified FCFF = EBIT * (1-t) + Depreciation
-            // Nota: Usamos Tax sobre EBIT para quitar el escudo fiscal de la deuda en la vista "Proyecto Puro"
-            const taxOnEbit = ebit > 0 ? ebit * taxRate : 0;
+            const taxOnEbit = ebit > 0 ? ebit * taxRate : 0; // Approximated for Unlevered
+            // Note: If extraordinaryExpense is Capex, it shouldn't reduce EBITDA but be subtracted after.
+            // But if it's "Replacement", valid to expense it or capitalize. 
+            // For simplicity here, treated as Expense (reducing Taxable Income).
+            
             const freeCashFlowProject = (ebit - taxOnEbit) + depreciation;
             
             // FCFE (Levered): Equity View -> Net Income + Depreciation - Principal Repayment
@@ -283,6 +383,9 @@ class FinancialService {
                 npv: npvEquity, 
                 irr: irrEquity,
                 payback: paybackEquity,
+                initial_equity: initialEquity,
+                initial_debt: initialDebt,
+                leverage_ratio: debtRatio,
                 
                 project_npv: npvProject,
                 project_irr: irrProject,

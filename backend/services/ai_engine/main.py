@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import pvlib
 import time
+import json
+from urllib.request import urlopen, Request
+from urllib.error import URLError
 from pvlib import location, irradiance, atmosphere, pvsystem
 from typing import List, Optional
 
@@ -95,6 +98,37 @@ class BiomassParams(BaseModel):
     debug: bool = False
 
 
+def fetch_openmeteo_weather(lat, lon, year=2023):
+    try:
+        # Use OpenMeteo Archive API
+        url = (f"https://archive-api.open-meteo.com/v1/archive?"
+               f"latitude={lat}&longitude={lon}&start_date={year}-01-01&end_date={year}-12-31&"
+               f"hourly=temperature_2m,shortwave_radiation,direct_normal_irradiance,diffuse_radiation")
+        
+        req = Request(url, headers={'User-Agent': 'RenewableSimulator/1.0'})
+        with urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            
+        hourly = data.get("hourly", {})
+        # Convert time strings to DatetimeIndex
+        times = pd.to_datetime(hourly.get("time", []))
+        # Ensure UTC
+        if times.tz is None:
+            times = times.tz_localize('UTC')
+            
+        df = pd.DataFrame({
+            'temp_air': hourly.get("temperature_2m", []),
+            'ghi': hourly.get("shortwave_radiation", []),
+            'dni': hourly.get("direct_normal_irradiance", []),
+            'dhi': hourly.get("diffuse_radiation", [])
+        }, index=times)
+        
+        return df
+    except Exception as e:
+        print(f"Weather Fetch Error: {e}")
+        return None
+
+
 # --- Prediction Endpoints ---
 
 @app.post("/predict/solar")
@@ -119,33 +153,48 @@ async def predict_solar(params: SolarParams):
         solpos = site_location.get_solarposition(times)
         if params.debug: debug_logs.append("Geometry: Solar Position calculated for 8760 hours using NREL SPA algorithm.")
         
-        # 3. Clear Sky (Ineichen)
-        clearsky = site_location.get_clearsky(times)
-        if params.debug: 
-            avg_ghi = clearsky['ghi'].mean()
-            debug_logs.append(f"Irradiance: Clear Sky GHI prepared. Yearly Max: {clearsky['ghi'].max():.1f} W/m2, Avg: {avg_ghi:.1f} W/m2")
+        # 3. Weather Data (Real vs ClearSky)
+        weather = fetch_openmeteo_weather(params.latitude, params.longitude)
         
+        if weather is not None:
+            if params.debug: debug_logs.append("Weather: Using Real Historical Data (OpenMeteo)")
+            ghi = weather['ghi']
+            dni = weather['dni']
+            dhi = weather['dhi']
+            t_amb = weather['temp_air']
+            # Align calculation times to weather data
+            times = weather.index
+            solpos = site_location.get_solarposition(times)
+            dni_extra = irradiance.get_extra_radiation(times)
+        else:
+            if params.debug: debug_logs.append("Weather: Fallback to Clear Sky (Mock)")
+            clearsky = site_location.get_clearsky(times)
+            ghi = clearsky['ghi']
+            dni = clearsky['dni']
+            dhi = clearsky['dhi']
+            # Mock Temperature
+            t_amb = 15 + 10 * np.cos((times.dayofyear - 172) * 2 * np.pi / 365)
+            dni_extra = irradiance.get_extra_radiation(times)
+
         # 4. Transposition (Hay-Davies)
-        dni_extra = irradiance.get_extra_radiation(times)
         poa_irradiance = irradiance.get_total_irradiance(
             surface_tilt=params.tilt,
             surface_azimuth=params.azimuth,
-            dni=clearsky['dni'],
-            ghi=clearsky['ghi'],
-            dhi=clearsky['dhi'],
+            dni=dni,
+            ghi=ghi,
+            dhi=dhi,
             dni_extra=dni_extra,
             solar_zenith=solpos['apparent_zenith'],
             solar_azimuth=solpos['azimuth'],
             model='haydavies'
         )
+        
         if params.debug: 
             avg_poa = poa_irradiance['poa_global'].mean()
-            gain = ((avg_poa - avg_ghi) / avg_ghi) * 100
-            debug_logs.append(f"Transposition: Hay-Davies Model applied. POA Global Avg: {avg_poa:.1f} W/m2. Optical Gain: {gain:.1f}%")
+            debug_logs.append(f"Transposition: Hay-Davies Model applied. POA Global Avg: {avg_poa:.1f} W/m2")
 
         # 5. Cell Temperature (Faiman)
         u0, u1 = 25.0, 6.84
-        t_amb = 15 + 10 * np.cos((times.dayofyear - 172) * 2 * np.pi / 365) # Mock weather
         cell_temperature = t_amb + (poa_irradiance['poa_global'] / (u0 + u1 * 1.0))
         
         if params.debug:
