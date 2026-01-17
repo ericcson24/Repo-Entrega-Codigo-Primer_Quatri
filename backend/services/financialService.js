@@ -24,6 +24,19 @@ class FinancialService {
      * @returns {number} IRR
      */
     static calculateIRR(cashFlows, guess = 0.1) {
+        // Validation: If total recovery is extremely low, IRR is effectively -100%.
+        // Total Value = Net Profit (Sum of all flows).
+        // If Net Profit is close to Initial Investment (meaning Returns ~ 0), return -1.
+        // cashFlows[0] is negative investment.
+        // If (Sum - Investment0) < (Abs(Investment0) * 0.05) -> Recovered less than 5% of money.
+        const totalValue = cashFlows.reduce((a, b) => a + b, 0);
+        const initialInv = cashFlows[0]; // negative
+        
+        // If we haven't even recovered 1% of the initial investment nominal value
+        if ((totalValue - initialInv) < (Math.abs(initialInv) * 0.01)) {
+             return -0.99;
+        }
+
         const maxIter = 1000;
         const tol = 1e-7;
         let rate = guess;
@@ -33,6 +46,7 @@ class FinancialService {
             let dNpv = 0;
             for (let t = 0; t < cashFlows.length; t++) {
                 const num = cashFlows[t];
+                // Protective power calculation for very high rates
                 const den = Math.pow(1 + rate, t);
                 npv += num / den;
                 dNpv -= (t * num) / (den * (1 + rate));
@@ -43,7 +57,15 @@ class FinancialService {
             // Evitar división por cero
             if (Math.abs(dNpv) < tol) return rate; 
 
-            const newRate = rate - npv / dNpv;
+            let newRate = rate - npv / dNpv;
+            
+            // CONVERGENCE GUARD:
+            // If the rate explodes (e.g. > 10000 or < -0.99), clamp or abort.
+            if (Math.abs(newRate) > 100) newRate = 100; // Cap at 10,000%
+            
+            // Allow searching in negative territory down to -99%
+            if (newRate < -0.999) newRate = -0.999;
+            
             if (Math.abs(newRate - rate) < tol) return newRate;
             rate = newRate;
         }
@@ -182,7 +204,29 @@ class FinancialService {
              useDetailedGeneration = true;
              // Calculamos el precio medio implícito del año 1 para extrapolar
              // Precio = Ingresos Año 1 / Generación Año 1
-             impliedPricePerKwh = year1Revenue / year1Generation; 
+             
+             // BUG FIX: If 'year1Revenue' is calculated by backend using a default low price (e.g. 0.03),
+             // then 'impliedPrice' becomes this low price, perpetuating the error for 30 years.
+             // We must check if user provided an override price in 'financialParams' (electricity_price_saved/surplus)
+             // or enforce a reasonable market minimum if implied is absurdly low (< 0.04).
+             
+             let implied = year1Revenue / year1Generation;
+             
+             // Check for user-provided base price override (often passed as 'energy_price' or 'electricity_price')
+             if (financialParams?.energy_price) {
+                 implied = parseFloat(financialParams.energy_price);
+             } else if (financialParams?.electricity_price) {
+                 implied = parseFloat(financialParams.electricity_price);
+             }
+             
+             // Market Reality Check: Hard floor at 0.05 EUR/kWh unless explicitly zero (self-consumption only scenarios?)
+             // Only apply if user didn't set specific self-consumption params
+             if (implied < 0.05 && selfConsumptionRatio === 0) {
+                 console.log(`[FinancialService] Warning: Implied price ${implied} is too low. Adjusting to Market Floor 0.06€`);
+                 implied = 0.06;
+             }
+             
+             impliedPricePerKwh = implied;
         }
 
         // Obtener constantes específicas por tecnología (Solo usadas si fallamos al modo fallback)
@@ -376,6 +420,12 @@ class FinancialService {
         const irrEquity = this.calculateIRR(cashFlowsEquity);
         const paybackEquity = this.calculatePayback(cashFlowsEquity);
 
+        // Correct ROI Calculation: (Net Profit / Investment) * 100
+        // cashFlowsEquity.reduce sums all flows (-Inv + Returns). This IS the Net Profit (Nominal).
+        // Example: Inv 100, Returns 80. Sum = -20. ROI = -20/100 = -20%.
+        const totalNetProfitNominal = cashFlowsEquity.reduce((a, b) => a + b, 0);
+        const roiPercent = (totalNetProfitNominal / effectiveEquity) * 100;
+
         return {
             financials: {
                 // Devolvemos Equity Metrics como principales si hay deuda, o Proyecto si no.
@@ -391,7 +441,7 @@ class FinancialService {
                 project_irr: irrProject,
                 project_payback: paybackProject,
 
-                roi_percent: ((cashFlowsEquity.reduce((a,b)=>a+b, 0) - (-initialEquity)) / initialEquity) * 100
+                roi_percent: roiPercent
             },
             cashFlows: cashFlowsEquity, // Graficaremos flujos del inversor por defecto
             annualBreakdown

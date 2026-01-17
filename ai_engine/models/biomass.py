@@ -9,13 +9,13 @@ class BiomassOptimizer:
         pci_kwh_kg: Lower Heating Value (kWh per kg)
         tech_params: Dict from catalog
         """
-        self.efficiency = efficiency
-        self.fuel_cost_eur_kg = fuel_cost_eur_ton / 1000.0
-        self.pci = pci_kwh_kg
+        self.efficiency = float(efficiency)
+        self.fuel_cost_eur_kg = float(fuel_cost_eur_ton) / 1000.0
+        self.pci = float(pci_kwh_kg)
         self.tech_params = tech_params or {}
         
         if self.tech_params.get("efficiency_electric"):
-             self.efficiency = self.tech_params["efficiency_electric"]
+             self.efficiency = float(self.tech_params["efficiency_electric"])
 
     def optimize_dispatch(self, price_series_eur_mwh, capacity_kw):
         """
@@ -51,14 +51,3 @@ class BiomassOptimizer:
         # For this simulator, economic dispatch is simpler.
         
         return dispatch
-        
-        # Dispatch Strategy: Run if Price > Marginal Cost
-        is_running = price_series_eur_mwh > marginal_cost_eur_mwh
-        
-        generation_mw = np.where(is_running, capacity_kw / 1000.0, 0.0)
-        generation_kw = generation_mw * 1000.0
-        
-        profit_eur = (price_series_eur_mwh - marginal_cost_eur_mwh) * generation_mw
-        profit_eur = profit_eur.clip(lower=0) # Only count positive or zero
-        
-        return generation_kw, is_running, profit_eur

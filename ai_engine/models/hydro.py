@@ -34,11 +34,14 @@ class HydroModel:
         Flow Q (m3/s) = Volume / 3600 (since data is hourly).
         Power (W) = rho * g * Q * H * eff
         """
-        precip_m = precipitation_mm_hour_series / 1000.0
+        # Robustness: Fill NaNs and ensure float
+        precip_series = pd.Series(precipitation_mm_hour_series).fillna(0.0).astype(float)
+        precip_m = precip_series / 1000.0
         # Lag effect: Rainfall doesn't become streamflow instantly. 
         # Simple hydrology: Apply a rolling mean (concentration time) to simulate river response
-        # 24h rolling average is a decent default for a small catchment
-        precip_rolling = pd.Series(precip_m).rolling(window=24, min_periods=1, center=False).mean()
+        # 24h rolling average IS TOO FAST for river base flow. Use 72h-120h for "River Inertia".
+        # This smoothes the crazy hourly jumps.
+        precip_rolling = precip_m.rolling(window=120, min_periods=1, center=False).mean()
         
         # Calculate raw physical flow potentially available from the default small catchment
         volume_m3 = precip_rolling.to_numpy() * self.catchment_area_m2 * self.runoff_coef
@@ -51,15 +54,23 @@ class HydroModel:
         # The precipitation data gives us the VARIABILITY (seasonality), but we mock the MAGNITUDE.
         if self.flow_design:
             # Normalize the flow array (0 to 1 scaling relative to its peaks)
-            # Use 95th percentile as "Design capacity" reference to avoid outliers spiking everything too low
-            max_flow_ref = np.percentile(flow_q_m3s, 95)
-            if max_flow_ref > 0:
+            # Use 60th percentile as "Design capacity" reference.
+            max_flow_ref = np.percentile(flow_q_m3s, 60)
+            if max_flow_ref > 1e-6:
                 scale_factor = self.flow_design / max_flow_ref
                 flow_q_m3s = flow_q_m3s * scale_factor
             else:
-                # If no rain generated flow (e.g. valid rain data missing), fallback to constant design flow * capacity factor?
-                # Fallback to mean Design Flow * 0.5
-                flow_q_m3s = np.full_like(flow_q_m3s, self.flow_design * 0.4)
+                # FALLBACK: Synthetic Seasonal Flow
+                # Simpler "Slow" curve using sine waves, NO random noise for hourly stability.
+                N = len(flow_q_m3s)
+                t = np.linspace(0, 2 * np.pi, N)
+                # Pure smooth seasonal curve (0.2 to 1.2 x Design)
+                seasonal_trend = 0.7 + 0.5 * np.sin(t - np.pi/2) 
+                # Add tiny noise just so it's not a math drawing, but smoothed
+                noise = np.random.normal(0, 0.02, N)
+                
+                synthetic_flow = self.flow_design * (seasonal_trend + noise)
+                flow_q_m3s = np.clip(synthetic_flow, 0, self.flow_design * 1.5)
 
             # Cap flow at design capacity (Turbine limit)
             flow_q_m3s = np.minimum(flow_q_m3s, self.flow_design)
@@ -68,8 +79,45 @@ class HydroModel:
         ecological_flow = self.turbine_params.get("ecological_flow", 0.0)
         flow_q_m3s = np.maximum(flow_q_m3s - ecological_flow, 0.0)
 
+        # PIPE LOSS CALCULATION (Darcy-Weisbach / Manning)
+        # If user provided penstock details, we MUST calculate head loss.
+        # h_loss = S * L.  Manning formula for S (Hydraulic gradient):
+        # V = (1/n) * R^(2/3) * S^(1/2)  => S = (V * n)^2 / R^(4/3)
+        # h_loss = L * ( (V*n)^2 / R^(4/3) )
+        if self.turbine_params.get("penstock_length") and self.turbine_params.get("penstock_diameter"):
+             L = float(self.turbine_params["penstock_length"])
+             D = float(self.turbine_params["penstock_diameter"])
+             n = float(self.turbine_params.get("mannings_n", 0.013)) # roughness
+             
+             # Area A = pi * D^2 / 4
+             A = np.pi * (D**2) / 4
+             # Wetted Perimeter P = pi * D
+             # Hydraulic Radius R = A / P = D / 4
+             R = D / 4.0
+             
+             # Velocity V = Q / A
+             # Prevent div by zero
+             V = np.divide(flow_q_m3s, A, out=np.zeros_like(flow_q_m3s), where=A!=0)
+             
+             # Slope S
+             # S = (V * n)^2 / R^(4/3)
+             # Avoid R=0
+             if R > 0:
+                 S = (V * n)**2 / (R**(4/3))
+                 head_loss = L * S
+                 
+                 # Effective Head = Gross Head - Head Loss
+                 effective_head = self.head_height - head_loss
+                 # Cannot be negative
+                 effective_head = np.maximum(effective_head, 0.0)
+             else:
+                 effective_head = self.head_height
+        else:
+             effective_head = self.head_height
+
         # Calculate Power
-        power_watts = self.water_density * self.gravity * flow_q_m3s * self.head_height * self.efficiency
+        # Use EFFECTIVE Head instead of Gross Head
+        power_watts = self.water_density * self.gravity * flow_q_m3s * effective_head * self.efficiency
         power_kw = power_watts / 1000.0
         
         return power_kw

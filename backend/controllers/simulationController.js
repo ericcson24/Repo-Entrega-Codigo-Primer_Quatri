@@ -106,28 +106,51 @@ class SimulationController {
                  }
             }
 
-            // 2. Obtener Precios de Mercado del AI Engine
-            const priceResponse = await axios.post(`${aiUrl}/market/prices`, { 
-                latitude, longitude, capacity_kw, project_type 
-            });
-            const hourlyPrices = priceResponse.data.prices_eur_mwh;
+            // 2. Obtener Precios de Mercado del AI Engine (Solo si no viene impuesto por usuario)
+            // Check if user set a fixed price (e.g. 0.22 €/kWh)
+            let userPrice = null;
+            if (financial_params) {
+                 if (financial_params.electricity_price) userPrice = parseFloat(financial_params.electricity_price);
+                 else if (financial_params.energy_price) userPrice = parseFloat(financial_params.energy_price);
+            }
             
-            // Console log to debug Financial Params reception
-            console.log("Controlador: Recibidos params financieros:", JSON.stringify(financial_params));
-
-            // 3. Cálculos de Ingresos (Año 1)
+            // Si el usuario define un precio, lo usamos para el Año 1 (y FinancialService lo extrapola)
+            // Si no, pedimos curva horaria al AI Engine.
+            
+            let hourlyPrices = [];
             let year1Revenue = 0;
-            if (hourlyGen && hourlyPrices && hourlyGen.length > 0) {
-                const limit = Math.min(hourlyGen.length, hourlyPrices.length);
-                for(let i=0; i<limit; i++) {
-                    year1Revenue += (hourlyGen[i] / 1000.0) * hourlyPrices[i]; // kWh/1000 * €/MWh = €
-                }
+
+            if (userPrice !== null && userPrice > 0) {
+                 console.log(`[Controller] Using User Defined Energy Price: ${userPrice} €/kWh`);
+                 year1Revenue = annualGen * userPrice;
+                 // Mock hourly prices for completeness if needed? 
+                 // FinancialService doesn't need them if we pass the Revenue.
             } else {
-                 // Fallback revenue estimation (approx 50 €/MWh)
-                 year1Revenue = (annualGen / 1000.0) * 50;
+                const priceResponse = await axios.post(`${aiUrl}/market/prices`, { 
+                    latitude, longitude, capacity_kw, project_type 
+                });
+                hourlyPrices = priceResponse.data.prices_eur_mwh;
+                
+                // 3. Cálculos de Ingresos con precios de mercado horaria
+                if (hourlyGen && hourlyPrices && hourlyGen.length > 0) {
+                    const limit = Math.min(hourlyGen.length, hourlyPrices.length);
+                    for(let i=0; i<limit; i++) {
+                        year1Revenue += (hourlyGen[i] / 1000.0) * hourlyPrices[i]; // kWh/1000 * €/MWh = €
+                    }
+                } else {
+                     // Fallback revenue estimation (approx 50 €/MWh)
+                     year1Revenue = (annualGen / 1000.0) * 50;
+                }
             }
 
+            // Console log to debug Financial Params reception
+            console.log("Controlador: Recibidos params financieros:", JSON.stringify(financial_params));
+            console.log(`Controlador: Year 1 Revenue Calculated: ${year1Revenue} €`);
+
             // 4. Proyección Financiera con Servicio Dedicado
+            // IMPORTANTE: Pasamos 'energy_price' explícitamente en financial_params si lo calculamos aquí por otro medio (fallback 50)?
+            // No, FinancialService ya lo manejará si se lo pasamos.
+            
             const projection = FinancialService.generateProjection(
                 budget, 
                 year1Revenue, 
