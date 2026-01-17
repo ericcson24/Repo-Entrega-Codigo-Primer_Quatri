@@ -1,4 +1,4 @@
-const { FINANCIAL } = require('../config/constants');
+const { FINANCIAL, TECHNICAL } = require('../config/constants');
 
 class FinancialService {
     
@@ -78,14 +78,40 @@ class FinancialService {
      */
     static generateProjection(initialInvestment, year1Revenue, capacityKw, type, financialParams, longTermGeneration = null, year1Generation = null) {
         
-        const years = FINANCIAL.SIMULATION_YEARS;
-        const initialEquity = initialInvestment * (1 - (financialParams?.debtRatio || FINANCIAL.DEFAULT_DEBT_RATIO));
-        const initialDebt = initialInvestment * (financialParams?.debtRatio || FINANCIAL.DEFAULT_DEBT_RATIO);
-        const interestRate = financialParams?.interestRate || FINANCIAL.DEFAULT_INTEREST_RATE;
-        const loanTerm = financialParams?.loanTerm || FINANCIAL.DEFAULT_LOAN_TERM;
+        // Prioritize User Parameters if available, falling back to System Constants
         
-        const inflation = FINANCIAL.INFLATION_RATE;
-        const energyInflation = FINANCIAL.ENERGY_INFLATION_RATE;
+        // Duration: User inputs integer years
+        const years = (financialParams?.project_lifetime) 
+            ? parseInt(financialParams.project_lifetime) 
+            : FINANCIAL.SIMULATION_YEARS;
+
+        // Debt Params
+        const debtRatio = (financialParams?.debtRatio !== undefined) ? financialParams.debtRatio : FINANCIAL.DEFAULT_DEBT_RATIO;
+        const interestRate = (financialParams?.interestRate !== undefined) ? financialParams.interestRate : FINANCIAL.DEFAULT_INTEREST_RATE;
+        const loanTerm = (financialParams?.loanTerm !== undefined) ? financialParams.loanTerm : FINANCIAL.DEFAULT_LOAN_TERM;
+
+        const initialEquity = initialInvestment * (1 - debtRatio);
+        const initialDebt = initialInvestment * debtRatio;
+        
+        // Inflation Rates: User inputs Percentages (e.g. 2.0), System uses Decimals (0.02)
+        // Check if params exist and seem to be percentages (> 1 usually implies %, but 0-1 is ambiguous. 
+        // We will assume User Params from Frontend are ALWAYS Percentages if they come from the standard form)
+        
+        const rawInflation = financialParams?.inflation_rate; 
+        const inflation = (rawInflation !== undefined) 
+            ? parseFloat(rawInflation) / 100.0 
+            : FINANCIAL.INFLATION_RATE;
+
+        const rawEnergyInflation = financialParams?.electricity_price_increase;
+        const energyInflation = (rawEnergyInflation !== undefined) 
+            ? parseFloat(rawEnergyInflation) / 100.0 
+            : FINANCIAL.ENERGY_INFLATION_RATE;
+
+        // Discount Rate (WACC): User inputs Percentage
+        const rawDiscount = financialParams?.discount_rate;
+        const discountRate = (rawDiscount !== undefined) 
+            ? parseFloat(rawDiscount) / 100.0 
+            : FINANCIAL.WACC;
 
         // Calculamos servicio de deuda (Pago anual constante - Método Francés)
         let annualDebtService = 0;
@@ -113,11 +139,11 @@ class FinancialService {
 
         switch(type) {
             case 'solar':
-                degradation = FINANCIAL.TECHNICAL.DEGRADATION_RATE_SOLAR || 0.005; 
+                degradation = TECHNICAL.DEGRADATION_RATE_SOLAR || 0.005; 
                 omCostPerKw = FINANCIAL.OM_COST_PER_KW_SOLAR;
                 break;
             case 'wind':
-                degradation = FINANCIAL.TECHNICAL.DEGRADATION_RATE_WIND || 0.01;
+                degradation = TECHNICAL.DEGRADATION_RATE_WIND || 0.01;
                 omCostPerKw = FINANCIAL.OM_COST_PER_KW_WIND;
                 break;
             case 'hydro':
@@ -137,7 +163,8 @@ class FinancialService {
         // Para simplificar la salida principal, usamos WACC sobre el flujo total del proyecto (FCFF) para metrics de Proyecto
         // y calculamos metrics de Equity por separado.
 
-        const wacc = FINANCIAL.WACC;
+        // Use User's Discount Rate if provided (override WACC and Ke with specific user preference)
+        const wacc = (financialParams?.discount_rate !== undefined) ? discountRate : FINANCIAL.WACC;
 
         let cashFlowsProject = [-Math.abs(initialInvestment)]; // Año 0 Proyecto
         let cashFlowsEquity = [-Math.abs(initialEquity)];      // Año 0 Accionista
@@ -243,7 +270,8 @@ class FinancialService {
 
         // Métricas de Equity (Con deuda - Lo que le interesa al inversor)
         // Coste del Equity suele ser mayor al WACC, ej 8-10%. Usamos 8% estandard.
-        const costOfEquity = 0.08; 
+        // Si el usuario da un discount rate, lo aplicamos aquí preferentemente.
+        const costOfEquity = (financialParams?.discount_rate !== undefined) ? discountRate : 0.08; 
         const npvEquity = this.calculateNPV(costOfEquity, cashFlowsEquity);
         const irrEquity = this.calculateIRR(cashFlowsEquity);
         const paybackEquity = this.calculatePayback(cashFlowsEquity);

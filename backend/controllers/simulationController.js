@@ -1,9 +1,29 @@
 const axios = require('axios');
 const FinancialService = require('../services/financialService');
 const { URLS } = require('../config/constants');
+const { pool } = require('../config/db');
 
 class SimulationController {
     
+    static async getHistory(req, res) {
+        try {
+            const { user_email } = req.query;
+            if (!user_email) {
+                return res.status(400).json({ error: "Email is required" });
+            }
+
+            const result = await pool.query(
+                'SELECT id, project_type, input_params, results, created_at FROM simulations WHERE user_email = $1 ORDER BY created_at DESC LIMIT 50',
+                [user_email]
+            );
+
+            res.json(result.rows);
+        } catch (error) {
+            console.error("Error fetching history:", error);
+            res.status(500).json({ error: "Internal Server Error" });
+        }
+    }
+
     static async runSimulation(req, res) {
         try {
             const { 
@@ -13,7 +33,8 @@ class SimulationController {
                 capacity_kw, 
                 budget, 
                 parameters,
-                financial_params // { debtRatio, interestRate, loanTerm }
+                financial_params, // { debtRatio, interestRate, loanTerm }
+                user_email // NEW: Optional for saving
             } = req.body;
             const aiUrl = URLS.AI_ENGINE_BASE_URL;
 
@@ -27,14 +48,17 @@ class SimulationController {
             const endpoint = `${aiUrl}/predict/${project_type}`;
             
             let genResponse;
+            // Aplanamos 'parameters' para que Python reciba { latitude, hub_height, ... } en la raíz
+            const payload = {
+                latitude, 
+                longitude, 
+                capacity_kw, 
+                ...parameters, 
+                project_type 
+            };
+
             try {
-                genResponse = await axios.post(endpoint, {
-                    latitude, 
-                    longitude, 
-                    capacity_kw, 
-                    parameters, // Pasamos parámetros avanzados de tech
-                    project_type 
-                });
+                genResponse = await axios.post(endpoint, payload);
             } catch (aiError) {
                 console.error("Error conectando con AI Engine:", aiError.message);
                 
@@ -42,6 +66,13 @@ class SimulationController {
                 if (aiError.response && aiError.response.status === 404) {
                     return res.status(404).json({ error: "No se encontraron datos meteorológicos para esta ubicación." });
                 }
+                
+                // NEW: Log validation errors from Python
+                if (aiError.response && aiError.response.status === 422) {
+                     console.error("Validation Error from Python:", JSON.stringify(aiError.response.data, null, 2));
+                     console.error("Payload sent:", JSON.stringify(payload, null, 2));
+                }
+
                 throw aiError;
             }
 
@@ -87,7 +118,7 @@ class SimulationController {
             );
 
             // 5. Respuesta
-            res.json({
+            const resultData = {
                 meta: {
                     project_type,
                     location: { lat: latitude, lon: longitude },
@@ -115,9 +146,30 @@ class SimulationController {
                     annual_breakdown: projection.annualBreakdown,
                     // Convertimos el objeto mensual a array si es necesario para el frontend, o lo dejamos como dict
                     // El frontend probablemente quiera arrays para Chart.js
-                    monthly_generation: generationData.monthly_generation_kwh
+                    monthly_generation: generationData.monthly_generation_kwh,
+                    hourly_generation: hourlyGen // Send full hourly data for advanced technical analysis
                 }
-            });
+            };
+
+            // 6. Persistencia (Guardar si hay usuario)
+            if (user_email) {
+                try {
+                    await pool.query(
+                        'INSERT INTO simulations (user_email, project_type, input_params, results) VALUES ($1, $2, $3, $4)',
+                        [
+                            user_email, 
+                            project_type, 
+                            JSON.stringify(req.body), 
+                            JSON.stringify(resultData)
+                        ]
+                    );
+                } catch (dbError) {
+                    console.error("Error saving simulation:", dbError);
+                    // No fallamos la request si falla el guardado, solo logueamos
+                }
+            }
+
+            res.json(resultData);
 
         } catch (error) {
             console.error(error);

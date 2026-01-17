@@ -5,4 +5,7 @@ const SimulationController = require('../controllers/simulationController');
 // Route: POST /api/simulate
 router.post('/simulate', SimulationController.runSimulation);
 
+// Route: GET /api/history
+router.get('/history', SimulationController.getHistory);
+
 module.exports = router;
