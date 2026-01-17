@@ -77,3 +77,16 @@ Para demostrar la robustez, el TFG evalúa el modelo con métricas estándar:
 *   *Sandia National Laboratories PV Performance Modeling Collaborative.*
 *   *Duffie, J. A., & Beckman, W. A. (2013). Solar Engineering of Thermal Processes.*
 *   *IEC 61724: Photovoltaic system performance.*
+
+## 5. Notas de Implementación (Actualización 2026)
+
+### 5.1. Sistema de Coordenadas y Azimut
+El estándar utilizado en la interfaz de usuario y el motor físico define el **Sur Geográfico como 180°**.
+Para la integración con fuentes de datos externos (OpenMeteo Archive API), se aplica una transformación de coordenadas en la capa ETL (`connector.py`):
+$$ Azimut_{API} = Azimut_{User} - 180^{\circ} $$
+Esto asegura que la descomposición vectorial de la irradiancia (GHI a POA) considere correctamente la orientación del panel en el hemisferio norte, evitando proyecciones de sombra erróneas.
+
+### 5.2. Heurística de Degradación (Input Sanitization)
+Para mitigar errores de entrada comunes ("Unit Confusion"), el motor de simulación implementa una capa de sanitización lógica para la tasa de degradación ($d$):
+*   Si el input $d > 0.05$ (5%), el sistema asume que el usuario introdujo el valor en porcentaje (ej: 0.5) y divide automáticamente por 100.
+*   Esto previene el escenario de fallo catastrófico (pérdida del 50% anual) conocido como "Solar Suicide Bug", garantizando curvas de flujo de caja válidas a 20-25 años.

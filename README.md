@@ -5,7 +5,7 @@ Este proyecto es una plataforma avanzada para el análisis técnico y financiero
 ## 🌟 Características Principales
 
 ### 1. Motor de Simulación Multi-Tecnología (AI Engine)
-- **Solar FV:** Modelo de **Diodo Simple (PVLib)** con datos espectrales y térmicos reales. Considera nubosidad, temperatura de célula y pérdidas por suciedad/cableado.
+- **Solar FV:** Modelo de **Diodo Simple (PVLib)** con datos espectrales y térmicos reales. Considera nubosidad, temperatura de célula y pérdidas por suciedad/cableado. Incluye corrección automática de coordenadas (Azimut) y sanitización de inputs.
 - **Eólica:** Extrapolación vertical de viento (Ley de Hellman) y curvas de potencia de turbinas reales (Vestas, Gamesa).
 - **Hidráulica:** Modelo de turbinado basado en caudal ecológico y altura de salto neto.
 - **Biomasa:** Optimización de despacho económico basado en precios de mercado y coste variable de combustible.
