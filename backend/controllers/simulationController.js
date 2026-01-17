@@ -79,6 +79,32 @@ class SimulationController {
             const generationData = genResponse.data;
             const hourlyGen = generationData.hourly_generation_kwh; 
 
+            // --- NORMALIZATION: Unified Keys across AI Engine versions ---
+            const annualGen = generationData.total_annual_generation_kwh || generationData.annual_generation_kwh || 0;
+            let monthlyGen = generationData.monthly_generation_kwh || generationData.monthly_generation || [];
+            if (!Array.isArray(monthlyGen) && typeof monthlyGen === 'object') {
+                monthlyGen = Object.values(monthlyGen);
+            }
+
+            // Long Term Gen: Synthesize if missing (AI Engine mismatch)
+            let longTermGen = generationData.long_term_monthly_generation_kwh || null;
+            if (!longTermGen && monthlyGen.length > 0) {
+                 const degradation = 0.005; 
+                 longTermGen = [];
+
+                 // Determine duration - Use financial params or Default 25
+                 const projectYears = (financial_params && financial_params.project_lifetime) 
+                    ? parseInt(financial_params.project_lifetime) 
+                    : 25;
+
+                 // Use 12 months data or average
+                 const baseMonths = (monthlyGen.length === 12) ? monthlyGen : Array(12).fill(annualGen / 12);
+                 for(let y=0; y<projectYears; y++) { // Project years dynamic
+                     const factor = Math.pow(1 - degradation, y);
+                     longTermGen.push(...baseMonths.map(m => m * factor));
+                 }
+            }
+
             // 2. Obtener Precios de Mercado del AI Engine
             const priceResponse = await axios.post(`${aiUrl}/market/prices`, { 
                 latitude, longitude, capacity_kw, project_type 
@@ -89,27 +115,18 @@ class SimulationController {
             console.log("Controlador: Recibidos params financieros:", JSON.stringify(financial_params));
 
             // 3. Cálculos de Ingresos (Año 1)
-            // Validar longitud de series
-            if (!hourlyGen || !hourlyPrices || hourlyGen.length !== hourlyPrices.length) {
-                // En biomasa, la longitud podría diferir si no se estandariza a 8760, pero asumiremos año estándar
-                 // Si no coinciden, logs de advertencia.
-                 console.warn(`Longitud de series diferente: Gen ${hourlyGen?.length} - Precios ${hourlyPrices?.length}`);
-            }
-
             let year1Revenue = 0;
-            // Usamos la longitud mínima para evitar out of bounds
-            const limit = Math.min(hourlyGen.length, hourlyPrices.length);
-
-            for(let i=0; i<limit; i++) {
-                // Generación (kWh) / 1000 = MWh. Precio en EUR/MWh.
-                year1Revenue += (hourlyGen[i] / 1000.0) * hourlyPrices[i];
+            if (hourlyGen && hourlyPrices && hourlyGen.length > 0) {
+                const limit = Math.min(hourlyGen.length, hourlyPrices.length);
+                for(let i=0; i<limit; i++) {
+                    year1Revenue += (hourlyGen[i] / 1000.0) * hourlyPrices[i]; // kWh/1000 * €/MWh = €
+                }
+            } else {
+                 // Fallback revenue estimation (approx 50 €/MWh)
+                 year1Revenue = (annualGen / 1000.0) * 50;
             }
 
             // 4. Proyección Financiera con Servicio Dedicado
-             // Extraer la generación mensual a largo plazo si existe
-            const longTermGen = generationData.long_term_monthly_generation_kwh || null;
-            const year1Gen = generationData.total_annual_generation_kwh || 0;
-
             const projection = FinancialService.generateProjection(
                 budget, 
                 year1Revenue, 
@@ -117,10 +134,10 @@ class SimulationController {
                 project_type, 
                 financial_params,
                 longTermGen,
-                year1Gen
+                annualGen
             );
 
-            // 5. Respuesta
+             // 5. Respuesta
             const resultData = {
                 meta: {
                     project_type,
@@ -136,23 +153,24 @@ class SimulationController {
                     // Project Specifics included for expert view
                     project_npv_eur: projection.financials.project_npv,
                     project_irr_percent: projection.financials.project_irr * 100,
-                    total_investment: budget,
-                    initial_equity: projection.financials.initial_equity, // Send calculated equity
-                    initial_debt: projection.financials.initial_debt, // Send calculated debt
-                    leverage_ratio: projection.financials.leverage_ratio // Use calculated ratio from service
+                    total_investment: projection.financials.initial_investment, // Corrected key from Service
+                    initial_equity: projection.financials.initial_equity, 
+                    initial_debt: projection.financials.initial_debt, 
+                    leverage_ratio: projection.financials.leverage_ratio
                 },
                 generation: {
-                    annual_kwh: generationData.total_annual_generation_kwh,
-                    monthly_kwh: generationData.monthly_generation_kwh,
-                    long_term_monthly_kwh: generationData.long_term_monthly_generation_kwh // Return detailed series to frontend
+                    annual_kwh: annualGen,
+                    monthly_kwh: monthlyGen, // Expected by some frontend components?
+                    long_term_monthly_kwh: longTermGen,
+                    // Specific Yield & CF
+                    specific_yield: (capacity_kw > 0) ? annualGen / capacity_kw : 0,
+                    capacity_factor: (capacity_kw > 0) ? (annualGen / (capacity_kw * 8760)) * 100 : 0
                 },
                 graphs: {
                     cash_flow: projection.cashFlows,
                     annual_breakdown: projection.annualBreakdown,
-                    // Convertimos el objeto mensual a array si es necesario para el frontend, o lo dejamos como dict
-                    // El frontend probablemente quiera arrays para Chart.js
-                    monthly_generation: generationData.monthly_generation_kwh,
-                    hourly_generation: hourlyGen // Send full hourly data for advanced technical analysis
+                    monthly_generation: monthlyGen, // Corrected for ResultsDashboard logic
+                    hourly_generation: hourlyGen // Send full hourly data
                 }
             };
 
@@ -170,7 +188,6 @@ class SimulationController {
                     );
                 } catch (dbError) {
                     console.error("Error saving simulation:", dbError);
-                    // No fallamos la request si falla el guardado, solo logueamos
                 }
             }
 

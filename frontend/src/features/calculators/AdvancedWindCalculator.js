@@ -5,11 +5,27 @@ import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
+const SPANISH_CITIES = [
+    { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
+    { name: 'Barcelona', lat: 41.3851, lon: 2.1734 },
+    { name: 'Valencia', lat: 39.4699, lon: -0.3763 },
+    { name: 'Sevilla', lat: 37.3891, lon: -5.9845 },
+    { name: 'Bilbao', lat: 43.2630, lon: -2.9350 },
+    { name: 'Málaga', lat: 36.7213, lon: -4.4214 },
+    { name: 'Zaragoza', lat: 41.6488, lon: -0.8891 },
+    { name: 'Palma', lat: 39.5696, lon: 2.6502 },
+    { name: 'Las Palmas', lat: 28.1235, lon: -15.4363 },
+    { name: 'A Coruña', lat: 43.3623, lon: -8.4115 },
+    { name: 'Murcia', lat: 37.9922, lon: -1.1307 },
+    { name: 'Valladolid', lat: 41.6523, lon: -4.7245 }
+];
+
 const AdvancedWindCalculator = () => {
     const { currentUser } = useAuth();
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
     const [advancedMode, setAdvancedMode] = useState(false);
+    const [selectedCity, setSelectedCity] = useState('Madrid');
 
     const [formData, setFormData] = useState({
         project_type: 'wind',
@@ -35,6 +51,18 @@ const AdvancedWindCalculator = () => {
             project_lifetime: 20
         }
     });
+
+    const handleCityChange = (cityName) => {
+        setSelectedCity(cityName);
+        const city = SPANISH_CITIES.find(c => c.name === cityName);
+        if (city) {
+            setFormData(prev => ({
+                ...prev,
+                latitude: city.lat,
+                longitude: city.lon
+            }));
+        }
+    };
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -132,6 +160,14 @@ const AdvancedWindCalculator = () => {
                                 type="number" 
                                 value={formData.budget} 
                                 onChange={(e) => handleInputChange('budget', parseFloat(e.target.value))}
+                            />
+                        </FormField>
+
+                        <FormField label="Location (City)" icon={MapPin}>
+                            <Select 
+                                value={selectedCity}
+                                onChange={(e) => handleCityChange(e.target.value)}
+                                options={SPANISH_CITIES.map(c => ({ value: c.name, label: c.name }))}
                             />
                         </FormField>
 

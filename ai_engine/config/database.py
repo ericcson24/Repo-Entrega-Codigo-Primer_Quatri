@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, UniqueConstraint
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, UniqueConstraint, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config.settings import settings
 import pandas as pd
@@ -43,23 +43,26 @@ class DatabaseManager:
         start_date = datetime(year, 1, 1)
         end_date = datetime(year, 12, 31, 23, 59)
         
-        # Rounding coords to avoid precision mismatch? 
-        # Better: use range. But for now exact match as loaded.
-        
-        query = f"""
+        # Using text() for SQLAlchemy 2.0 compatibility and binding params
+        query = text("""
         SELECT count(*) 
         FROM weather_data 
-        WHERE latitude = {lat} AND longitude = {lon}
-        AND time >= '{start_date}' AND time <= '{end_date}'
-        """
+        WHERE latitude = :lat AND longitude = :lon
+        AND time >= :start_date AND time <= :end_date
+        """)
         
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(query).scalar()
+                result = conn.execute(query, {
+                    "lat": lat, 
+                    "lon": lon, 
+                    "start_date": start_date, 
+                    "end_date": end_date
+                }).scalar()
                 # 8760 hours in a year. 
                 return result > 8000 # 90% threshold
         except Exception as e:
-            print(f"DB Check Error (Table might not exist yet): {e}")
+            # Table doesn't exist or connection error
             return False
 
     def save_weather_data(self, df, lat, lon):
@@ -85,12 +88,11 @@ class DatabaseManager:
             
         # Write to SQL
         try:
+            # Chunksize is important for network performance
             db_df.to_sql('weather_data', self.engine, if_exists='append', index=False, method='multi', chunksize=1000)
             print(f"Saved {len(db_df)} rows to weather_data for ({lat}, {lon})")
         except Exception as e:
-            print(f"Error saving to DB: {e}") 
-            # Often dupes if partial data exists. 'append' fails on constraint.
-            # In TFG, we might want to just pass or use upsert logic (complex in pandas).
+            print(f"Error saving to DB (duplicate or constraint): {e}") 
 
     def load_weather_data(self, lat, lon, year):
         """
@@ -99,23 +101,34 @@ class DatabaseManager:
         start_date = f"{year}-01-01"
         end_date = f"{year}-12-31"
         
-        query = f"""
+        query = text("""
         SELECT * FROM weather_data 
-        WHERE latitude = {lat} AND longitude = {lon}
-        AND time >= '{start_date}' AND time <= '{end_date}'
+        WHERE latitude = :lat AND longitude = :lon
+        AND time >= :start_date AND time <= :end_date
         ORDER BY time ASC
-        """
+        """)
         
         try:
-            df = pd.read_sql(query, self.engine)
+            # pd.read_sql can take a connection and params in recent versions, 
+            # but standard way with sqlalchemy engine is safer to bind manually or use params arg
+            with self.engine.connect() as conn:
+                 df = pd.read_sql(query, conn, params={
+                    "lat": lat, 
+                    "lon": lon, 
+                    "start_date": start_date, 
+                    "end_date": end_date
+                 })
             
+            if df.empty:
+                return pd.DataFrame()
+
             # Remap back to internal naming
             out_df = pd.DataFrame()
             out_df['date'] = pd.to_datetime(df['time'])
             out_df['temperature'] = df['temperature_2m']
             out_df['radiation_ghi'] = df['radiation']
             out_df['wind_speed_10m'] = df['wind_speed_10m']
-            out_df['wind_speed_100m'] = df['wind_speed_100m']
+            out_df['wind_speed_100m'] = df.get('wind_speed_100m', 0) # Handle missing col if old schema
             out_df['precipitation'] = df['precipitation']
             if 'surface_pressure' in df:
                 out_df['surface_pressure'] = df['surface_pressure']

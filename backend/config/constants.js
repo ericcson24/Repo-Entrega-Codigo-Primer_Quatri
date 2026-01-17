@@ -26,7 +26,7 @@ module.exports = {
         // Coste de Operación y Mantenimiento (O&M) aproximado por kW instalado (Anual)
         OM_COST_PER_KW_SOLAR: parseFloat(process.env.OM_COST_SOLAR || 15), 
         OM_COST_PER_KW_WIND: parseFloat(process.env.OM_COST_WIND || 25),  
-        OM_COST_PER_KW_HYDRO: parseFloat(process.env.OM_COST_HYDRO || 20), 
+        OM_COST_PER_KW_HYDRO: parseFloat(process.env.OM_COST_HYDRO || 70), 
         OM_COST_PER_KW_BIOMASS: parseFloat(process.env.OM_COST_BIOMASS || 40)
     },
     

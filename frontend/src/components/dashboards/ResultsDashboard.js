@@ -155,7 +155,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
         />
         <KPICard 
           title="Tasa Interna de Retorno (TIR)" 
-          value={financials.irr_percent.toFixed(2)}
+          value={(financials.irr_percent ?? 0).toFixed(2)}
           unit="%"
           icon={TrendingUp}
           color="bg-blue-500"
@@ -163,7 +163,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
         />
         <KPICard 
           title="Periodo de Recuperación" 
-          value={financials.payback_years.toFixed(1)}
+          value={(financials.payback_years ?? 0).toFixed(1)}
           unit="Años"
           icon={Calendar}
           color="bg-purple-500"
@@ -172,11 +172,11 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
         {financials.leverage_ratio > 0 ? (
           <KPICard 
               title="Estructura de Capital" 
-              value={`${(financials.leverage_ratio * 100).toFixed(0)}% Deuda`}
+              value={`${(financials.leverage_ratio * 100 ?? 0).toFixed(0)}% Deuda`}
               unit=""
               icon={Zap}
               color="bg-orange-500"
-              description={`Banco: ${formatCurrency(financials.initial_debt)} | Tú: ${formatCurrency(financials.initial_equity)}`}
+              description={`Banco: ${formatCurrency(financials.initial_debt || 0)} | Tú: ${formatCurrency(financials.initial_equity || 0)}`}
           />
         ) : (
           <KPICard 

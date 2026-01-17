@@ -1,6 +1,24 @@
-﻿# Simulador de Inversión en Energías Renovables (ROI)
+﻿# Simulador de Inversión en Energías Renovables (TFG)
 
-Este proyecto es una aplicación web completa para simular y calcular el retorno de inversión (ROI) en instalaciones de energía renovable (solar y eólica). Utiliza datos reales históricos y modelos de Inteligencia Artificial para realizar predicciones precisas.
+Este proyecto es una plataforma avanzada para el análisis técnico y financiero de proyectos de energía renovable (**Solar FV, Eólica, Hidráulica y Biomasa**). Integra modelos de simulación física de alta fidelidad, datos meteorológicos reales (OpenMeteo 2023-2024) y un motor financiero profesional para calcular la viabilidad económica bajo escenarios de incertidumbre y volatilidad de mercado.
+
+## 🌟 Características Principales
+
+### 1. Motor de Simulación Multi-Tecnología (AI Engine)
+- **Solar FV:** Modelo de **Diodo Simple (PVLib)** con datos espectrales y térmicos reales. Considera nubosidad, temperatura de célula y pérdidas por suciedad/cableado.
+- **Eólica:** Extrapolación vertical de viento (Ley de Hellman) y curvas de potencia de turbinas reales (Vestas, Gamesa).
+- **Hidráulica:** Modelo de turbinado basado en caudal ecológico y altura de salto neto.
+- **Biomasa:** Optimización de despacho económico basado en precios de mercado y coste variable de combustible.
+
+### 2. Análisis Financiero Profesional
+- **Métricas Clave:** VAN (NPV), TIR (IRR), Payback, LCOE y ROI.
+- **Estructura de Capital:** Simulación de Apalancamiento (Project Finance), Deuda Senior, Equity y ratio de cobertura.
+- **Fiscalidad y Ayudas:** Soporte para Subvenciones (NextGen), deducciones fiscales y amortización acelerada.
+- **Modelos de Ingres:** Autoconsumo con compensación de excedentes vs Venta a Red (PPA/Merchant).
+
+### 3. Visualización Avanzada
+- **Dashboards Interactivos:** Gráficos de Flujo de Caja, Perfiles Estacionales y Curvas de Duración de Carga.
+- **Comparativa de Escenarios:** Análisis de sensibilidad ante variaciones de CAPEX o precios de energía.
 
 ## 📋 Requisitos del Sistema
 

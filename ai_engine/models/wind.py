@@ -33,6 +33,32 @@ class WindModel:
         
         return np.interp(wind_speed, curve_speeds, curve_powers, left=0, right=0)
 
+    def power_curve(self, wind_speed, capacity_kw):
+        """
+        Generic Power Curve (Sigmoid/Cubic approximation)
+        Used when no specific manufacturer curve is provided.
+        """
+        cut_in = 3.0
+        rated = 12.0
+        cut_out = 25.0
+        
+        # Initialize output array
+        power = np.zeros_like(wind_speed)
+        
+        # Region 2: Cubic rise from Cut-in to Rated
+        # P ~ v^3
+        # Simple cubic fit: P(v) = Capacity * ((v - cut_in) / (rated - cut_in))^3
+        mask_ramp = (wind_speed >= cut_in) & (wind_speed < rated)
+        power[mask_ramp] = capacity_kw * ((wind_speed[mask_ramp] - cut_in) / (rated - cut_in)) ** 3
+        
+        # Region 3: Constant Rated Power from Rated to Cut-out
+        mask_rated = (wind_speed >= rated) & (wind_speed < cut_out)
+        power[mask_rated] = capacity_kw
+        
+        # Region 4: Cut-out (Automatic zero via initialization)
+        
+        return power
+
     def predict_generation(self, wind_speed_10m_series, capacity_kw, temperature_c=None, pressure_hpa=None, specific_curve=None):
         """
         Predict with optional specific turbine curve.

@@ -26,6 +26,7 @@ class AIService {
     }
 
     getMockData(techType, params) {
+        console.warn(`[WARNING] AI Engine unavailable. Returning static MOCK data for ${techType}. Check if python server is running on port 8000.`);
         const capacity = params.capacity_kw || 100;
         let mockYield = 0;
         if (techType === 'solar') mockYield = capacity * 1500;

@@ -16,7 +16,7 @@ const HydroCalculator = () => {
         latitude: 40.4168,
         longitude: -3.7038,
         capacity_kw: 500,
-        budget: 1200000,
+        budget: 2000000,
         parameters: {
             flow_rate_design: 5.0,
             gross_head: 15.0,

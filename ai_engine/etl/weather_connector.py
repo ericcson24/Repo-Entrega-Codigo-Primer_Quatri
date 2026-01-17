@@ -3,6 +3,7 @@ import requests_cache
 import pandas as pd
 from retry_requests import retry
 from config.settings import settings
+from config.database import db
 
 class WeatherConnector:
     def __init__(self):
@@ -13,6 +14,22 @@ class WeatherConnector:
         self.url = settings.OPENMETEO_URL
 
     def fetch_historical_weather(self, lat, lon, start_date, end_date, tilt=None, azimuth=None):
+        # 0. Check Database Cache
+        # CRITICAL: If 'tilt' is provided (Solar Expert), we need 'global_tilted_irradiance' (POA).
+        # The current DB schema only stores 'radiation' (GHI).
+        # Using GHI for tilted panels underestimates winter production and flattens geographic differences.
+        # Therefore, we SKIP reading from cache if tilt is used, to ensure we fetch POA from OpenMeteo.
+        # We still SAVE the GHI part to DB for other uses.
+        
+        year = int(start_date.split("-")[0]) 
+        lat_rounded = round(lat, 4)
+        lon_rounded = round(lon, 4)
+        
+        # Only load from DB if we don't need expert solar data (tilt=None)
+        if tilt is None and db.check_weather_exists(lat_rounded, lon_rounded, year):
+             print(f"Cache Hit: Loading weather from DB for {lat_rounded}, {lon_rounded}")
+             return db.load_weather_data(lat_rounded, lon_rounded, year)
+
         params = {
             "latitude": lat,
             "longitude": lon,
@@ -24,7 +41,16 @@ class WeatherConnector:
         # Add POA params if available for advanced solar
         if tilt is not None and azimuth is not None:
              params["tilt"] = tilt
-             params["azimuth"] = azimuth
+             
+             # Conversion: System uses 180=South (Standard), OpenMeteo uses 0=South
+             # Formula: openmeteo_az = azimuth - 180
+             openmeteo_az = azimuth - 180
+             
+             # Normalize to -180 to 180 range
+             if openmeteo_az < -180: openmeteo_az += 360
+             if openmeteo_az > 180: openmeteo_az -= 360
+             
+             params["azimuth"] = openmeteo_az
              # Request plane of array irradiance
              params["hourly"].append("global_tilted_irradiance")
 
@@ -85,6 +111,11 @@ class WeatherConnector:
              hourly_data["radiation_poa"] = get_var("global_tilted_irradiance")
         
         df = pd.DataFrame(data=hourly_data)
+        
+        # Save to Database for future use
+        # (Only saves standard columns; explicit POA is not saved currently in schema)
+        db.save_weather_data(df, lat_rounded, lon_rounded)
+        
         return df
 
 if __name__ == "__main__":
