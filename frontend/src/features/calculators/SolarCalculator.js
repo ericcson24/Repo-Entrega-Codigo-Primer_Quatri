@@ -311,23 +311,40 @@ const SolarCalculator = () => {
                                         onChange={(e) => handleFinancialChange('discount_rate', e.target.value)}
                                     />
                                 </FormField>
-                                <FormField label="Ratio Deuda (%)" tooltip="Porcentaje financiado con préstamo (0-100)">
-                                    <Input 
-                                        type="number" step="1" max="100" min="0" 
-                                        placeholder="0"
-                                        value={formData.financial_params.debt_ratio || ''} 
-                                        onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value) || 0)}
+
+                                <div className="space-y-4 pt-2">
+                                    <Switch 
+                                        label="Financiación Externa (Deuda)" 
+                                        checked={(formData.financial_params.debt_ratio || 0) > 0} 
+                                        onChange={(checked) => handleFinancialChange('debt_ratio', checked ? 70 : 0)}
                                     />
-                                </FormField>
-                                {formData.financial_params.debt_ratio > 0 && (
-                                    <FormField label="Tipo Interés (%)">
-                                        <Input 
-                                            type="number" step="0.1"
-                                            value={formData.financial_params.interest_rate} 
-                                            onChange={(e) => handleFinancialChange('interest_rate', e.target.value)}
-                                        />
-                                    </FormField>
-                                )}
+                                    
+                                    {(formData.financial_params.debt_ratio || 0) > 0 && (
+                                        <div className="pl-4 border-l-2 border-blue-500 space-y-4">
+                                            <FormField label="Ratio Deuda (%)" tooltip="Porcentaje financiado con banco">
+                                                <Input 
+                                                    type="number" step="1" max="100" min="1" 
+                                                    value={formData.financial_params.debt_ratio} 
+                                                    onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
+                                                />
+                                            </FormField>
+                                            <FormField label="Tipo Interés (%)">
+                                                <Input 
+                                                    type="number" step="0.1"
+                                                    value={formData.financial_params.interest_rate} 
+                                                    onChange={(e) => handleFinancialChange('interest_rate', e.target.value)}
+                                                />
+                                            </FormField>
+                                            <FormField label="Plazo Préstamo (Años)">
+                                                <Input 
+                                                    type="number" step="1"
+                                                    value={formData.financial_params.loan_term || 15} 
+                                                    onChange={(e) => handleFinancialChange('loan_term', e.target.value)}
+                                                />
+                                            </FormField>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             
                              {/* Advanced Business Model & OPEX */}

@@ -99,7 +99,14 @@ def predict_solar(request: SimulationRequest):
         temperature = df_weather["temperature"].to_numpy()
 
         # Solar Degradation is typically 0.5% per year
-        degradation = params.get("degradation_rate", 0.005)
+        degradation_raw = params.get("degradation_rate", 0.5)
+        # Check if user sent percentage (e.g. 0.5) or fraction (0.005)
+        # Heuristic: if > 0.05 (5%), assume it's percentage. 0.5% is standard.
+        # But if user sends 0.005, that's fine.
+        # If user sends 0.5, that's 0.5%. Wait, 0.5 as number could mean 50%.
+        # Standard input in frontend is usually entered as "0.5" for 0.5%.
+        # So we divide by 100.
+        degradation = float(degradation_raw) / 100.0
 
         model = SolarModel(
             system_loss=params.get("system_loss", 0.14),

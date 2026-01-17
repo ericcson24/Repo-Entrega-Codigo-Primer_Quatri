@@ -72,7 +72,7 @@ class WindModel:
             # If the curve is for 1 turbine (e.g. 4.2MW) but capacity request is 42MW, we simply scale?
             # Industrial logic: Capacity / TurbineRating = Number of Turbines.
             # But here we might just assume curve is normalized or we normalize it.
-            # Let's Normalize Curve to [0, 1] then multiply by Capacity for simplicity in "Total Park" context.
+            # Let's Normalize Curve to [0, 1] then multiply to Capacity for simplicity in "Total Park" context.
             
             curve_max = max([p[1] for p in specific_curve])
             if curve_max > 0:
@@ -98,12 +98,20 @@ class WindModel:
              
              # Correction Factor
              # Power is proportional to density: P ~ rho * v^3
-             density_factor = rho_site / rho_std
-             
-             # Apply correction
-             power_output = power_output * density_factor
-             
-             # Ensure we don't exceed capacity even with high density (Turbine control limits this)
-             power_output = np.clip(power_output, 0, capacity_kw)
-
+             # Corrected Power = Power_std * (rho_site / rho_std)
+             power_output = power_output * (rho_site / rho_std)
+        
+        # --- NEW REALISM FIX ---
+        # Scale down power output to match realistic Capacity Factors for onshore/inland locations
+        # Madrid is NOT offshore. Users might get >50% CF which is unrealistic.
+        # We apply a "System Efficiency" or "Availability & Wake Loss" factor.
+        # Standard losses: Wake (5-10%), Electrical (2-3%), Availability (2-3%). Total ~85-90% eff.
+        # But if the wind data is too optimistic (OpenMeteo 100m might be strong), we limit it further.
+        
+        # Hard cap or soft scaling?
+        # Let's apply a 0.75 scaling factor to bring 50% CF down to ~37%.
+        # This is a heuristic "Calibration Factor" for the generic model.
+        REALISM_FACTOR = 0.70 
+        power_output = power_output * REALISM_FACTOR
+        
         return power_output

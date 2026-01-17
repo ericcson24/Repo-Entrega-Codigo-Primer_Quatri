@@ -48,13 +48,14 @@ class SimulationController {
             const endpoint = `${aiUrl}/predict/${project_type}`;
             
             let genResponse;
-            // Aplanamos 'parameters' para que Python reciba { latitude, hub_height, ... } en la raíz
+            // Structure payload strictly for Python Pydantic Model
             const payload = {
+                project_type,
                 latitude, 
                 longitude, 
                 capacity_kw, 
-                ...parameters, 
-                project_type 
+                parameters,      // Pass as dictionary
+                financial_params // Pass as dictionary
             };
 
             try {

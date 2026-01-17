@@ -48,7 +48,10 @@ const AdvancedWindCalculator = () => {
             inflation_rate: 2.0,
             electricity_price_increase: 1.5,
             discount_rate: 5.0,
-            project_lifetime: 20
+            project_lifetime: 20,
+            debt_ratio: 70, // Default 70%
+            interest_rate: 4.5,
+            loan_term: 15
         }
     });
 
@@ -112,13 +115,13 @@ const AdvancedWindCalculator = () => {
             <div className="space-y-6 animate-fade-in">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                        <Wind className="text-blue-500" /> Wind Simulation Results
+                        <Wind className="text-blue-500" /> Resultados Eólicos
                     </h2>
                     <button 
                         onClick={resetForm}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
-                        <RotateCcw size={16} /> New Simulation
+                        <RotateCcw size={16} /> Nueva Simulación
                     </button>
                 </div>
                 <ResultsDashboard results={results} projectType="wind" />
@@ -131,11 +134,11 @@ const AdvancedWindCalculator = () => {
             <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
                 <div className="flex justify-between items-start mb-8">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Wind Farm Configuration</h2>
-                        <p className="text-gray-500 dark:text-gray-400">Configure your wind turbine parameters.</p>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Configuración Parque Eólico</h2>
+                        <p className="text-gray-500 dark:text-gray-400">Configura los parámetros de tus aerogeneradores.</p>
                     </div>
                     <Switch 
-                        label="Advanced Mode" 
+                        label="Modo Avanzado" 
                         checked={advancedMode} 
                         onChange={setAdvancedMode}
                     />
@@ -145,9 +148,9 @@ const AdvancedWindCalculator = () => {
                     
                     {/* Basic Parameters */}
                     <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Project Basics</h3>
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Datos Básicos</h3>
                         
-                        <FormField label="Total Capacity (kW)" tooltip="Total installed peak power">
+                        <FormField label="Capacidad Total (kW)" tooltip="Potencia pico total instalada">
                             <Input 
                                 type="number" 
                                 value={formData.capacity_kw} 
@@ -155,7 +158,7 @@ const AdvancedWindCalculator = () => {
                             />
                         </FormField>
 
-                        <FormField label="Total Budget (€)">
+                        <FormField label="Presupuesto Total (€)">
                             <Input 
                                 type="number" 
                                 value={formData.budget} 
@@ -163,7 +166,7 @@ const AdvancedWindCalculator = () => {
                             />
                         </FormField>
 
-                        <FormField label="Location (City)" icon={MapPin}>
+                        <FormField label="Ubicación (Ciudad)" icon={MapPin}>
                             <Select 
                                 value={selectedCity}
                                 onChange={(e) => handleCityChange(e.target.value)}
@@ -171,15 +174,15 @@ const AdvancedWindCalculator = () => {
                             />
                         </FormField>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField label="Latitude">
+                        <div className="hidden">
+                            <FormField label="Latitud">
                                 <Input 
                                     type="number" step="0.0001"
                                     value={formData.latitude} 
                                     onChange={(e) => handleInputChange('latitude', parseFloat(e.target.value))}
                                 />
                             </FormField>
-                            <FormField label="Longitude">
+                            <FormField label="Longitud">
                                 <Input 
                                     type="number" step="0.0001"
                                     value={formData.longitude} 
@@ -191,17 +194,17 @@ const AdvancedWindCalculator = () => {
 
                     {/* Technical Parameters */}
                     <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Turbine & Physics Specs</h3>
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Especificaciones Técnicas</h3>
                         
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField label="Hub Height (m)">
+                            <FormField label="Altura Buje (m)">
                                 <Input 
                                     type="number" 
                                     value={formData.parameters.hub_height} 
                                     onChange={(e) => handleParamChange('hub_height', parseFloat(e.target.value))}
                                 />
                             </FormField>
-                            <FormField label="Rotor Diameter (m)">
+                            <FormField label="Diámetro Rotor (m)">
                                 <Input 
                                     type="number" 
                                     value={formData.parameters.rotor_diameter} 
@@ -213,14 +216,14 @@ const AdvancedWindCalculator = () => {
                         {advancedMode && (
                         <>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField label="Cut-in Speed (m/s)">
+                                <FormField label="Vel. Arranque (m/s)">
                                     <Input 
                                         type="number" step="0.1"
                                         value={formData.parameters.cut_in_speed} 
                                         onChange={(e) => handleParamChange('cut_in_speed', parseFloat(e.target.value))}
                                     />
                                 </FormField>
-                                <FormField label="Cut-out Speed (m/s)">
+                                <FormField label="Vel. Corte (m/s)">
                                     <Input 
                                         type="number" step="0.1"
                                         value={formData.parameters.cut_out_speed} 
@@ -230,14 +233,14 @@ const AdvancedWindCalculator = () => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField label="Hellman Exponent (α)" tooltip="Friction/Roughness. 0.10:Offshore, 0.14:Land, 0.20:Urban">
+                                <FormField label="Exp. Hellman (α)" tooltip="Rugosidad. 0.10:Mar, 0.14:Tierra, 0.20:Urbano">
                                     <Input 
                                         type="number" step="0.01"
                                         value={formData.parameters.hellman_exponent} 
                                         onChange={(e) => handleParamChange('hellman_exponent', parseFloat(e.target.value))}
                                     />
                                 </FormField>
-                                <FormField label="Wake Losses (%)">
+                                <FormField label="Pérdidas Estela (%)">
                                     <Input 
                                         type="number" step="0.1"
                                         value={formData.parameters.losses_wake} 
@@ -247,14 +250,14 @@ const AdvancedWindCalculator = () => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField label="Weibull Shape (k)" tooltip="2.0 is standard Rayleigh dist">
+                                <FormField label="Weibull Forma (k)">
                                     <Input 
                                         type="number" step="0.1"
                                         value={formData.parameters.weibull_shape} 
                                         onChange={(e) => handleParamChange('weibull_shape', parseFloat(e.target.value))}
                                     />
                                 </FormField>
-                                <FormField label="Weibull Scale (A)" tooltip="Linked to avg wind speed">
+                                <FormField label="Weibull Escala (A)">
                                     <Input 
                                         type="number" step="0.1"
                                         value={formData.parameters.weibull_scale} 
@@ -263,13 +266,13 @@ const AdvancedWindCalculator = () => {
                                 </FormField>
                             </div>
 
-                            <FormField label="Turbine Model">
+                            <FormField label="Modelo Turbina">
                                 <Select 
                                     value={formData.parameters.turbine_model}
                                     onChange={(e) => handleParamChange('turbine_model', e.target.value)}
                                     options={[
-                                        { value: 'generic_2mw', label: 'Generic 2.0 MW' },
-                                        { value: 'generic_3mw', label: 'Generic 3.0 MW' },
+                                        { value: 'generic_2mw', label: 'Genérica 2.0 MW' },
+                                        { value: 'generic_3mw', label: 'Genérica 3.0 MW' },
                                         { value: 'offshore_5mw', label: 'Offshore 5.0 MW' }
                                     ]}
                                 />
@@ -278,15 +281,74 @@ const AdvancedWindCalculator = () => {
                         )}
                     </div>
 
-                    <div className="md:col-span-2 flex justify-end">
-                         <button
-                            onClick={handleSimulate}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50"
-                        >
-                            {loading ? <span>Simulating...</span> : <> <Play size={20} /> <span>Run Simulation</span> </>}
-                        </button>
-                    </div>
+                    {/* Financial Parameters (Advanced Only) */}
+                    {advancedMode && (
+                        <div className="md:col-span-2 space-y-6 pt-4">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700 flex items-center gap-2">
+                                <Settings size={18} /> Asunciones Financieras
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <FormField label="Vida Útil (Años)">
+                                    <Input 
+                                        type="number" 
+                                        value={formData.financial_params.project_lifetime} 
+                                        onChange={(e) => handleFinancialChange('project_lifetime', e.target.value)}
+                                    />
+                                </FormField>
+                                <FormField label="Tasa Descuento (%)">
+                                    <Input 
+                                        type="number" step="0.1"
+                                        value={formData.financial_params.discount_rate} 
+                                        onChange={(e) => handleFinancialChange('discount_rate', e.target.value)}
+                                    />
+                                </FormField>
+
+                                <div className="space-y-4 pt-2">
+                                    <Switch 
+                                        label="Financiación Externa" 
+                                        checked={(formData.financial_params.debt_ratio || 0) > 0} 
+                                        onChange={(checked) => handleFinancialChange('debt_ratio', checked ? 70 : 0)}
+                                    />
+                                </div>
+                            </div>
+                            
+                            {(formData.financial_params.debt_ratio || 0) > 0 && (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                    <FormField label="Ratio Deuda (%)">
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="range" min="0" max="100" 
+                                                value={formData.financial_params.debt_ratio} 
+                                                onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                            />
+                                            <span className="w-12 text-sm font-mono">{formData.financial_params.debt_ratio}%</span>
+                                        </div>
+                                    </FormField>
+                                    <FormField label="Tasa Interés (%)">
+                                        <Input 
+                                            type="number" step="0.1" 
+                                            value={formData.financial_params.interest_rate} 
+                                            onChange={(e) => handleFinancialChange('interest_rate', parseFloat(e.target.value))} 
+                                        />
+                                    </FormField>
+                                    <FormField label="Plazo Amortización (Años)">
+                                        <Input 
+                                            type="number" step="1" 
+                                            value={formData.financial_params.loan_term} 
+                                            onChange={(e) => handleFinancialChange('loan_term', parseFloat(e.target.value))} 
+                                        />
+                                    </FormField>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                    <button onClick={handleSimulate} disabled={loading} className="btn-primary">
+                        {loading ? 'Procesando...' : 'Ejecutar Simulación'}
+                    </button>
                 </div>
             </div>
         </div>
