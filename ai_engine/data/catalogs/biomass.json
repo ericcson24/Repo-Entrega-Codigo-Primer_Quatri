@@ -1,0 +1,29 @@
+[
+  {
+    "id": "steam_turbine_biomass",
+    "name": "Biomass Boiler + Steam Turbine",
+    "efficiency_electric": 0.25,
+    "efficiency_thermal": 0.50,
+    "min_load_ratio": 0.4,
+    "ramp_rate_pct_min": 2,
+    "description": "Traditional Rankine Cycle. Good for > 1MW."
+  },
+  {
+    "id": "orc_biomass",
+    "name": "Organic Rankine Cycle (ORC)",
+    "efficiency_electric": 0.18,
+    "efficiency_thermal": 0.60,
+    "min_load_ratio": 0.1,
+    "ramp_rate_pct_min": 5,
+    "description": "Good for small scale and low temp."
+  },
+  {
+    "id": "biogas_engine",
+    "name": "Biogas Internal Combustion Engine",
+    "efficiency_electric": 0.38,
+    "efficiency_thermal": 0.45,
+    "min_load_ratio": 0.3,
+    "ramp_rate_pct_min": 10,
+    "description": "High electric efficiency, uses anaerobic digestion gas."
+  }
+]

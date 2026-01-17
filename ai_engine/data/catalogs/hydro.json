@@ -1,0 +1,29 @@
+[
+  {
+    "id": "pelton_standard",
+    "name": "Pelton Turbine (High Head)",
+    "efficiency": 0.92,
+    "min_head": 50,
+    "max_head": 1000,
+    "min_flow_ratio": 0.1,
+    "type": "Impulse"
+  },
+  {
+    "id": "francis_standard",
+    "name": "Francis Turbine (Medium Head)",
+    "efficiency": 0.94,
+    "min_head": 10,
+    "max_head": 300,
+    "min_flow_ratio": 0.4,
+    "type": "Reaction"
+  },
+  {
+    "id": "kaplan_standard",
+    "name": "Kaplan Turbine (Low Head)",
+    "efficiency": 0.93,
+    "min_head": 2,
+    "max_head": 40,
+    "min_flow_ratio": 0.2,
+    "type": "Reaction"
+  }
+]
