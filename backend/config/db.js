@@ -7,6 +7,10 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'renewables_db',
   password: process.env.DB_PASS || 'password123',
   port: process.env.DB_PORT || 5432,
+  // SSL is required for most cloud databases (Neon, Supabase, Heroku)
+  ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== 'timescaledb' 
+       ? { rejectUnauthorized: false } 
+       : false
 });
 
 pool.on('error', (err, client) => {

@@ -29,7 +29,16 @@ class WeatherData(Base):
 
 class DatabaseManager:
     def __init__(self):
-        self.engine = create_engine(settings.DATABASE_URL)
+        # Determine SSL requirement based on Host
+        connect_args = {}
+        if "localhost" not in settings.DB_HOST and "timescaledb" not in settings.DB_HOST:
+             # Basic SSL for Neon/Cloud
+            connect_args = {"sslmode": "require"}
+
+        self.engine = create_engine(
+            settings.DATABASE_URL,
+            connect_args=connect_args
+        )
         self.Session = sessionmaker(bind=self.engine)
 
     def get_session(self):
@@ -137,5 +146,28 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error reading from DB: {e}")
             return pd.DataFrame()
+
+    def init_db_connection(self):
+        if self.engine:
+             return
+             
+        try:
+            # Handle SSL for Cloud Databases (Neon, AWS RDS, etc)
+            connect_args = {}
+            if "localhost" not in settings.DB_HOST and "timescaledb" not in settings.DB_HOST:
+                connect_args = {"sslmode": "require"}
+
+            self.engine = create_engine(
+                settings.DATABASE_URL, 
+                pool_pre_ping=True, 
+                pool_size=10, 
+                max_overflow=20,
+                connect_args=connect_args
+            )
+            # Not using global SessionLocal here, just instance Session
+            self.Session = sessionmaker(bind=self.engine)
+            print("Database connection initialized.")
+        except Exception as e:
+            print(f"Error initializing database connection: {e}")
 
 db = DatabaseManager()

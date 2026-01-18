@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Correct API base logic based on port 4001 config
-const API_BASE_URL = '/api'; 
+// En producción usa la variable de entorno, en local usa el proxy o relativo
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api'; 
 
 export const apiService = {
   simulate: async (data) => {

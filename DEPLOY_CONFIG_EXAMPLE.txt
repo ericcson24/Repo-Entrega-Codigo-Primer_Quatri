@@ -1,0 +1,14 @@
+# Frontend
+FRONTEND_URL=https://<TU-PROYECTO-FIREBASE>.web.app
+
+# Backend
+PORT=8080
+DB_HOST=<TU-HOST-NEON>
+DB_PORT=5432
+DB_USER=<TU-USUARIO-NEON>
+DB_PASS=<TU-PASSWORD-NEON>
+DB_NAME=neondb
+AI_ENGINE_URL=https://<TU-SERVICIO-AI>.run.app
+
+# AI Engine
+# No necesita variables especiales para ejecución básica

@@ -6,6 +6,9 @@ const simulationRoutes = require('./routes/simulationRoutes');
 const catalogRoutes = require('./routes/catalogRoutes');
 
 const app = express();
+
+// Cloud Run requires listening on 0.0.0.0, not just localhost
+const host = '0.0.0.0';
 const port = process.env.PORT || 4000;
 
 // Middleware
@@ -21,6 +24,6 @@ app.get('/', (req, res) => {
 app.use('/api', simulationRoutes);
 app.use('/api', catalogRoutes);
 
-app.listen(port, () => {
-  console.log(`Backend listening at http://localhost:${port}`);
+app.listen(port, host, () => {
+  console.log(`Backend listening at http://${host}:${port}`);
 });
