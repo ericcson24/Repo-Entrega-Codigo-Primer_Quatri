@@ -284,7 +284,10 @@ def predict_biomass(request: SimulationRequest):
     # accept prices as input. Here we simply instantiate the price model locally.
     try:
         years_to_simulate = [settings.BASE_YEAR - 2, settings.BASE_YEAR - 1, settings.BASE_YEAR]
-        market_model = MarketModel()
+        
+        # Get base price from request or default
+        base_price = request.financial_params.get("initial_electricity_price", 50.0)
+        market_model = MarketModel(base_price=float(base_price))
         
         # Generate multi-year price curve
         # (Concatenating synthetic curves for now)

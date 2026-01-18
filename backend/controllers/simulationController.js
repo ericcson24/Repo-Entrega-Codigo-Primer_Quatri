@@ -12,12 +12,17 @@ class SimulationController {
                 return res.status(400).json({ error: "Email is required" });
             }
 
-            const result = await pool.query(
-                'SELECT id, project_type, input_params, results, created_at FROM simulations WHERE user_email = $1 ORDER BY created_at DESC LIMIT 50',
-                [user_email]
-            );
-
-            res.json(result.rows);
+            // Fallback for memory-only mode if DB is down
+            try {
+                const result = await pool.query(
+                    'SELECT id, project_type, input_params, results, created_at FROM simulations WHERE user_email = $1 ORDER BY created_at DESC LIMIT 50',
+                    [user_email]
+                );
+                res.json(result.rows);
+            } catch (dbErr) {
+                console.warn("Database error in getHistory:", dbErr.message);
+                res.json([]); // Return empty history gracefully
+            }
         } catch (error) {
             console.error("Error fetching history:", error);
             res.status(500).json({ error: "Internal Server Error" });
@@ -126,8 +131,15 @@ class SimulationController {
                  // Mock hourly prices for completeness if needed? 
                  // FinancialService doesn't need them if we pass the Revenue.
             } else {
+                // Determine if we should maintain a specific market price level
+                let initialPrice = undefined;
+                if (financial_params && financial_params.initial_electricity_price) {
+                     initialPrice = parseFloat(financial_params.initial_electricity_price);
+                }
+
                 const priceResponse = await axios.post(`${aiUrl}/market/prices`, { 
-                    latitude, longitude, capacity_kw, project_type 
+                    latitude, longitude, capacity_kw, project_type,
+                    initial_price: initialPrice
                 });
                 hourlyPrices = priceResponse.data.prices_eur_mwh;
                 
@@ -211,7 +223,7 @@ class SimulationController {
                         ]
                     );
                 } catch (dbError) {
-                    console.error("Error saving simulation:", dbError);
+                    console.error("Error saving simulation (continuing without save):", dbError.message);
                 }
             }
 

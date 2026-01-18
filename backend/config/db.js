@@ -16,23 +16,26 @@ pool.on('error', (err, client) => {
 
 // Initialize Tables
 const initDb = async () => {
-    const client = await pool.connect();
     try {
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS simulations (
-                id SERIAL PRIMARY KEY,
-                user_email VARCHAR(255) NOT NULL,
-                project_type VARCHAR(50) NOT NULL,
-                input_params JSONB NOT NULL,
-                results JSONB NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-        console.log("Database tables initialized");
+        const client = await pool.connect();
+        try {
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS simulations (
+                    id SERIAL PRIMARY KEY,
+                    user_email VARCHAR(255) NOT NULL,
+                    project_type VARCHAR(50) NOT NULL,
+                    input_params JSONB NOT NULL,
+                    results JSONB NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            `);
+            console.log("Database initialized successfully");
+        } finally {
+            client.release();
+        }
     } catch (err) {
-        console.error("Error initializing tables:", err);
-    } finally {
-        client.release();
+        console.warn("Database connection failed. Running in memory-only mode. History will not be saved.");
+        console.error(err.message);
     }
 };
 

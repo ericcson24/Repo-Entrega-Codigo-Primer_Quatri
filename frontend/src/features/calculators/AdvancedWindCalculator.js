@@ -47,6 +47,7 @@ const AdvancedWindCalculator = () => {
         financial_params: {
             inflation_rate: 2.0,
             electricity_price_increase: 1.5,
+            initial_electricity_price: 50.0,
             discount_rate: 5.0,
             project_lifetime: 20,
             debt_ratio: 70, // Default 70%
@@ -288,6 +289,13 @@ const AdvancedWindCalculator = () => {
                                 <Settings size={18} /> Asunciones Financieras
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <FormField label="Precio Energía (€/MWh)">
+                                    <Input 
+                                        type="number" 
+                                        value={formData.financial_params.initial_electricity_price} 
+                                        onChange={(e) => handleFinancialChange('initial_electricity_price', parseFloat(e.target.value))}
+                                    />
+                                </FormField>
                                 <FormField label="Vida Útil (Años)">
                                     <Input 
                                         type="number" 

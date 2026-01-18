@@ -32,23 +32,21 @@ const BiomassCalculator = () => {
         latitude: 40.4168,
         longitude: -3.7038,
         capacity_kw: 1000,
-        budget: 3500000,
+        budget: 3000000,
         parameters: {
             feedstock_type: 'wood_chips',
-            moisture_content: 30, // %
-            calorific_value_dry: 19.0, // MJ/kg
-            efficiency_electric: 0.25,
-            fuel_cost_per_ton: 80, // Euros
-            min_load_ratio: 0.40,
-            availability_factor: 0.90
+            moisture_content: 20,
+            calorific_value_dry: 19.0,
+            plant_efficiency: 0.25,
+            availability_factor: 0.92
         },
         financial_params: {
             inflation_rate: 2.0,
             electricity_price_increase: 1.5,
-            electricity_price: 0.20, // Default biomass price
-            discount_rate: 8.0,
+            discount_rate: 7.0,
             project_lifetime: 20,
-            use_debt: true,
+            initial_electricity_price: 50.0,
+            use_debt: false,
             debt_ratio: 70,
             interest_rate: 4.5,
             loan_term: 15
@@ -193,11 +191,11 @@ const BiomassCalculator = () => {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <FormField label="Precio Energía (€/kWh)" tooltip="Precio fijo de venta (sobreescribe mercado)">
+                            <FormField label="Precio Energía (€/MWh)">
                                 <Input 
-                                    type="number" step="0.01" 
-                                    value={formData.financial_params.electricity_price || 0.20} 
-                                    onChange={(e) => handleFinancialChange('electricity_price', e.target.value)}
+                                    type="number" 
+                                    value={formData.financial_params.initial_electricity_price} 
+                                    onChange={(e) => handleFinancialChange('initial_electricity_price', parseFloat(e.target.value))}
                                 />
                             </FormField>
                             <FormField label="Vida Útil (Años)">
