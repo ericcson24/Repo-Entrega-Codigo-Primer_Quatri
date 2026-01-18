@@ -1,10 +1,27 @@
 const axios = require('axios');
 const FinancialService = require('../services/financialService');
+const aiService = require('../services/aiService'); // Added import
 const { URLS } = require('../config/constants');
 const { pool } = require('../config/db');
 
 class SimulationController {
     
+    // NEW: Get Solar Potential
+    static async getSolarPotential(req, res) {
+        try {
+            const { lat, lon } = req.query;
+            if (!lat || !lon) {
+                return res.status(400).json({ error: "Missing lat/lon parameters" });
+            }
+            
+            const data = await aiService.getSolarPotential(parseFloat(lat), parseFloat(lon));
+            res.json(data);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Error fetching solar potential" });
+        }
+    }
+
     static async getHistory(req, res) {
         try {
             const { user_email } = req.query;

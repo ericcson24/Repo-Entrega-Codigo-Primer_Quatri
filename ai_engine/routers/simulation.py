@@ -18,7 +18,36 @@ class SimulationRequest(BaseModel):
     longitude: float
     capacity_kw: float
     parameters: dict = {}
-    financial_params: dict = {} # Added to allow passing debt structs to backend via generic request if needed, though usually processed in Node
+    financial_params: dict = {} # Added to allow passing debt structs to generic request if needed, though usually processed in Node
+
+@router.get("/solar-potential")
+async def get_solar_potential(lat: float, lon: float):
+    try:
+        connector = WeatherConnector()
+        # Fetch 1 representative year (BASE_YEAR)
+        year = settings.BASE_YEAR
+        df = connector.fetch_historical_weather(lat, lon, f"{year}-01-01", f"{year}-12-31")
+        
+        if df.empty:
+            return {"peak_sun_hours": 1500.0} # Fallback
+            
+        # annual sum (W/m2) -> /1000 -> kWh/m2 (Peak Sun Hours)
+        # Note: df uses hourly resolution
+        # Check column name (it varies if fetched live 'radiation_ghi' or old code 'radiation')
+        col_name = 'radiation_ghi' if 'radiation_ghi' in df.columns else 'radiation'
+        
+        if col_name not in df.columns:
+            # Fallback if no radiation column found
+            print(f"Warning: No radiation column found. Columns: {df.columns}")
+            return {"peak_sun_hours": 1500.0}
+
+        ghi_sum = df[col_name].sum() 
+        peak_hours = ghi_sum / 1000.0
+        
+        return {"peak_sun_hours": round(peak_hours, 1)}
+    except Exception as e:
+        print(f"Error fetching solar potential: {e}")
+        return {"peak_sun_hours": 1500.0}
 
 def get_weather_data(lat, lon, tilt=None, azimuth=None):
     connector = WeatherConnector()
@@ -108,11 +137,32 @@ def predict_solar(request: SimulationRequest):
         # So we divide by 100.
         degradation = float(degradation_raw) / 100.0
 
+        # --- Panel Type Logic ---
+        # Map panel_type string to physical coefficients if not explicitly provided
+        panel_type = params.get("panel_type", "monocrystalline").lower()
+        
+        # Default Temp Coefs (%/C) -> Fraction/C
+        # Mono: -0.35%, Poly: -0.45%, ThinFilm: -0.20%
+        type_specs = {
+            "monocrystalline": {"temp_coef": -0.0035, "bifaciality": 0.0},
+            "polycrystalline": {"temp_coef": -0.0045, "bifaciality": 0.0},
+            "thinfilm": {"temp_coef": -0.0020, "bifaciality": 0.0},
+            "bifacial": {"temp_coef": -0.0035, "bifaciality": 0.70}, # 70% bifacial factor
+            "custom": {"temp_coef": -0.0035, "bifaciality": 0.0}
+        }
+        
+        # Get defaults for this type
+        specs = type_specs.get(panel_type, type_specs["monocrystalline"])
+        
+        # Use provided value if exists, else use type default
+        temp_coef = params.get("temp_coef", specs["temp_coef"])
+        bifaciality = params.get("bifaciality", specs["bifaciality"])
+
         model = SolarModel(
             system_loss=params.get("system_loss", 0.14),
             inverter_eff=params.get("inverter_eff", 0.96),
-            temp_coef=params.get("temp_coef", -0.0035),
-            bifaciality=params.get("bifaciality", 0.0) # Corrected param name
+            temp_coef=temp_coef,
+            bifaciality=bifaciality
         )
         
         generation_kw = model.predict_generation(radiation, temperature, request.capacity_kw)

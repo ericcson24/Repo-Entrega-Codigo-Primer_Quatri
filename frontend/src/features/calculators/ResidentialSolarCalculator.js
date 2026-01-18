@@ -152,7 +152,6 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
     );
 };
 
-// ...existing code...
 const ResidentialSolarCalculator = () => {
     const { currentUser } = useAuth();
     const [loading, setLoading] = useState(false);
@@ -178,6 +177,8 @@ const ResidentialSolarCalculator = () => {
 
     // Inputs
     const [selectedCity, setSelectedCity] = useState(SPANISH_CITIES[0]);
+    const [citySunHours, setCitySunHours] = useState(1500); // Live fetched data
+
     const [availableArea, setAvailableArea] = useState(30); // m2
     const [budget, setBudget] = useState(8000); // € Increased default budget for battery
     const [monthlyBill, setMonthlyBill] = useState(100); // €/month
@@ -198,6 +199,17 @@ const ResidentialSolarCalculator = () => {
         const city = SPANISH_CITIES.find(c => c.name === e.target.value);
         if (city) setSelectedCity(city);
     };
+
+    // Effect: Fetch Solar Potential when city changes
+    useEffect(() => {
+        const fetchSunHours = async () => {
+            const data = await apiService.getWeather(selectedCity.lat, selectedCity.lon);
+            if (data && data.peak_sun_hours) {
+                setCitySunHours(data.peak_sun_hours);
+            }
+        };
+        fetchSunHours();
+    }, [selectedCity]);
 
     // Helper: Estimate Consumption from Bill
     const estimatedAnnualConsumption = Math.round((monthlyBill * 12) / electricityPrice);
@@ -308,7 +320,11 @@ const ResidentialSolarCalculator = () => {
                 capacity_kw: calculatedSystem.totalPowerKw,
                 budget: calculatedSystem.estimatedCost,
                 parameters: {
-                    panel_type: activePanel.type.toLowerCase(),
+                    panel_type: activePanel.type ? activePanel.type.toLowerCase() : 'monocrystalline',
+                    // Pass specific Technical Params if available (from Catalog), otherwise Backend defaults
+                    temp_coef: activePanel.temp_coef_pmax || undefined, 
+                    bifaciality: activePanel.bifaciality_factor || (activePanel.type === 'Bifacial' ? 0.7 : 0.0),
+                    
                     orientation: 'south',
                     tilt: 35, 
                     system_loss: 0.14,
@@ -590,6 +606,18 @@ const ResidentialSolarCalculator = () => {
                                             onChange={(e) => setCustomPanel({...customPanel, price_eur: parseFloat(e.target.value) || 0})}
                                         />
                                     </FormField>
+                                    <FormField label="Tech Type">
+                                        <Select 
+                                            value={customPanel.type} 
+                                            onChange={(e) => setCustomPanel({...customPanel, type: e.target.value})}
+                                            options={[
+                                                { value: 'Monocrystalline', label: 'Monocrystalline' },
+                                                { value: 'Polycrystalline', label: 'Polycrystalline' },
+                                                { value: 'Bifacial', label: 'Bifacial' },
+                                                { value: 'ThinFilm', label: 'Thin Film' }
+                                            ]}
+                                        />
+                                    </FormField>
                                 </div>
                             </div>
                         ) : (
@@ -619,6 +647,7 @@ const ResidentialSolarCalculator = () => {
                                         <div className="flex gap-2 mt-1">
                                             <span className="text-xs bg-gray-200 dark:bg-gray-600 px-1.5 rounded">{panel.p_max_w}W</span>
                                             <span className="text-xs bg-gray-200 dark:bg-gray-600 px-1.5 rounded">{panel.efficiencyPercent}% Eff</span>
+                                            <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-1.5 rounded">{panel.type}</span>
                                         </div>
                                     </div>
                                     {selectedPanel?.id === panel.id && (
@@ -702,8 +731,8 @@ const ResidentialSolarCalculator = () => {
 
                             <div className="col-span-2 md:col-span-1 border-t md:border-t-0 border-gray-700 pt-4 md:pt-0 mt-2 md:mt-0">
                                 <div className="text-gray-400 text-sm font-medium mb-1">Yearly Generation</div>
-                                <div className="text-3xl font-bold">~{Math.round(calculatedSystem.totalPowerKw * 1500)}</div>
-                                <div className="text-sm text-orange-300 mt-1">kWh / Year</div>
+                                <div className="text-3xl font-bold">~{Math.round(calculatedSystem.totalPowerKw * citySunHours)}</div>
+                                <div className="text-sm text-orange-300 mt-1">kWh / Year in {selectedCity.name}</div>
                             </div>
                         </div>
 

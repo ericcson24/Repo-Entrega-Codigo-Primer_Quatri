@@ -25,6 +25,19 @@ class AIService {
         }
     }
 
+    async getSolarPotential(lat, lon) {
+        try {
+            const response = await axios.get(`${AI_ENGINE_URL}/predict/solar-potential`, {
+                params: { lat, lon }
+            });
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching solar potential:", error.message);
+            // Fallback for Spain average
+            return { peak_sun_hours: 1600 };
+        }
+    }
+
     getMockData(techType, params) {
         console.warn(`[WARNING] AI Engine unavailable. Returning static MOCK data for ${techType}. Check if python server is running on port 8000.`);
         const capacity = params.capacity_kw || 100;

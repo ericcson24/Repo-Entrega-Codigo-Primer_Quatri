@@ -31,7 +31,14 @@ export const apiService = {
   },
 
   getWeather: async (lat, lon) => {
-    // Implementation needed
+      // Used for solar potential now
+      try {
+        const response = await axios.get(`${API_BASE_URL}/solar-potential`, { params: { lat, lon } });
+        return response.data; 
+      } catch (error) {
+        console.warn("Weather API Error:", error);
+        return { peak_sun_hours: 1500 };
+      }
   },
 
   getCatalog: async (technology) => {
