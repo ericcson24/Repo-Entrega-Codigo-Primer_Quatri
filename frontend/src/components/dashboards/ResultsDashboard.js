@@ -143,7 +143,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
     <div className="space-y-8 animate-fade-in pb-20">
       
       {/* Executive Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <KPICard 
           title="Valor Actual Neto (VAN)" 
           value={formatCurrency(financials.npv_eur)}
@@ -154,12 +154,20 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
           description="Valor generado en 25 años"
         />
         <KPICard 
-          title="Tasa Interna de Retorno (TIR)" 
+          title="Beneficio Neto Total" 
+          value={formatCurrency(financials.total_nominal_profit || 0)}
+          unit=""
+          icon={DollarSign}
+          color="bg-emerald-600"
+          description={financials.leverage_ratio > 0 ? "Flujo neto (Equity)" : "Flujo neto (Proyecto)"}
+        />
+        <KPICard 
+          title={financials.leverage_ratio > 0 ? "TIR (Equity)" : "TIR (Proyecto)"}
           value={(financials.irr_percent ?? 0).toFixed(2)}
           unit="%"
           icon={TrendingUp}
           color="bg-blue-500"
-          description="Rentabilidad anualizada"
+          description={financials.leverage_ratio > 0 ? "Rentabilidad del Capital Invertido" : "Rentabilidad del Proyecto Total"}
         />
         <KPICard 
           title="Periodo de Recuperación" 
@@ -176,7 +184,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
               unit=""
               icon={Zap}
               color="bg-orange-500"
-              description={`Banco: ${formatCurrency(financials.initial_debt || 0)} | Tú: ${formatCurrency(financials.initial_equity || 0)}`}
+              description={`Intereses Totales: ${formatCurrency(financials.total_interest_paid || 0)}`}
           />
         ) : (
           <KPICard 

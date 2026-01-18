@@ -192,7 +192,9 @@ class SimulationController {
                     total_investment: projection.financials.initial_investment, // Corrected key from Service
                     initial_equity: projection.financials.initial_equity, 
                     initial_debt: projection.financials.initial_debt, 
-                    leverage_ratio: projection.financials.leverage_ratio
+                    leverage_ratio: projection.financials.leverage_ratio,
+                    total_nominal_profit: projection.financials.total_nominal_profit,
+                    total_interest_paid: projection.financials.total_interest_paid
                 },
                 generation: {
                     annual_kwh: annualGen,

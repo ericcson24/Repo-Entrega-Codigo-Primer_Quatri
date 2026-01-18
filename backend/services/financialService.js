@@ -118,9 +118,11 @@ class FinancialService {
                 debtRatio = Number(financialParams.debtRatio);
             } else if (financialParams.debt_ratio !== undefined && financialParams.debt_ratio !== null) {
                 // Heuristic: If value > 1, assume it's percentage and convert to decimal. 
-                // But frontend sends 0 for 0%.
                 const dr = Number(financialParams.debt_ratio);
-                debtRatio = (dr > 1) ? dr / 100.0 : dr;
+                // Assume if dr > 1 it is %, otherwise it is 0.X format ??
+                // FIX: If user sends 0.7 for 70%, that's fine. If 70, that's fine too.
+                // The only ambiguity is 1% (1 vs 0.01). We assume < 1.0 is Ratio, >= 1.0 is Percent.
+                debtRatio = (dr > 1.0) ? dr / 100.0 : dr;
             }
 
             // Interest Rate
@@ -128,7 +130,7 @@ class FinancialService {
                 interestRate = Number(financialParams.interestRate);
             } else if (financialParams.interest_rate !== undefined && financialParams.interest_rate !== null) {
                 const ir = Number(financialParams.interest_rate);
-                interestRate = (ir > 1) ? ir / 100.0 : ir; 
+                interestRate = (ir > 1.0) ? ir / 100.0 : ir; 
             }
 
             // Loan Term
@@ -139,10 +141,24 @@ class FinancialService {
             }
         }
         
+        // Ensure debt ratio logic handles potential string inputs too
+        if (financialParams) {
+            debtRatio = (debtRatio > 1.0) ? debtRatio / 100.0 : debtRatio;
+            interestRate = (interestRate > 1.0) ? interestRate / 100.0 : interestRate;
+        }
+        
+        // Re-validate after parsing
+        if (debtRatio > 1) debtRatio = 1; 
+        if (debtRatio < 0) debtRatio = 0;
+        
         console.log(`[FinancialService] Params Used -> DebtRatio: ${debtRatio}, Interest: ${interestRate}, Term: ${loanTerm}`);
 
         const initialEquity = initialInvestment * (1 - debtRatio);
         const initialDebt = initialInvestment * debtRatio;
+
+        // Ensure we don't have negative numbers from bad subtraction
+        if (debtRatio > 1) debtRatio = 1; 
+        if (debtRatio < 0) debtRatio = 0;
         
         // Inflation Rates: User inputs Percentages (e.g. 2.0), System uses Decimals (0.02)
         // Check if params exist and seem to be percentages (> 1 usually implies %, but 0-1 is ambiguous. 
@@ -172,7 +188,7 @@ class FinancialService {
         const grants = parseFloat(financialParams?.grants_amount || 0);
         const taxDeductionYear1 = parseFloat(financialParams?.tax_deduction || 0); // Treated as Year 1 Cash Inflow (or Year 0 reduction)
         // Let's treat Grant as Year 0 reduction, Tax Deduction as Year 1 Benefit? Usually ICIO is upfront, IBI is annual. 
-        // User said "Deductions... reduce payback". I'll treat 'tax_deduction' as a lump sum upfront benefit for simplicity or Year 1.
+        // User said "Deducciones... reduce payback". I'll treat 'tax_deduction' as a lump sum upfront benefit for simplicity or Year 1.
         // Let's deduct Grants from Initial Investment immediately.
         
         const inverterYear = parseInt(financialParams?.inverter_replacement_year || 12);
@@ -315,6 +331,10 @@ class FinancialService {
                  const pSurplus = (priceSurplus > 0 ? priceSurplus : 0.05) * Math.pow(1 + energyInflation, y - 1);
                  
                  currentRevenue = (consumed * pSaved) + (surplus * pSurplus);
+                 
+                 if (y === 1) {
+                     console.log(`[FinancialService] Year 1 Split Revenue: Consumed ${consumed.toFixed(0)}kWh @ ${pSaved.toFixed(3)} | Surplus ${surplus.toFixed(0)}kWh @ ${pSurplus.toFixed(3)} | Total Rev: ${currentRevenue.toFixed(2)}`);
+                 }
             } else {
                  // Default Path (Inflation applied to total)
                  if (useDetailedGeneration) {
@@ -339,6 +359,7 @@ class FinancialService {
             const ebitda = currentRevenue - currentOmCost - extraordinaryExpense;
             
             // 2. Amortización Fiscal (Depreciation)
+            // Depreciation usually on Initial Asset Investment (regardless of funding)
             const depreciation = initialInvestment / years;
             const ebit = ebitda - depreciation; // Earnings Before Interest and Taxes
             
@@ -426,6 +447,9 @@ class FinancialService {
         const totalNetProfitNominal = cashFlowsEquity.reduce((a, b) => a + b, 0);
         const roiPercent = (totalNetProfitNominal / effectiveEquity) * 100;
 
+        // Total Intereses Pagados
+        const totalInterestPaid = annualBreakdown.reduce((acc, item) => acc + item.interest, 0);
+
         return {
             financials: {
                 // Devolvemos Equity Metrics como principales si hay deuda, o Proyecto si no.
@@ -441,7 +465,9 @@ class FinancialService {
                 project_irr: irrProject,
                 project_payback: paybackProject,
 
-                roi_percent: roiPercent
+                roi_percent: roiPercent,
+                total_interest_paid: totalInterestPaid,
+                total_nominal_profit: totalNetProfitNominal
             },
             cashFlows: cashFlowsEquity, // Graficaremos flujos del inversor por defecto
             annualBreakdown
