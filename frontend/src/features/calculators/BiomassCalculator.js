@@ -36,9 +36,11 @@ const BiomassCalculator = () => {
         parameters: {
             feedstock_type: 'wood_chips',
             moisture_content: 20,
-            calorific_value_dry: 19.0,
+            calorific_value_dry: 19.0, // MJ/kg
             plant_efficiency: 0.25,
-            availability_factor: 0.92
+            availability_factor: 0.92,
+            fuel_cost_eur_ton: 40,
+            annual_fuel_limit_ton: 10000
         },
         financial_params: {
             inflation_rate: 2.0,
@@ -52,6 +54,32 @@ const BiomassCalculator = () => {
             loan_term: 15
         }
     });
+
+    const FEEDSTOCK_PROPERTIES = {
+        wood_chips: { moisture: 30, pci: 12.5, cost: 40, label: 'Astillas (Húmedas)' },
+        pellets: { moisture: 10, pci: 17.0, cost: 250, label: 'Pellets Industriales' },
+        agricultural_waste: { moisture: 15, pci: 14.0, cost: 20, label: 'Residuos Agrícolas' },
+        olive_cake: { moisture: 40, pci: 10.0, cost: 15, label: 'Orujillo' }
+    };
+
+    const handleFeedstockChange = (type) => {
+        const props = FEEDSTOCK_PROPERTIES[type];
+        if (props) {
+            setFormData(prev => ({
+                ...prev,
+                parameters: {
+                    ...prev.parameters,
+                    feedstock_type: type,
+                    moisture_content: props.moisture,
+                    calorific_value_dry: props.pci, // Assuming pci here is "As Received" or "Dry"? Usually user inputs LHV as received or Dry. Let's assume typical values.
+                    // Actually, let's keep it simple. We update the input fields.
+                    fuel_cost_eur_ton: props.cost
+                }
+            }));
+        } else {
+             handleParamChange('feedstock_type', type);
+        }
+    };
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -74,9 +102,21 @@ const BiomassCalculator = () => {
     const handleSimulate = async () => {
         setLoading(true);
         try {
+            // Mapping for backend
+            
+            // Convert MJ/kg to kWh/kg (1 kWh = 3.6 MJ)
+            const pci_kwh = formData.parameters.calorific_value_dry / 3.6;
+
             // Prepare payload - force debt_ratio to 0 if debt logic is disabled
             const payload = {
                 ...formData,
+                parameters: {
+                    ...formData.parameters,
+                    efficiency: formData.parameters.plant_efficiency,
+                    pci: pci_kwh,
+                    fuel_cost: formData.parameters.fuel_cost_eur_ton,
+                    max_fuel_ton: formData.parameters.annual_fuel_limit_ton
+                },
                 financial_params: {
                     ...formData.financial_params,
                     debt_ratio: formData.financial_params.use_debt ? formData.financial_params.debt_ratio : 0
@@ -161,17 +201,22 @@ const BiomassCalculator = () => {
                     <div className="space-y-6">
                          <h3 className="section-title">Combustible y Conversión</h3>
                          <FormField label="Tipo">
-                             <Select value={formData.parameters.feedstock_type} onChange={(e) => handleParamChange('feedstock_type', e.target.value)} 
+                             <Select value={formData.parameters.feedstock_type} onChange={(e) => handleFeedstockChange(e.target.value)} 
                                 options={[
                                     {value: 'wood_chips', label: 'Astillas de Madera'}, 
                                     {value: 'pellets', label: 'Pellets'}, 
-                                    {value: 'agricultural_waste', label: 'Residuos Agrícolas'}
+                                    {value: 'agricultural_waste', label: 'Residuos Agrícolas'},
+                                    {value: 'olive_cake', label: 'Orujillo / Hueso Aceituna'}
                                 ]}
                              />
                          </FormField>
                          <div className="grid grid-cols-2 gap-4">
                             <FormField label="Humedad (%)"><Input type="number" value={formData.parameters.moisture_content} onChange={(e) => handleParamChange('moisture_content', parseFloat(e.target.value))} /></FormField>
                             <FormField label="PCI Seco (MJ/kg)"><Input type="number" step="0.1" value={formData.parameters.calorific_value_dry} onChange={(e) => handleParamChange('calorific_value_dry', parseFloat(e.target.value))} /></FormField>
+                         </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <FormField label="Coste Combustible (€/ton)"><Input type="number" value={formData.parameters.fuel_cost_eur_ton} onChange={(e) => handleParamChange('fuel_cost_eur_ton', parseFloat(e.target.value))} /></FormField>
+                            <FormField label="Límite Anual (Ton)"><Input type="number" value={formData.parameters.annual_fuel_limit_ton} onChange={(e) => handleParamChange('annual_fuel_limit_ton', parseFloat(e.target.value))} /></FormField>
                          </div>
 
                          {advancedMode && (

@@ -289,17 +289,12 @@ def predict_biomass(request: SimulationRequest):
         base_price = request.financial_params.get("initial_electricity_price", 50.0)
         market_model = MarketModel(base_price=float(base_price))
         
-        # Generate multi-year price curve
-        # (Concatenating synthetic curves for now)
-        prices_list = []
-        for _ in years_to_simulate:
-            prices_list.extend(market_model.generate_annual_price_curve())
-        prices = np.array(prices_list)
-        
         params = request.parameters
-        
-        # Biomass plants degrade? Heat rate degradation maybe.
         degradation = params.get("degradation_rate", 0.005)
+
+        # Generate multi-year price curve and simulate year by year to respect annual fuel limits
+        gen_list = []
+        prices_list = []
         
         model = BiomassOptimizer(
             efficiency=params.get("efficiency", 0.25),
@@ -308,7 +303,16 @@ def predict_biomass(request: SimulationRequest):
             tech_params=params # Pass integration tech specs
         )
 
-        generation_kw = model.optimize_dispatch(prices, request.capacity_kw)
+        for _ in years_to_simulate:
+            annual_prices = market_model.generate_annual_price_curve()
+            prices_list.extend(annual_prices)
+            
+            # Dispatch for this specific year
+            annual_gen = model.optimize_dispatch(annual_prices, request.capacity_kw)
+            gen_list.extend(annual_gen)
+            
+        prices = np.array(prices_list)
+        generation_kw = np.array(gen_list)
         
         # Create dates for the entire multi-year range
         full_dates = []
