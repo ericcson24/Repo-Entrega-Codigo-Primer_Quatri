@@ -87,6 +87,20 @@ class HydroModel:
         if self.turbine_params.get("penstock_length") and self.turbine_params.get("penstock_diameter"):
              L = float(self.turbine_params["penstock_length"])
              D = float(self.turbine_params["penstock_diameter"])
+
+             # --- AUDITOR FIX: Auto-Correct Undersized Penstock ---
+             # If design flow implies > 4 m/s (as noted in audits), resize diameter
+             # to keep velocity within safe limits (target 3.5 m/s) to prevent massive head loss.
+             if self.flow_design:
+                 A_check = np.pi * (D**2) / 4.0
+                 if A_check > 0:
+                     V_check = self.flow_design / A_check
+                     if V_check > 4.0:
+                         D_new = np.sqrt(4.0 * self.flow_design / (np.pi * 3.5))
+                         # print(f"DEBUG: Auto-resized Penstock from {D}m to {D_new:.2f}m to reduce velocity from {V_check:.2f} m/s")
+                         D = D_new
+             # -----------------------------------------------------
+
              n = float(self.turbine_params.get("mannings_n", 0.013)) # roughness
              
              # Area A = pi * D^2 / 4
