@@ -8,8 +8,14 @@ Ya tienes tu base de datos en Neon.tech.
 Cadena de Conexión: `postgresql://neondb_owner:npg_rS6EFRuv3Mmt@ep-frosty-smoke-ahu1b8ye-pooler.c-3.us-east-1.aws.neon.tech/neondb` (¡Recuerda que necesita SSL!)
 
 **Pasos:**
-1. Instalar cliente PostgreSQL localmente si no lo tienes: `brew install postgresql`
-2. Inicializar la Base de Datos con las tablas del proyecto:
+1. **Opción Recomendada (Script Automático):**
+   He creado un script para facilitar esto sin instalar nada extra.
+   ```bash
+   cd backend
+   node scripts/init_remote_db.js
+   ```
+
+2. **Opción Manual (si tienes PostgreSQL instalado):**
    ```bash
    psql "postgresql://neondb_owner:npg_rS6EFRuv3Mmt@ep-frosty-smoke-ahu1b8ye-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require" -f database/init/01_init.sql
    ```

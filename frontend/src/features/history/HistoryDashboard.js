@@ -18,10 +18,7 @@ const HistoryDashboard = () => {
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            // Need to update apiService to support getHistory, or call axios directly here
-            // Let's assume we patch apiService later or use fetch for now
-            const response = await fetch(`/api/history?user_email=${currentUser.email}`);
-            const data = await response.json();
+            const data = await apiService.getHistory(currentUser.email);
             if (Array.isArray(data)) {
                 setHistory(data);
             }

@@ -141,6 +141,43 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
   const specificYield = systemCapacity ? (annualGenKwh / systemCapacity) : 0;
   const capacityFactor = systemCapacity ? (annualGenKwh / (systemCapacity * 8760)) * 100 : 0;
 
+  // --- Export Functions ---
+  const handleExportCSV = () => {
+    if (!yearly_projection || yearly_projection.length === 0) return;
+
+    // Define headers
+    const headers = ['Año', 'Ingresos (€)', 'OPEX (€)', 'Flujo de Caja Neto (€)', 'Flujo Acumulado (€)'];
+    
+    // Format rows
+    const rows = yearly_projection.map(item => [
+      item.year,
+      (item.revenue || 0).toFixed(2),
+      (item.opex || 0).toFixed(2),
+      (item.net_cashflow || 0).toFixed(2),
+      (item.cumulative_cashflow || 0).toFixed(2)
+    ]);
+
+    // Construct CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blobs and download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `simulacion_${projectType}_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintReport = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-8 animate-fade-in pb-20">
       
@@ -222,6 +259,24 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
             )}
           </button>
         ))}
+      </div>
+
+      {/* Export Buttons */}
+      <div className="flex justify-end space-x-2 mt-4 no-print">
+        <button 
+          onClick={handleExportCSV}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          <Download size={16} />
+          <span>CSV Export</span>
+        </button>
+        <button 
+          onClick={handlePrintReport}
+          className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+        >
+          <Printer size={16} />
+          <span>Print Report</span>
+        </button>
       </div>
 
       {/* Main Chart Area */}
@@ -465,7 +520,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
           <Printer size={18} />
           <span>Imprimir Informe</span>
         </button>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg shadow-blue-500/30">
+        <button onClick={handleExportCSV} className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg shadow-blue-500/30">
           <Download size={18} />
           <span>Exportar CSV</span>
         </button>

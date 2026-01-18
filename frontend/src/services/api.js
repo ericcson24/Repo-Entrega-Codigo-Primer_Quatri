@@ -16,6 +16,16 @@ export const apiService = {
   },
   
   // Future endpoints
+  getHistory: async (userEmail) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/history?user_email=${userEmail}`);
+      return response.data;
+    } catch (error) {
+      console.error("History API Error:", error);
+      throw error;
+    }
+  },
+
   getWeather: async (lat, lon) => {
     // Implementation needed
   }
