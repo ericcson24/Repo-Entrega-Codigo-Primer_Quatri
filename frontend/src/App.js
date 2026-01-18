@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SolarCalculator from './features/calculators/SolarCalculator';
+import ResidentialSolarCalculator from './features/calculators/ResidentialSolarCalculator';
 import AdvancedWindCalculator from './features/calculators/AdvancedWindCalculator';
 import HydroCalculator from './features/calculators/HydroCalculator';
 import BiomassCalculator from './features/calculators/BiomassCalculator';
@@ -45,6 +46,7 @@ const App = () => {
                 <Routes>
                     <Route path="/" element={<Navigate to="/solar" replace />} />
                     <Route path="/solar" element={<SolarCalculator />} />
+                    <Route path="/residential-solar" element={<ResidentialSolarCalculator />} />
                     <Route path="/wind" element={<AdvancedWindCalculator />} />
                     <Route path="/hydro" element={<HydroCalculator />} />
                     <Route path="/biomass" element={<BiomassCalculator />} />

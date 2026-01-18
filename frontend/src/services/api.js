@@ -15,6 +15,10 @@ export const apiService = {
     }
   },
   
+  runSimulation: async (data) => {
+    return apiService.simulate(data);
+  },
+
   // Future endpoints
   getHistory: async (userEmail) => {
     try {
@@ -28,5 +32,15 @@ export const apiService = {
 
   getWeather: async (lat, lon) => {
     // Implementation needed
-  }
+  },
+
+  getCatalog: async (technology) => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/catalog/${technology}`);
+        return response.data;
+    } catch (error) {
+        console.error("Catalog API Error:", error);
+        return [];
+    }
+  },
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Sun, Wind, Droplets, Leaf, History, LogIn, LogOut, User } from 'lucide-react';
+import { Sun, Wind, Droplets, Leaf, History, LogIn, LogOut, User, Home } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -40,6 +40,7 @@ const Sidebar = () => {
                     Simulators
                 </div>
                 <NavItem to="/solar" icon={Sun} label="Solar Energy" />
+                <NavItem to="/residential-solar" icon={Home} label="Solar at Home" />
                 <NavItem to="/wind" icon={Wind} label="Wind Energy" />
                 <NavItem to="/hydro" icon={Droplets} label="Hydroelectric" />
                 <NavItem to="/biomass" icon={Leaf} label="Biomass" />

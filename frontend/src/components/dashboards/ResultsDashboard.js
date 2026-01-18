@@ -30,9 +30,10 @@ const KPICard = ({ title, value, unit, icon: Icon, trend, color, description }) 
   </div>
 );
 
-const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParams }) => {
+const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParams, viewMode = 'full' }) => {
   const { isDark } = useTheme();
-  const [activeView, setActiveView] = useState('financial'); // 'financial', 'production', 'cashflow'
+  // If residential mode, default to 'production' view, else 'financial'
+  const [activeView, setActiveView] = useState(viewMode === 'residential' ? 'production' : 'financial');
 
   // --- Advanced Technical Analysis Processing ---
   // Hooks must be called unconditionally at top level
@@ -137,7 +138,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
   const formatNumber = (val) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }).format(val);
 
   // Technical KPIs Calculations
-  const annualGenKwh = results.generation?.annual_kwh || 0;
+  const annualGenKwh = results.generation?.annual_kwh || results.annual_generation_kwh || 0;
   const specificYield = systemCapacity ? (annualGenKwh / systemCapacity) : 0;
   const capacityFactor = systemCapacity ? (annualGenKwh / (systemCapacity * 8760)) * 100 : 0;
 
@@ -178,10 +179,13 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
     window.print();
   };
 
+  const isResidential = viewMode === 'residential';
+
   return (
     <div className="space-y-8 animate-fade-in pb-20">
       
-      {/* Executive Summary */}
+      {/* Executive Summary - Only show in Full/Utility Mode */}
+      {!isResidential && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <KPICard 
           title="Valor Actual Neto (VAN)" 
@@ -236,13 +240,15 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
           />
         )}
       </div>
+      )}
 
       {/* Controle Tabs */}
       <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700">
         {[
-            {id: 'financial', label: 'Financiero'}, 
+            // Hide Financial tabs in Residential Mode
+            ...(isResidential ? [] : [{id: 'financial', label: 'Financiero'}]), 
             {id: 'production', label: 'Producción'}, 
-            {id: 'cashflow', label: 'Flujo de Caja'}
+            ...(isResidential ? [] : [{id: 'cashflow', label: 'Flujo de Caja'}])
         ].map((tab) => (
           <button
             key={tab.id}
