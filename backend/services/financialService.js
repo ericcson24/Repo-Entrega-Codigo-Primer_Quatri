@@ -320,8 +320,11 @@ class FinancialService {
                  generationYear = year1Generation * Math.pow(1 - degradation, y - 1);
             }
 
-            // Calculate Revenue using Self-Consumption Split if provided
+            // Calculate Revenue using Self-Consumption Split
             // Use impliedPrice if no advanced prices provided, else use advanced logic
+            let revenueSavings = 0;
+            let revenueSales = 0;
+
             if (selfConsumptionRatio > 0 || priceSaved > 0 || priceSurplus > 0) {
                  const consumed = generationYear * selfConsumptionRatio;
                  const surplus = generationYear * (1 - selfConsumptionRatio);
@@ -330,7 +333,9 @@ class FinancialService {
                  const pSaved = (priceSaved > 0 ? priceSaved : impliedPricePerKwh) * Math.pow(1 + energyInflation, y - 1);
                  const pSurplus = (priceSurplus > 0 ? priceSurplus : 0.05) * Math.pow(1 + energyInflation, y - 1);
                  
-                 currentRevenue = (consumed * pSaved) + (surplus * pSurplus);
+                 revenueSavings = consumed * pSaved;
+                 revenueSales = surplus * pSurplus;
+                 currentRevenue = revenueSavings + revenueSales;
                  
                  if (y === 1) {
                      console.log(`[FinancialService] Year 1 Split Revenue: Consumed ${consumed.toFixed(0)}kWh @ ${pSaved.toFixed(3)} | Surplus ${surplus.toFixed(0)}kWh @ ${pSurplus.toFixed(3)} | Total Rev: ${currentRevenue.toFixed(2)}`);
@@ -343,6 +348,7 @@ class FinancialService {
                  } else {
                      if (y > 1) currentRevenue = currentRevenue * (1 - degradation) * (1 + energyInflation);
                  }
+                 revenueSales = currentRevenue; // Default to all sales
             }
 
             // Costes O&M crecen con inflación general
@@ -413,7 +419,10 @@ class FinancialService {
 
             annualBreakdown.push({
                 year: y,
+                generation_kwh: generationYear,
                 revenue: currentRevenue,
+                savings: revenueSavings,
+                sales: revenueSales,
                 om_cost: currentOmCost,
                 ebitda: ebitda,
                 depreciation: depreciation,

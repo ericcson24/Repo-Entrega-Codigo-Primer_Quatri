@@ -90,3 +90,17 @@ Esto asegura que la descomposición vectorial de la irradiancia (GHI a POA) cons
 Para mitigar errores de entrada comunes ("Unit Confusion"), el motor de simulación implementa una capa de sanitización lógica para la tasa de degradación ($d$):
 *   Si el input $d > 0.05$ (5%), el sistema asume que el usuario introdujo el valor en porcentaje (ej: 0.5) y divide automáticamente por 100.
 *   Esto previene el escenario de fallo catastrófico (pérdida del 50% anual) conocido como "Solar Suicide Bug", garantizando curvas de flujo de caja válidas a 20-25 años.
+
+### 5.3 Modelización Económica y Financiera
+El módulo financiero (`financialService.js`) implementa un modelo de flujo de caja descontado (DCF) robusto con las siguientes capacidades:
+
+#### Análisis de Apalancamiento (Leverage)
+Calcula métricas duales para **Proyecto (Unlevered)** y **Accionista (Levered / Equity)**, permitiendo evidenciar el efecto del apalancamiento financiero:
+*   **WACC vs Coste del Equity:** Se aplican tasas de descuento diferenciadas.
+*   **Servicio de Deuda:** Método de amortización francés (cuota constante) para cálculo preciso de intereses deducibles.
+*   **Impacto de la Deuda:** El modelo demuestra numéricamente cómo la deuda aumenta la TIR del accionista (menor desembolso inicial) a costa de reducir el Beneficio Nominal Absoluto (pago de intereses).
+
+#### Modelo de Ingresos Híbrido (Venta + Ahorro)
+Para reflejar la realidad del autoconsumo bajo el Real Decreto 244/2019, el modelo bifurca los flujos de ingresos en cada periodo $t$:
+$$ Ingresos_t = (Gen_t \cdot \%Auto \cdot P_{ahorro}) + (Gen_t \cdot (1-\%Auto) \cdot P_{excedentes}) $$
+Esto captura correctamente la ventaja económica del autoconsumo (ahorrar a precio minorista ~0.15€) frente a la inyección a red (precio mayorista ~0.06€), visualizándose separadamente en el dashboard.

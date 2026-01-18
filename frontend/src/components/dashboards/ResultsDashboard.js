@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  BarChart, Bar, AreaChart, Area, ComposedChart 
+  BarChart, Bar, AreaChart, Area, ComposedChart, ReferenceLine 
 } from 'recharts';
 import { Download, Share2, Printer, TrendingUp, DollarSign, Zap, Calendar, Activity, BatteryCharging, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -30,7 +30,7 @@ const KPICard = ({ title, value, unit, icon: Icon, trend, color, description }) 
   </div>
 );
 
-const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
+const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParams }) => {
   const { isDark } = useTheme();
   const [activeView, setActiveView] = useState('financial'); // 'financial', 'production', 'cashflow'
 
@@ -112,10 +112,12 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
       runningTotal += item.fcf_equity;
       return {
           ...item,
-          opex: item.om_cost, // Map om_cost to opex
-          net_cashflow: item.fcf_equity, // Map fcf_equity to net_cashflow
+          opex: item.om_cost, 
+          net_cashflow: item.fcf_equity, 
           cumulative_cashflow: runningTotal,
-          revenue: item.revenue
+          revenue_sales: item.sales || 0,
+          revenue_savings: item.savings || 0,
+          total_revenue: item.revenue
       };
   });
   
@@ -223,27 +225,62 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
       </div>
 
       {/* Main Chart Area */}
-      <div className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 ${activeView === 'production' ? '' : 'h-[500px]'}`}>
+      <div className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 ${activeView !== 'financial' && activeView !== 'production' ? 'h-[500px]' : ''}`}>
         
         {activeView === 'financial' && (
-          <div className="h-full">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Flujo de Caja Acumulado (25 Años)</h3>
-            <ResponsiveContainer width="100%" height="90%">
-              <ComposedChart data={yearly_projection}>
-                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
-                <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#4b5563"} />
-                <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} tickFormatter={(val) => `€${val/1000}k`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#fff' : '#000' }}
-                  formatter={(value) => formatCurrency(value)}
-                  labelFormatter={(years) => `Año ${years}`}
-                />
-                <Legend />
-                <Bar dataKey="revenue" name="Ingresos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="opex" name="Costes Op." fill="#ef4444" radius={[4, 4, 0, 0]} />
-                <Line type="monotone" dataKey="cumulative_cashflow" name="Acumulado" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
+          <div className="space-y-10">
+            {/* Chart 1: Annual Breakdown */}
+            <div className="h-96">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Desglose de Flujos Anuales (Ventas vs Ahorro)</h3>
+                <ResponsiveContainer width="100%" height="90%">
+                <BarChart data={yearly_projection}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
+                    <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#4b5563"} />
+                    <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} tickFormatter={(val) => `€${val/1000}k`} />
+                    <Tooltip 
+                    contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#fff' : '#000' }}
+                    formatter={(value) => formatCurrency(value)}
+                    labelFormatter={(years) => `Año ${years}`}
+                    />
+                    <Legend />
+                    <Bar dataKey="revenue_sales" stackId="a" name="Ventas a Red" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="revenue_savings" stackId="a" name="Ahorro por Autoconsumo" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="opex" name="Costes Operativos" fill="#ef4444" radius={[4, 4, 4, 4]} />
+                </BarChart>
+                </ResponsiveContainer>
+            </div>
+
+            {/* Chart 2: Cumulative Cashflow (Payback View) */}
+            <div className="h-80 pt-6 border-t border-gray-100 dark:border-gray-700">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Retorno de Inversión Acumulado</h3>
+                <ResponsiveContainer width="100%" height="90%">
+                <AreaChart data={yearly_projection}>
+                    <defs>
+                        <linearGradient id="colorCum" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={financials.payback_years < 25 ? "#10b981" : "#f59e0b"} stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor={financials.payback_years < 25 ? "#10b981" : "#f59e0b"} stopOpacity={0}/>
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
+                    <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#4b5563"} />
+                    <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} tickFormatter={(val) => `€${val/1000}k`} />
+                    <Tooltip 
+                    contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }}
+                    formatter={(value) => formatCurrency(value)}
+                    />
+                    <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="3 3" />
+                    <Legend />
+                    <Area 
+                        type="monotone" 
+                        dataKey="cumulative_cashflow" 
+                        name="Flujo de Caja Acumulado (Equity)" 
+                        stroke={financials.payback_years < 25 ? "#10b981" : "#f59e0b"} 
+                        fill="url(#colorCum)"
+                        strokeWidth={3} 
+                    />
+                </AreaChart>
+                </ResponsiveContainer>
+            </div>
           </div>
         )}
 
@@ -251,7 +288,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
           <div className="flex flex-col space-y-8">
              
              {/* Technical KPIs Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg flex items-center gap-4">
                     <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-full text-blue-600 dark:text-blue-300">
                         <BatteryCharging size={24} />
@@ -279,11 +316,20 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
                         <p className="text-xl font-bold text-gray-900 dark:text-white">{formatNumber(capacityFactor)} <span className="text-sm font-normal">%</span></p>
                     </div>
                 </div>
+                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg flex items-center gap-4">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-full text-purple-600 dark:text-purple-300">
+                        <TrendingUp size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Degradación Anual</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">0.5 <span className="text-sm font-normal">%</span></p>
+                    </div>
+                </div>
             </div>
 
              {/* 1. Monthly Production */}
              <div className="h-80 w-full">
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Perfil Mensual de Producción</h3>
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Perfil Mensual de Producción (Año 1)</h3>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={monthly_production || []}>
                     <defs>
@@ -302,8 +348,27 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
                 </ResponsiveContainer>
              </div>
 
+            {/* 2. Long Term Degradation */}
+            <div className="h-80 w-full">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Degradación de Producción Estimada (25 Años)</h3>
+                 <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={results.graphs?.annual_breakdown || []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
+                        <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#4b5563"} type="number" domain={[1, 'auto']} />
+                        <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} domain={['auto', 'auto']} />
+                        <Tooltip 
+                            contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }}
+                            formatter={(value) => formatEnergy(value)}
+                            labelFormatter={(year) => `Año ${year}`}
+                        />
+                         <Legend />
+                        <Line type="monotone" dataKey="generation_kwh" stroke="#ef4444" name="Producción Anual (kWh)" strokeWidth={2} dot={false} />
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* 2. Seasonal Daily Profile */}
+                {/* 3. Seasonal Daily Profile */}
                 <div className="h-80 bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg">
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Perfil Diario Estacional Promedio</h3>
                     <ResponsiveContainer width="100%" height="100%">
@@ -335,6 +400,31 @@ const ResultsDashboard = ({ results, projectType, systemCapacity }) => {
                     </ResponsiveContainer>
                 </div>
              </div>
+
+             {/* 6. Technical Specs Card (Using Params passed from Calculator) */}
+            {technicalParams && (
+                <div className="md:col-span-2 bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg">
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Especificaciones Técnicas Simuladas</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                            <p className="text-gray-500">Panel</p>
+                            <p className="font-semibold dark:text-gray-200 capitalize">{technicalParams.panel_type}</p>
+                        </div>
+                         <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                            <p className="text-gray-500">Orientación</p>
+                            <p className="font-semibold dark:text-gray-200">{technicalParams.azimuth}° (Sur=180)</p>
+                        </div>
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                            <p className="text-gray-500">Inclinación</p>
+                            <p className="font-semibold dark:text-gray-200">{technicalParams.tilt}°</p>
+                        </div>
+                        <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                            <p className="text-gray-500">Pérdidas Totales</p>
+                            <p className="font-semibold dark:text-gray-200">{technicalParams.system_loss}%</p>
+                        </div>
+                    </div>
+                </div>
+            )}
           </div>
         )}
 
