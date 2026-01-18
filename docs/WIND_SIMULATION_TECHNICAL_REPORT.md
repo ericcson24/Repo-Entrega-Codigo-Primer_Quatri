@@ -63,3 +63,19 @@ El motor de cálculo utiliza `numpy` para operaciones vectorizadas de alta veloc
 4.  **Integración:** Suma de Riemann de la potencia instantánea para obtener energía (Wh).
 
 Este enfoque permite realizar análisis de sensibilidad (ej. variar altura de buje) en milisegundos, habilitando la optimización iterativa del diseño del parque.
+
+## 4. Modelización Económica y Financiera
+
+El módulo financiero (`financialService.js`) implementa un modelo de flujo de caja descontado (DCF) validado industrialmente, compartido con el resto de tecnologías del simulador.
+
+### 4.1. Análisis de Apalancamiento y Rentabilidad
+El sistema desglosa los resultados en dos perspectivas:
+*   **Perspectiva del Proyecto (Unlevered):** Evalúa la calidad intrínseca del activo sin considerar cómo se paga. Utiliza el WACC como tasa de descuento.
+*   **Perspectiva del Inversor (Levered Equity):** Evalúa la rentabilidad del capital propio aportado. Considera el servicio de la deuda (Principal + Intereses) y utiliza el Coste del Equity ($K_e$) como tasa.
+    *   *Nota:* El modelo demuestra numéricamente el efecto del apalancamiento positivo: aumentar deuda suele subir la TIR (menos inversión inicial) pero reduce el Cash Flow Libre Total (pago de intereses).
+
+### 4.2. Estructura de Ingresos
+La proyección de ingresos soporta múltiples estrategias comerciales:
+*   **Venta a Mercado (Merchant):** Volumen horario ($MWh_t$) multiplicado por precios capturados del pool ($€/MWh_t$).
+*   **Autoconsumo Industrial:** Valoración de la energía a coste evitado (tarifa minorista), típicamente superior al precio mayorista.
+*   **Fiscalidad:** Modelado detallado de Amortización (Depreciación lineal), Impuesto de Sociedades y Deducciones fiscales al CAPEX.

@@ -55,3 +55,19 @@ La simulación anual recorre 8760 horas resolviendo el balance de masas y energ�
 4.  **Conversión:** Interpolación en tabla de eficiencia $\eta = f(Carga)$.
 
 Este modelo captura fenómenos no lineales como la caída de rendimiento en sequías (por falta de caudal) o en inundaciones (por reducción de salto útil al subir el nivel de aguas abajo).
+
+## 4. Modelización Económica y Financiera
+
+El módulo financiero (`financialService.js`) implementa un modelo de flujo de caja descontado (DCF) validado industrialmente, compartido con el resto de tecnologías del simulador.
+
+### 4.1. Análisis de Apalancamiento y Rentabilidad
+El sistema desglosa los resultados en dos perspectivas:
+*   **Perspectiva del Proyecto (Unlevered):** Evalúa la calidad intrínseca del activo sin considerar cómo se paga. Utiliza el WACC como tasa de descuento.
+*   **Perspectiva del Inversor (Levered Equity):** Evalúa la rentabilidad del capital propio aportado. Considera el servicio de la deuda (Principal + Intereses) y utiliza el Coste del Equity ($K_e$) como tasa.
+    *   *Nota:* El modelo demuestra numéricamente el efecto del apalancamiento positivo: aumentar deuda suele subir la TIR (menos inversión inicial) pero reduce el Cash Flow Libre Total (pago de intereses).
+
+### 4.2. Estructura de Ingresos
+La proyección de ingresos soporta múltiples estrategias comerciales:
+*   **Venta a Mercado (Merchant):** Volumen horario ($MWh_t$) multiplicado por precios capturados del pool ($€/MWh_t$).
+*   **Autoconsumo Industrial:** Valoración de la energía a coste evitado (tarifa minorista), típicamente superior al precio mayorista.
+*   **Fiscalidad:** Modelado detallado de Amortización (Depreciación lineal), Impuesto de Sociedades y Deducciones fiscales al CAPEX.
