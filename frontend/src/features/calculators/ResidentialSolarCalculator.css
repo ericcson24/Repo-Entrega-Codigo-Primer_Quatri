@@ -1,0 +1,305 @@
+/* ResidentialSolarCalculator.css */
+
+/* Cards for Financial Results (Top of results view) */
+.savings-card {
+    @apply bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800;
+}
+
+.payback-card {
+    @apply bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800;
+}
+
+.independence-card {
+    @apply bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-800;
+}
+
+.co2-card {
+    @apply bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800;
+}
+
+/* Common Card Header/Content Styles */
+.card-header-flex {
+    @apply flex items-center gap-2 mb-2;
+}
+
+.card-title-text {
+    @apply text-sm font-semibold;
+}
+
+.card-value-text {
+    @apply text-2xl font-bold;
+}
+
+.card-subtitle-flex {
+    @apply text-xs mt-1 flex items-center gap-1;
+}
+
+/* Chart Container */
+.chart-container-wrapper {
+    @apply bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 h-64;
+}
+
+/* Main Layout & Inputs */
+.calculator-header {
+    @apply flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-5xl mx-auto;
+}
+
+.input-section-card {
+    @apply bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 h-full;
+}
+
+.input-section-title {
+    @apply text-lg font-semibold mb-4 flex items-center gap-2 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-3;
+}
+
+.step-badge-blue {
+    @apply bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-sm;
+}
+.step-badge-purple {
+    @apply bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-sm;
+}
+.step-badge-orange {
+    @apply bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-sm;
+}
+
+.consumption-estimate-box {
+    @apply flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800;
+}
+
+/* Battery Section */
+.battery-toggle-box {
+    @apply mt-6 mb-2 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700;
+}
+
+/* Panel Catalog */
+.panel-catalog-container {
+    @apply grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2;
+}
+
+.panel-card-item {
+    @apply relative cursor-pointer p-3 rounded-xl border-2 transition-all flex items-center gap-3;
+}
+
+.panel-card-selected {
+    @apply border-blue-600 bg-blue-50 dark:bg-blue-900/20;
+}
+
+.panel-card-unselected {
+    @apply border-transparent bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600;
+}
+
+.panel-image-placeholder {
+    @apply w-12 h-16 bg-gray-200 rounded flex items-center justify-center overflow-hidden shrink-0;
+}
+
+.panel-tag {
+    @apply text-xs bg-gray-200 dark:bg-gray-600 px-1.5 rounded;
+}
+
+.panel-type-tag {
+    @apply text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-1.5 rounded;
+}
+
+.custom-panel-info-box {
+    @apply p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-800/30 mb-4;
+}
+
+/* Fine Tuning */
+.fine-tuning-container {
+    @apply bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-5xl mx-auto;
+}
+
+.range-input {
+    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700;
+}
+
+/* Summary Banner */
+.summary-banner {
+    @apply bg-gradient-to-br from-gray-900 to-gray-800 dark:from-blue-900 dark:to-slate-900 rounded-3xl p-8 text-white shadow-xl max-w-5xl mx-auto overflow-hidden relative;
+}
+
+.summary-stat-label {
+    @apply text-gray-400 text-sm font-medium mb-1;
+}
+
+.summary-stat-value {
+    @apply text-3xl font-bold;
+}
+
+.simulate-button {
+    @apply w-full py-4 px-6 bg-blue-600 hover:bg-blue-500 hover:scale-105 active:scale-95 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-900/50 transition-all flex items-center justify-center gap-2;
+}
+
+.simulate-button:hover svg {
+    @apply translate-x-1;
+}
+
+.results-header-container {
+    @apply flex flex-col md:flex-row justify-between items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-6;
+}
+
+.new-simulation-btn {
+    @apply flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm font-medium;
+}
+
+/* Animations */
+.animate-fade-in {
+    /* @apply animate-in fade-in duration-500; */
+}
+
+.decoration-circle-top { 
+    @apply absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl; 
+}
+
+.decoration-circle-bottom { 
+    @apply absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl; 
+}
+
+/* Toggle Group */
+.toggle-group-container {
+    @apply flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1;
+}
+
+.toggle-btn {
+    @apply px-3 py-1 text-sm font-medium rounded-md transition-all;
+}
+
+.toggle-btn-active {
+    @apply bg-white dark:bg-gray-600 shadow text-blue-600 dark:text-blue-400;
+}
+
+.toggle-btn-inactive {
+    @apply text-gray-500 dark:text-gray-400;
+}
+
+/* Fine Tuning Section */
+.fine-tuning-card {
+    @apply bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-5xl mx-auto;
+}
+
+.fine-tuning-title {
+    @apply text-lg font-semibold mb-4 flex items-center gap-2 dark:text-white;
+}
+
+.slider-container {
+    @apply flex items-center gap-4;
+}
+
+.range-slider {
+    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700;
+}
+
+.range-slider-disabled {
+    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 opacity-50 cursor-not-allowed;
+}
+
+/* Summary Banner Stats */
+.stat-label {
+    @apply text-gray-400 text-sm font-medium mb-1;
+}
+
+.stat-value {
+    @apply text-3xl font-bold;
+}
+
+.stat-sub-blue {
+    @apply text-sm text-blue-300 mt-1;
+}
+
+.stat-sub-green {
+    @apply text-sm text-green-300 mt-1;
+}
+
+.stat-sub-orange {
+    @apply text-sm text-orange-300 mt-1;
+}
+
+.stat-divider {
+    @apply col-span-2 md:col-span-1 border-t md:border-t-0 border-gray-700 pt-4 md:pt-0 mt-2 md:mt-0;
+}
+
+/* Results View */
+.results-header-container { /* Already exists? Checking... No, user added it in JS but maybe not in CSS */
+    @apply flex items-center justify-between mb-8; 
+}
+
+.results-title {
+    @apply text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2;
+}
+
+.results-subtitle {
+    @apply text-gray-500 dark:text-gray-400 mt-1;
+}
+
+.new-simulation-btn { /* Already in JS as className but explicitly define it */
+    @apply flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors;
+}
+
+.results-card {
+    @apply bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700;
+}
+
+.analysis-title {
+    @apply text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2;
+}
+
+.chart-card {
+    @apply bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden;
+}
+
+.chart-header {
+    @apply p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50;
+}
+
+.chart-title {
+    @apply text-lg font-bold dark:text-gray-100 flex items-center gap-2;
+}
+
+
+.action-column {
+    @apply w-full md:w-auto flex flex-col gap-3 min-w-[200px];
+}
+
+.warning-box {
+    @apply bg-red-500/10 border border-red-500/20 text-red-200 p-4 rounded-xl text-center text-sm;
+}
+
+
+/* Residential Results Component specific styles */
+.results-container {
+    @apply space-y-6;
+}
+
+.results-grid {
+    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+}
+
+/* Card Icons */
+.icon-savings { @apply text-green-600 dark:text-green-400; }
+.icon-payback { @apply text-blue-600 dark:text-blue-400; }
+.icon-independence { @apply text-purple-600 dark:text-purple-400; }
+.icon-co2 { @apply text-teal-600 dark:text-teal-400; }
+
+/* Card Titles */
+.title-savings { @apply card-title-text text-green-900 dark:text-green-100; }
+.title-payback { @apply card-title-text text-blue-900 dark:text-blue-100; }
+.title-independence { @apply card-title-text text-purple-900 dark:text-purple-100; }
+.title-co2 { @apply card-title-text text-teal-900 dark:text-teal-100; }
+
+/* Card Values */
+.value-savings { @apply card-value-text text-green-700 dark:text-green-300; }
+.value-payback { @apply card-value-text text-blue-700 dark:text-blue-300; }
+.value-independence { @apply card-value-text text-purple-700 dark:text-purple-300; }
+.value-co2 { @apply card-value-text text-teal-700 dark:text-teal-300; }
+
+/* Units / Small text */
+.unit-savings { @apply text-xs font-normal text-green-600; }
+.unit-payback { @apply text-xs font-normal text-blue-600; }
+.unit-general { @apply text-xs font-normal; }
+
+/* Footer / Subtitles */
+.footer-savings { @apply card-subtitle-flex text-green-600 dark:text-green-400; }
+.footer-payback { @apply text-xs text-blue-600 dark:text-blue-400 mt-1; }
+.footer-independence { @apply text-xs text-purple-600 dark:text-purple-400 mt-1; }
+.footer-co2 { @apply text-xs text-teal-600 dark:text-teal-400 mt-1; }
+

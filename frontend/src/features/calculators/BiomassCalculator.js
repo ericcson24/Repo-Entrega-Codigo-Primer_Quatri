@@ -4,6 +4,7 @@ import { FormField, Input, Select, Switch } from '../../components/common/FormCo
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './BiomassCalculator.css';
 
 const SPANISH_CITIES = [
     { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
@@ -71,8 +72,7 @@ const BiomassCalculator = () => {
                     ...prev.parameters,
                     feedstock_type: type,
                     moisture_content: props.moisture,
-                    calorific_value_dry: props.pci, // Assuming pci here is "As Received" or "Dry"? Usually user inputs LHV as received or Dry. Let's assume typical values.
-                    // Actually, let's keep it simple. We update the input fields.
+                    calorific_value_dry: props.pci, // Asumiendo PCI aquí como "Tal cual" o "Seco"... Supongamos valores típicos.
                     fuel_cost_eur_ton: props.cost
                 }
             }));
@@ -102,12 +102,11 @@ const BiomassCalculator = () => {
     const handleSimulate = async () => {
         setLoading(true);
         try {
-            // Mapping for backend
-            
-            // Convert MJ/kg to kWh/kg (1 kWh = 3.6 MJ)
+
+            // Convertir MJ/kg a kWh/kg (1 kWh = 3.6 MJ)
             const pci_kwh = formData.parameters.calorific_value_dry / 3.6;
 
-            // Prepare payload - force debt_ratio to 0 if debt logic is disabled
+            // Preparar payload - forzar ratio de deuda a 0 si deuda está desactivada
             const payload = {
                 ...formData,
                 parameters: {
@@ -128,7 +127,7 @@ const BiomassCalculator = () => {
             setResults(data);
         } catch (error) {
             console.error(error);
-            alert("Simulation failed.");
+            alert("Simulación fallida.");
         } finally {
             setLoading(false);
         }
@@ -153,12 +152,12 @@ const BiomassCalculator = () => {
 
     if (results) {
         return (
-            <div className="space-y-6 animate-fade-in">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                        <Leaf className="text-green-500" /> Resultados Biomasa
+            <div className="biomass-results-container">
+                <div className="biomass-header">
+                    <h2 className="biomass-title">
+                        <Leaf className="icon-title-biomass" /> Resultados Biomasa
                     </h2>
-                    <button onClick={resetForm} className="btn-secondary">
+                    <button onClick={resetForm} className="btn-new-simulation-biomass">
                         <RotateCcw size={16} /> Nueva Simulación
                     </button>
                 </div>
@@ -168,19 +167,19 @@ const BiomassCalculator = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-             <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between items-start mb-8">
+        <div className="calculator-wrapper">
+             <div className="biomass-card">
+                <div className="card-head-wrapper">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Configuración Central Biomasa</h2>
-                        <p className="text-gray-500 dark:text-gray-400">Parametrización de energía bioenergética.</p>
+                        <h2 className="biomass-main-title">Configuración Central Biomasa</h2>
+                        <p className="biomass-subtitle">Parametrización de energía bioenergética.</p>
                     </div>
                     <Switch label="Modo Avanzado" checked={advancedMode} onChange={setAdvancedMode} />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <div className="space-y-6">
-                        <h3 className="section-title">Datos Básicos</h3>
+                <div className="biomass-grid-layout">
+                    <div className="biomass-col">
+                        <h3 className="biomass-section-title">Datos Básicos</h3>
                         <FormField label="Capacidad (kW)"><Input type="number" value={formData.capacity_kw} onChange={(e) => handleInputChange('capacity_kw', parseFloat(e.target.value))} /></FormField>
                         <FormField label="Presupuesto (€)"><Input type="number" value={formData.budget} onChange={(e) => handleInputChange('budget', parseFloat(e.target.value))} /></FormField>
                         
@@ -192,14 +191,14 @@ const BiomassCalculator = () => {
                             />
                         </FormField>
 
-                        <div className="hidden">
+                        <div className="hidden-section">
                             <FormField label="Lat"><Input type="number" step="0.0001" value={formData.latitude} onChange={(e) => handleInputChange('latitude', parseFloat(e.target.value))} /></FormField>
                              <FormField label="Lon"><Input type="number" step="0.0001" value={formData.longitude} onChange={(e) => handleInputChange('longitude', parseFloat(e.target.value))} /></FormField>
                         </div>
                     </div>
 
-                    <div className="space-y-6">
-                         <h3 className="section-title">Combustible y Conversión</h3>
+                    <div className="biomass-col">
+                         <h3 className="biomass-section-title">Combustible y Conversión</h3>
                          <FormField label="Tipo">
                              <Select value={formData.parameters.feedstock_type} onChange={(e) => handleFeedstockChange(e.target.value)} 
                                 options={[
@@ -210,17 +209,17 @@ const BiomassCalculator = () => {
                                 ]}
                              />
                          </FormField>
-                         <div className="grid grid-cols-2 gap-4">
+                         <div className="grid-2-col">
                             <FormField label="Humedad (%)"><Input type="number" value={formData.parameters.moisture_content} onChange={(e) => handleParamChange('moisture_content', parseFloat(e.target.value))} /></FormField>
                             <FormField label="PCI Seco (MJ/kg)"><Input type="number" step="0.1" value={formData.parameters.calorific_value_dry} onChange={(e) => handleParamChange('calorific_value_dry', parseFloat(e.target.value))} /></FormField>
                          </div>
-                         <div className="grid grid-cols-2 gap-4">
+                         <div className="grid-2-col">
                             <FormField label="Coste Combustible (€/ton)"><Input type="number" value={formData.parameters.fuel_cost_eur_ton} onChange={(e) => handleParamChange('fuel_cost_eur_ton', parseFloat(e.target.value))} /></FormField>
                             <FormField label="Límite Anual (Ton)"><Input type="number" value={formData.parameters.annual_fuel_limit_ton} onChange={(e) => handleParamChange('annual_fuel_limit_ton', parseFloat(e.target.value))} /></FormField>
                          </div>
 
                          {advancedMode && (
-                             <div className="grid grid-cols-2 gap-4">
+                             <div className="grid-2-col">
                                 <FormField label="Eficiencia Planta (0-1)"><Input type="number" step="0.01" max="1" value={formData.parameters.plant_efficiency} onChange={(e) => handleParamChange('plant_efficiency', parseFloat(e.target.value))} /></FormField>
                                 <FormField label="Disponibilidad (0-1)"><Input type="number" step="0.01" max="1" value={formData.parameters.availability_factor} onChange={(e) => handleParamChange('availability_factor', parseFloat(e.target.value))} /></FormField>
                              </div>
@@ -230,12 +229,12 @@ const BiomassCalculator = () => {
 
                 {/* Financial Parameters (Advanced Only) */}
                 {advancedMode && (
-                    <div className="md:col-span-2 space-y-6 pt-4">
-                        <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
-                            <h3 className="section-title mb-0 flex items-center gap-2"><Settings size={18} /> Parámetros Financieros</h3>
+                    <div className="financial-area">
+                        <div className="financial-header-row">
+                            <h3 className="financial-title"><Settings size={18} /> Parámetros Financieros</h3>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="financial-grid-4">
                             <FormField label="Precio Energía (€/MWh)">
                                 <Input 
                                     type="number" 
@@ -267,16 +266,16 @@ const BiomassCalculator = () => {
                         </div>
                             
                         {formData.financial_params.use_debt && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                            <div className="debt-box">
                                 <FormField label="Ratio Deuda (%)">
-                                    <div className="flex items-center gap-2">
+                                    <div className="debt-slider-row">
                                         <input 
                                             type="range" min="0" max="100" 
                                             value={formData.financial_params.debt_ratio} 
                                             onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                            className="debt-slider"
                                         />
-                                        <span className="w-12 text-sm font-mono">{formData.financial_params.debt_ratio}%</span>
+                                        <span className="debt-value">{formData.financial_params.debt_ratio}%</span>
                                     </div>
                                 </FormField>
                                 <FormField label="Tasa Interés (%)">
@@ -298,8 +297,8 @@ const BiomassCalculator = () => {
                     </div>
                 )}
 
-                <div className="mt-8 flex justify-end">
-                    <button onClick={handleSimulate} disabled={loading} className="btn-primary">
+                <div className="submit-area">
+                    <button onClick={handleSimulate} disabled={loading} className="btn-biomass">
                         {loading ? 'Procesando...' : 'Ejecutar Simulación'}
                     </button>
                 </div>

@@ -51,11 +51,11 @@ async def get_solar_potential(lat: float, lon: float):
 
 def get_weather_data(lat, lon, tilt=None, azimuth=None):
     connector = WeatherConnector()
-    # ROBUSTNESS UPGRADE: "Conjunto de datos"
-    # Instead of simulating just 1 year (which might be outlier), we simulate the last 3 years
-    # and average the results. This provides a much more stable and realistic projection.
+    # MEJORA DE ROBUSTEZ: "Conjunto de datos multianual"
+    # En lugar de simular solo 1 año (que podría ser atípico), simulamos los últimos 3 años
+    # y promediamos los resultados. Esto proporciona una proyección mucho más estable y realista.
     
-    years_to_simulate = [settings.BASE_YEAR - 2, settings.BASE_YEAR - 1, settings.BASE_YEAR] # e.g. 2021, 2022, 2023
+    years_to_simulate = [settings.BASE_YEAR - 2, settings.BASE_YEAR - 1, settings.BASE_YEAR] # ej. 2021, 2022, 2023
     dfs = []
     
     for year in years_to_simulate:
@@ -66,31 +66,30 @@ def get_weather_data(lat, lon, tilt=None, azimuth=None):
             if not df_year.empty:
                 dfs.append(df_year)
         except Exception as e:
-            print(f"Warning: Could not fetch weather for {year}: {e}")
+            print(f"Advertencia: No se pudo obtener clima para {year}: {e}")
             
     if not dfs:
-        # Fallback to base year only if loop fails completely
+        # Alternativa de año base único si el bucle falla completamente
         return connector.fetch_historical_weather(lat, lon, f"{settings.BASE_YEAR}-01-01", f"{settings.BASE_YEAR}-12-31", tilt, azimuth)
         
-    # Concatenate all years into one long time series
+    # Concatenar todos los años en una serie temporal larga
     return pd.concat(dfs, ignore_index=True)
 
 def create_long_term_monthly_projection(base_monthly_profile: pd.Series, years: int = 20, degradation_annual: float = 0.005) -> list:
     """
-    Project the monthly generation over 20 years considering degradation.
-    base_monthly_profile: Series of 12 months (Representative Year).
-    Returns a flat list of 20 * 12 = 240 values.
+    Proyecta la generación mensual a lo largo de 20+ años considerando la degradación.
+    base_monthly_profile: Serie de 12 meses (Año Representativo).
+    Retorna una lista plana de [años * 12] valores.
     """
     base_values = base_monthly_profile.values
     if len(base_values) != 12:
-        # If passed raw time series > 12 months, warn or handle?
-        # Assuming we passed the 12-month representative profile.
+        # Si se pasa una serie temporal > 12 meses, se asume perfil representativo ya procesado.
         pass
         
     projection = []
     
     for year in range(years):
-        # Apply degradation factor
+        # Aplicar factor de degradación
         factor = (1 - degradation_annual) ** year
         yearly_values = base_values * factor
         projection.extend(yearly_values.tolist())
@@ -101,8 +100,8 @@ def create_long_term_monthly_projection(base_monthly_profile: pd.Series, years: 
 def predict_solar(request: SimulationRequest):
     try:
         params = request.parameters
-        # Expert parameters: Tilt and Azimuth
-        # Ensure we cast to float to prevent API type errors or None logic failures
+        # Parámetros Expertos: Inclinación (Tilt) y Azimut
+        # Aseguramos conversión a float para prevenir errores de tipo
         try:
             tilt = float(params.get("tilt", 30))
         except (ValueError, TypeError):
@@ -115,46 +114,44 @@ def predict_solar(request: SimulationRequest):
             
         df_weather = get_weather_data(request.latitude, request.longitude, tilt=tilt, azimuth=azimuth)
         
-        # Use Plane of Array radiation if available (Expert Mode), else GHI
+        # Usar Radiación en el Plano del Array (POA) si disponible (Modo Experto), sino GHI
         if "radiation_poa" in df_weather.columns:
              radiation = df_weather["radiation_poa"].to_numpy()
-             # Handling potential API glitches where POA is None
+             # Manejo de posibles fallos de API donde POA es None
              if radiation[0] is None or np.isnan(radiation).all():
-                 print("Warning: POA Radiation Null, falling back to GHI")
+                 print("Advertencia: Radiación POA nula, usando GHI como alternativa")
                  radiation = df_weather["radiation_ghi"].to_numpy()
         else:
              radiation = df_weather["radiation_ghi"].to_numpy()
              
         temperature = df_weather["temperature"].to_numpy()
 
-        # Solar Degradation is typically 0.5% per year
+        # La degradación solar típica es 0.5% por año
         degradation_raw = params.get("degradation_rate", 0.5)
-        # Check if user sent percentage (e.g. 0.5) or fraction (0.005)
-        # Heuristic: if > 0.05 (5%), assume it's percentage. 0.5% is standard.
-        # But if user sends 0.005, that's fine.
-        # If user sends 0.5, that's 0.5%. Wait, 0.5 as number could mean 50%.
-        # Standard input in frontend is usually entered as "0.5" for 0.5%.
-        # So we divide by 100.
+        # Verificación: si el usuario envía porcentaje (ej. 0.5) o fracción (0.005)
+        # Heurística: si > 0.05 (5%), asumimos porcentaje. 0.5% es estándar.
+        # Entrada estándar en frontend es "0.5" para 0.5%.
+        # Dividimos por 100.
         degradation = float(degradation_raw) / 100.0
 
-        # --- Panel Type Logic ---
-        # Map panel_type string to physical coefficients if not explicitly provided
+        # --- Lógica de Tipo de Panel ---
+        # Mapear string panel_type a coeficientes físicos si no se proveen explícitamente
         panel_type = params.get("panel_type", "monocrystalline").lower()
         
-        # Default Temp Coefs (%/C) -> Fraction/C
-        # Mono: -0.35%, Poly: -0.45%, ThinFilm: -0.20%
+        # Coeficientes de Temp por defecto (%/C) -> Fracción/C
+        # Mono: -0.35%, Poly: -0.45%, Capa Fina: -0.20%
         type_specs = {
             "monocrystalline": {"temp_coef": -0.0035, "bifaciality": 0.0},
             "polycrystalline": {"temp_coef": -0.0045, "bifaciality": 0.0},
             "thinfilm": {"temp_coef": -0.0020, "bifaciality": 0.0},
-            "bifacial": {"temp_coef": -0.0035, "bifaciality": 0.70}, # 70% bifacial factor
+            "bifacial": {"temp_coef": -0.0035, "bifaciality": 0.70}, # Factor bifacial 70%
             "custom": {"temp_coef": -0.0035, "bifaciality": 0.0}
         }
         
-        # Get defaults for this type
+        # Obtener valores por defecto para este tipo
         specs = type_specs.get(panel_type, type_specs["monocrystalline"])
         
-        # Use provided value if exists, else use type default
+        # Usar valor provisto si existe, sino usar defecto del tipo
         temp_coef = params.get("temp_coef", specs["temp_coef"])
         bifaciality = params.get("bifaciality", specs["bifaciality"])
 
@@ -167,26 +164,24 @@ def predict_solar(request: SimulationRequest):
         
         generation_kw = model.predict_generation(radiation, temperature, request.capacity_kw)
         
-        # --- Multi-Year Averaging Logic ---
+        # --- Lógica de Promediado Multi-Anual ---
         df_weather["generation_kw"] = generation_kw
         
-        # 1. Total generated across all fetched years
+        # 1. Total generado a través de todos los años obtenidos
         total_gen_all_years = generation_kw.sum()
         
-        # 2. Number of years simulated (approx)
+        # 2. Número de años simulados (aprox)
         num_years = len(df_weather) / 8760.0
         
-        # 3. Average Annual Generation
+        # 3. Generación Anual Promedio
         avg_annual_gen = total_gen_all_years / num_years
         
-        # 4. Representative Monthly Profile (Average Jan, Average Feb...)
-        # Group by Month (1-12) and take mean sum? No.
-        # We need "Sum of Jan 2021, Jan 2022, Jan 2023" / 3
-        # Resample to Monthly sums first
+        # 4. Perfil Mensual Representativo (Promedio Ene, Promedio Feb...)
+        # Re-muestreo a sumas mensuales primero
         monthly_series = df_weather.set_index("date").resample("ME")["generation_kw"].sum()
         
-        # Now group by month index (JAN=1, FEB=2...) to get average monthly production
-        # This creates a series of 12 values: [AvgJan, AvgFeb, ...]
+        # Agrupar por índice de mes (ENE=1, FEB=2...) para obtener producción mensual promedio
+        # Esto crea una serie de 12 valores: [AvgEne, AvgFeb, ...]
         avg_monthly_profile = monthly_series.groupby(monthly_series.index.month).mean()
         
         # Re-construct a "Representative Year" dictionary for frontend

@@ -24,15 +24,15 @@ class FinancialService {
      * @returns {number} IRR
      */
     static calculateIRR(cashFlows, guess = 0.1) {
-        // Validation: If total recovery is extremely low, IRR is effectively -100%.
-        // Total Value = Net Profit (Sum of all flows).
-        // If Net Profit is close to Initial Investment (meaning Returns ~ 0), return -1.
-        // cashFlows[0] is negative investment.
-        // If (Sum - Investment0) < (Abs(Investment0) * 0.05) -> Recovered less than 5% of money.
+        // Validación: Si la recuperación total es extremadamente baja, la TIR es efectivamente -100%.
+        // Valor Total = Beneficio Neto (Suma de todos los flujos).
+        // Si el beneficio neto es cercano a la inversión inicial (significando Retornos ~ 0), devolver -1.
+        // cashFlows[0] es la inversión negativa.
+        // Si (Suma - Inversión0) < (Abs(Inversión0) * 0.05) -> Se ha recuperado menos del 5% del capital.
         const totalValue = cashFlows.reduce((a, b) => a + b, 0);
-        const initialInv = cashFlows[0]; // negative
+        const initialInv = cashFlows[0]; // negativo
         
-        // If we haven't even recovered 1% of the initial investment nominal value
+        // Si no hemos recuperado ni el 1% del valor nominal de la inversión
         if ((totalValue - initialInv) < (Math.abs(initialInv) * 0.01)) {
              return -0.99;
         }
@@ -46,7 +46,7 @@ class FinancialService {
             let dNpv = 0;
             for (let t = 0; t < cashFlows.length; t++) {
                 const num = cashFlows[t];
-                // Protective power calculation for very high rates
+                // Cálculo de potencia protegido para tasas muy altas
                 const den = Math.pow(1 + rate, t);
                 npv += num / den;
                 dNpv -= (t * num) / (den * (1 + rate));

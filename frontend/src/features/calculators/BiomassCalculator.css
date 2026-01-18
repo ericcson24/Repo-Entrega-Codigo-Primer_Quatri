@@ -1,0 +1,97 @@
+/* BiomassCalculator.css */
+
+.biomass-results-container {
+    @apply space-y-6;
+}
+
+.biomass-header {
+    @apply flex justify-between items-center mb-6;
+}
+
+.biomass-title {
+    @apply text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2;
+}
+
+.btn-new-simulation-biomass {
+    @apply flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors;
+}
+
+.calculator-wrapper {
+    @apply max-w-4xl mx-auto space-y-8;
+}
+
+.biomass-card {
+    @apply bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700;
+}
+
+.card-head-wrapper {
+    @apply flex justify-between items-start mb-8;
+}
+
+.biomass-main-title {
+    @apply text-2xl font-bold text-gray-900 dark:text-white mb-2;
+}
+
+.biomass-subtitle {
+    @apply text-gray-500 dark:text-gray-400;
+}
+
+.biomass-grid-layout {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6;
+}
+
+.biomass-col {
+    @apply space-y-6;
+}
+
+.biomass-section-title {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700;
+}
+
+.grid-2-col {
+    @apply grid grid-cols-2 gap-4;
+}
+
+.financial-area {
+    @apply md:col-span-2 space-y-6 pt-4;
+}
+
+.financial-header-row {
+    @apply flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2;
+}
+
+.financial-title {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 mb-0 flex items-center gap-2;
+}
+
+.financial-grid-4 {
+    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+}
+
+.debt-box {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg;
+}
+
+.debt-slider-row {
+    @apply flex items-center gap-2;
+}
+
+.debt-slider {
+    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
+}
+
+.debt-value {
+    @apply w-12 text-sm font-mono;
+}
+
+.submit-area {
+    @apply mt-8 flex justify-end;
+}
+
+.btn-biomass {
+    @apply px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.icon-title-biomass { @apply text-green-500; }
+.hidden-section { @apply hidden; }
+

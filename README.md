@@ -1,26 +1,26 @@
 ﻿# Simulador de Inversión en Energías Renovables (TFG)
 
-Este proyecto es una plataforma avanzada para el análisis técnico y financiero de proyectos de energía renovable (**Solar FV, Eólica, Hidráulica y Biomasa**). Integra modelos de simulación física de alta fidelidad, datos meteorológicos reales (OpenMeteo 2023-2024) y un motor financiero profesional para calcular la viabilidad económica bajo escenarios de incertidumbre y volatilidad de mercado.
+Este proyecto es una plataforma para el análisis técnico y financiero de proyectos de energía renovable (**Solar FV, Eólica, Hidráulica y Biomasa**). Integra modelos de simulación física, datos meteorológicos reales (OpenMeteo 2023-2024) y un módulo financiero para calcular la viabilidad económica bajo escenarios de incertidumbre y volatilidad de mercado.
 
-## 🌟 Características Principales
+## Características Principales
 
-### 1. Motor de Simulación Multi-Tecnología (AI Engine)
-- **Solar FV:** Modelo de **Diodo Simple (PVLib)** con datos espectrales y térmicos reales. Considera nubosidad, temperatura de célula y pérdidas por suciedad/cableado. Incluye corrección automática de coordenadas (Azimut) y sanitización de inputs.
+### 1. Motor de Simulación Multi-Tecnología
+- **Solar FV:** Modelo de **Diodo Simple (PVLib)** con datos espectrales y térmicos reales. Considera nubosidad, temperatura de célula y pérdidas por suciedad/cableado. Incluye corrección de coordenadas (Azimut) y validación de entradas.
 - **Eólica:** Extrapolación vertical de viento (Ley de Hellman) y curvas de potencia de turbinas reales (Vestas, Gamesa).
 - **Hidráulica:** Modelo de turbinado basado en caudal ecológico y altura de salto neto.
 - **Biomasa:** Optimización de despacho económico basado en precios de mercado y coste variable de combustible.
 
-### 2. Análisis Financiero Profesional
+### 2. Análisis Financiero
 - **Métricas Clave:** VAN (NPV), TIR (IRR), Payback, LCOE y ROI.
 - **Estructura de Capital:** Simulación de Apalancamiento (Project Finance), Deuda Senior, Equity y ratio de cobertura.
 - **Fiscalidad y Ayudas:** Soporte para Subvenciones (NextGen), deducciones fiscales y amortización acelerada.
-- **Modelos de Ingres:** Autoconsumo con compensación de excedentes vs Venta a Red (PPA/Merchant).
+- **Modelos de Ingresos:** Autoconsumo con compensación de excedentes vs Venta a Red (PPA/Merchant).
 
-### 3. Visualización Avanzada
-- **Dashboards Interactivos:** Gráficos de Flujo de Caja, Perfiles Estacionales y Curvas de Duración de Carga.
+### 3. Visualización
+- **Cuadros de Mando:** Gráficos de Flujo de Caja, Perfiles Estacionales y Curvas de Duración de Carga.
 - **Comparativa de Escenarios:** Análisis de sensibilidad ante variaciones de CAPEX o precios de energía.
 
-## 📋 Requisitos del Sistema
+## Requisitos del Sistema
 
 Para ejecutar este sistema necesitas tener instalado:
 
@@ -28,9 +28,9 @@ Para ejecutar este sistema necesitas tener instalado:
 *   **npm**: Gestor de paquetes de Node (normalmente viene con Node.js).
 *   **Git**: Para clonar el repositorio.
 
-## 🚀 Instalación y Puesta en Marcha
+## Instalación y Puesta en Marcha
 
-Sigue estos pasos para instalar y ejecutar el proyecto desde cero:
+Sigue estos pasos para instalar y ejecutar el proyecto:
 
 ### 1. Instalación de Dependencias
 
@@ -70,14 +70,14 @@ npm start
 
 ---
 
-## ⚙️ Arquitectura y Funcionamiento
+## Arquitectura y Funcionamiento
 
 El sistema se divide en dos partes principales:
 
 ### Backend (Node.js + Express)
 *   **API REST**: Sirve los datos a la interfaz.
 *   **Gestión de Datos**: Descarga, procesa y almacena datos históricos en archivos JSON (`/backend/data`).
-*   **Motor de IA**: Entrena modelos de predicción basados en los datos históricos.
+*   **Motor de Predicción**: Entrena modelos basados en los datos históricos.
 
 ### Frontend (React + Tailwind CSS)
 *   **Interfaz Interactiva**: Permite al usuario configurar parámetros de su instalación.
@@ -85,9 +85,9 @@ El sistema se divide en dos partes principales:
 
 ---
 
-## 📊 Sistema de Datos y Extracción
+## Sistema de Datos y Extracción
 
-El sistema se alimenta de datos reales obtenidos de APIs públicas. Los datos se almacenan localmente en `backend/data` para evitar llamadas constantes a las APIs externas y permitir el funcionamiento offline de los modelos.
+El sistema se alimenta de datos reales obtenidos de APIs públicas. Los datos se almacenan localmente en `backend/data` para evitar llamadas constantes a las APIs externas y permitir el funcionamiento offline.
 
 ### Fuentes de Datos
 
@@ -109,11 +109,11 @@ El sistema se alimenta de datos reales obtenidos de APIs públicas. Los datos se
     *   **Script**: `backend/scripts/download-price-data.js`
     *   **Ubicación**: `backend/data/prices/`
 
-### 🔄 Cómo Actualizar o Volver a Sacar Datos
+### Actualización de Datos
 
 Si deseas actualizar los datos históricos o volver a descargarlos (por ejemplo, si añades nuevas ciudades), el sistema incluye scripts automatizados que puedes ejecutar desde la raíz del proyecto.
 
-1.  **Descargar TODO (Clima, Solar y Precios):**
+1.  **Descargar todo (Clima, Solar y Precios):**
     ```bash
     npm run download:all
     ```
@@ -125,7 +125,7 @@ Si deseas actualizar los datos históricos o volver a descargarlos (por ejemplo,
     npm run download:prices   # Solo precios de luz
     ```
 
-3.  **Entrenar Modelos de IA:**
+3.  **Entrenar Modelos:**
     Una vez descargados los datos, debes re-entrenar los modelos para que aprendan de la nueva información:
     ```bash
     npm run train:ai
@@ -139,7 +139,7 @@ Si deseas actualizar los datos históricos o volver a descargarlos (por ejemplo,
 
 ---
 
-## 🧠 Modelos de Inteligencia Artificial
+## Modelos de Predicción y Análisis
 
 El sistema utiliza algoritmos de regresión lineal múltiple para predecir la generación de energía basándose en las condiciones climáticas históricas.
 
@@ -149,17 +149,17 @@ El sistema utiliza algoritmos de regresión lineal múltiple para predecir la ge
     *   *Eólica*: Predice la producción en función de la velocidad del viento.
 *   **Persistencia**: Los modelos entrenados (coeficientes) se guardan en `backend/data/models/ai_models.json`.
 
-## 📂 Estructura de Carpetas Clave
+## Estructura de Carpetas
 
 ```
 Proyecto ROI/
 ├── backend/
 │   ├── config/             # Configuración de APIs y constantes
-│   ├── data/               # "Base de datos" en archivos JSON
+│   ├── data/               # Repositorio de datos en archivos JSON
 │   │   ├── weather/        # Histórico de clima
 │   │   ├── solar/          # Histórico solar
 │   │   ├── prices/         # Histórico de precios
-│   │   └── models/         # Modelos de IA entrenados
+│   │   └── models/         # Modelos entrenados
 │   ├── scripts/            # Scripts de descarga y entrenamiento (ETL)
 │   └── server.js           # Punto de entrada del servidor
 ├── frontend/

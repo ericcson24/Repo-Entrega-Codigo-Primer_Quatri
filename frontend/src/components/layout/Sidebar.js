@@ -37,20 +37,20 @@ const Sidebar = () => {
             {/* Navigation Links */}
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-2">
-                    Simulators
+                    Simuladores
                 </div>
-                <NavItem to="/solar" icon={Sun} label="Solar Energy" />
-                <NavItem to="/residential-solar" icon={Home} label="Solar at Home" />
-                <NavItem to="/wind" icon={Wind} label="Wind Energy" />
-                <NavItem to="/hydro" icon={Droplets} label="Hydroelectric" />
-                <NavItem to="/biomass" icon={Leaf} label="Biomass" />
+                <NavItem to="/solar" icon={Sun} label="Energía Solar (Gran Escala)" />
+                <NavItem to="/residential-solar" icon={Home} label="Autoconsumo Residencial" />
+                <NavItem to="/wind" icon={Wind} label="Energía Eólica" />
+                <NavItem to="/hydro" icon={Droplets} label="Hidroeléctrica" />
+                <NavItem to="/biomass" icon={Leaf} label="Biomasa" />
 
                 <div className="my-6 border-t border-gray-100 dark:border-gray-700"></div>
 
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-2">
                     Personal
                 </div>
-                <NavItem to="/history" icon={History} label="My Results" />
+                <NavItem to="/history" icon={History} label="Mis Resultados" />
             </nav>
 
             {/* User / Auth Section */}
@@ -67,7 +67,7 @@ const Sidebar = () => {
                             )}
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                    {currentUser.displayName || 'User'}
+                                    {currentUser.displayName || 'Usuario'}
                                 </p>
                                 <p className="text-xs text-gray-500 truncate">
                                     {currentUser.email}
@@ -79,7 +79,7 @@ const Sidebar = () => {
                             className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
                         >
                             <LogOut size={14} />
-                            <span>Sign Out</span>
+                            <span>Cerrar Sesión</span>
                         </button>
                     </div>
                 ) : (
@@ -88,7 +88,7 @@ const Sidebar = () => {
                         className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 dark:bg-blue-600 dark:hover:bg-blue-700 rounded-xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                     >
                         <LogIn size={18} />
-                        <span>Sign In with Google</span>
+                        <span>Iniciar con Google</span>
                     </button>
                 )}
             </div>

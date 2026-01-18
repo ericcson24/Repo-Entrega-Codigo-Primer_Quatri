@@ -1,0 +1,247 @@
+/* Custom Tooltip Styles for Recharts */
+.custom-tooltip {
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e5e7eb;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    min-width: 150px;
+}
+
+.dark .custom-tooltip {
+    background-color: rgba(31, 41, 55, 0.95);
+    border-color: #374151;
+    color: #f3f4f6;
+}
+
+.custom-tooltip-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    color: #111827;
+}
+
+.dark .custom-tooltip-label {
+    color: #f9fafb;
+}
+
+.custom-tooltip-item {
+    font-size: 0.875rem;
+    padding: 3px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.custom-tooltip-item span.value {
+    font-weight: 500;
+    font-family: monospace;
+}
+
+/* --- Refactored Tailwind Component Classes --- */
+
+.kpi-card {
+    @apply bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all hover:shadow-xl;
+}
+
+.dashboard-chart-container {
+    @apply bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700;
+}
+
+.dashboard-tab {
+    @apply pb-4 px-4 font-medium capitalize transition-colors relative text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300;
+}
+
+.dashboard-tab-active {
+    @apply text-blue-600 dark:text-blue-400;
+}
+
+.dashboard-tab-indicator {
+    @apply absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400;
+}
+
+.btn-dashboard-export {
+    @apply flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg shadow-blue-500/30 transition;
+}
+
+.btn-dashboard-secondary {
+    @apply flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition;
+}
+
+.dashboard-table-header {
+    @apply text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400;
+}
+
+.dashboard-table-row {
+    @apply bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600;
+}
+
+.tech-spec-card {
+    @apply p-3 bg-white dark:bg-gray-800 rounded shadow-sm;
+}
+
+/* Chart Series Colors - Classes text-color-* */
+.text-color-sales,
+.text-color-winter { color: #3b82f6; }
+
+.text-color-savings,
+.text-color-spring { color: #10b981; }
+
+.text-color-opex,
+.text-color-production { color: #ef4444; }
+
+.text-color-equity,
+.text-color-summer,
+.text-color-gen { color: #f59e0b; }
+
+.text-color-autumn { color: #8b5cf6; }
+
+.text-color-power { color: #8884d8; }
+
+/* KPI Card Component */
+.kpi-header {
+    @apply flex justify-between items-start mb-4;
+}
+
+.kpi-icon-box {
+    @apply p-3 rounded-lg bg-opacity-10 dark:bg-opacity-20;
+}
+
+.kpi-icon {
+    @apply w-6 h-6;
+}
+
+/* KPI Color Variants */
+.kpi-green .kpi-icon-box { @apply bg-green-500; }
+.kpi-green .kpi-icon { @apply text-green-500; }
+
+.kpi-emerald .kpi-icon-box { @apply bg-emerald-600; }
+.kpi-emerald .kpi-icon { @apply text-emerald-600; }
+
+.kpi-blue .kpi-icon-box { @apply bg-blue-500; }
+.kpi-blue .kpi-icon { @apply text-blue-500; }
+
+.kpi-purple .kpi-icon-box { @apply bg-purple-500; }
+.kpi-purple .kpi-icon { @apply text-purple-500; }
+
+.kpi-orange .kpi-icon-box { @apply bg-orange-500; }
+.kpi-orange .kpi-icon { @apply text-orange-500; }
+
+/* KPI Trend Badges */
+.kpi-trend-badge {
+    @apply text-sm font-medium px-2 py-1 rounded;
+}
+
+.kpi-trend-positive {
+    @apply bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400;
+}
+
+.kpi-trend-negative {
+    @apply bg-red-100 text-red-700;
+}
+
+/* KPI Text Elements */
+.kpi-title {
+    @apply text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wider;
+}
+
+.kpi-value-row {
+    @apply mt-2 flex items-baseline;
+}
+
+.kpi-value-text {
+    @apply text-3xl font-bold text-gray-900 dark:text-white;
+}
+
+.kpi-unit-text {
+    @apply ml-2 text-gray-500 dark:text-gray-400 font-medium;
+}
+
+.kpi-desc-text {
+    @apply mt-2 text-sm text-gray-400;
+}
+
+/* Dashboard Layout */
+.dashboard-container {
+    @apply space-y-8 pb-20;
+}
+
+.executive-summary-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6;
+}
+
+.tabs-header {
+    @apply flex space-x-4 border-b border-gray-200 dark:border-gray-700;
+}
+
+.dashboard-tab {
+    @apply px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition-colors;
+}
+
+.dashboard-tab-active {
+    @apply border-blue-500 text-blue-600;
+}
+
+.charts-section {
+    @apply space-y-6;
+}
+
+.charts-grid-2 {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+}
+
+.chart-title {
+    @apply text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2;
+}
+
+.toolbar-container {
+    @apply flex justify-end gap-2 mb-4;
+}
+
+.btn-toolbar {
+    @apply flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm;
+}
+
+
+/* Utility classes removed to avoid circular dependency */
+
+
+/* Export Buttons */
+.btn-dashboard-export {
+    @apply flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm;
+}
+
+.btn-dashboard-secondary {
+    @apply flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors shadow-sm;
+}
+
+/* Charts Inside Dashboard */
+.chart-section-container {
+    @apply space-y-10;
+}
+
+.chart-block {
+    @apply h-96;
+}
+
+.chart-heading {
+    @apply text-lg font-bold text-gray-800 dark:text-white mb-6;
+}
+
+/* Toolbar (Utility) */
+.toolbar-row {
+    @apply flex justify-end space-x-2 mt-4;
+}
+
+@media print {
+    .toolbar-row {
+        display: none;
+    }
+}
+
+
+.chart-container-expanded {
+    height: 500px;
+}
+

@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      console.error("Login Error:", error);
+      console.error("Error Login:", error);
     }
   };
 
@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error("Logout Error:", error);
+      console.error("Error Logout:", error);
     }
   };
 

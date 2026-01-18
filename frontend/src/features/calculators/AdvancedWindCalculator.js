@@ -4,6 +4,7 @@ import { FormField, Input, Select, Switch } from '../../components/common/FormCo
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './AdvancedWindCalculator.css';
 
 const SPANISH_CITIES = [
     { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
@@ -50,7 +51,7 @@ const AdvancedWindCalculator = () => {
             initial_electricity_price: 50.0,
             discount_rate: 5.0,
             project_lifetime: 20,
-            debt_ratio: 70, // Default 70%
+            debt_ratio: 70, // Por defecto 70%
             interest_rate: 4.5,
             loan_term: 15
         }
@@ -94,13 +95,13 @@ const AdvancedWindCalculator = () => {
                 user_email: currentUser?.email,
                 parameters: {
                     ...formData.parameters,
-                    // Flatten or Map parameters here if needed
+                    // Aplanar o mapear parámetros si es necesario
                 }
             };
             const data = await apiService.simulate(payload);
             setResults(data);
         } catch (error) {
-            alert("Simulation failed. Check console details.");
+            alert("Simulación fallida. Revisa los detalles en consola.");
         } finally {
             setLoading(false);
         }
@@ -113,14 +114,14 @@ const AdvancedWindCalculator = () => {
 
     if (results) {
         return (
-            <div className="space-y-6 animate-fade-in">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <div className="wind-results-container">
+                <div className="wind-header">
+                    <h2 className="wind-title">
                         <Wind className="text-blue-500" /> Resultados Eólicos
                     </h2>
                     <button 
                         onClick={resetForm}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        className="btn-new-simulation"
                     >
                         <RotateCcw size={16} /> Nueva Simulación
                     </button>
@@ -131,12 +132,12 @@ const AdvancedWindCalculator = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between items-start mb-8">
+        <div className="calculator-container">
+            <div className="calculator-card">
+                <div className="card-header">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Configuración Parque Eólico</h2>
-                        <p className="text-gray-500 dark:text-gray-400">Configura los parámetros de tus aerogeneradores.</p>
+                        <h2 className="card-title">Configuración Parque Eólico</h2>
+                        <p className="card-description">Configura los parámetros de tus aerogeneradores.</p>
                     </div>
                     <Switch 
                         label="Modo Avanzado" 
@@ -145,11 +146,11 @@ const AdvancedWindCalculator = () => {
                     />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="form-grid">
                     
                     {/* Basic Parameters */}
-                    <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Datos Básicos</h3>
+                    <div className="section-container">
+                        <h3 className="section-title">Datos Básicos</h3>
                         
                         <FormField label="Capacidad Total (kW)" tooltip="Potencia pico total instalada">
                             <Input 
@@ -194,10 +195,10 @@ const AdvancedWindCalculator = () => {
                     </div>
 
                     {/* Technical Parameters */}
-                    <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Especificaciones Técnicas</h3>
+                    <div className="section-container">
+                        <h3 className="section-title">Especificaciones Técnicas</h3>
                         
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="dual-field-grid">
                             <FormField label="Altura Buje (m)">
                                 <Input 
                                     type="number" 
@@ -216,7 +217,7 @@ const AdvancedWindCalculator = () => {
                         
                         {advancedMode && (
                         <>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="dual-field-grid">
                                 <FormField label="Vel. Arranque (m/s)">
                                     <Input 
                                         type="number" step="0.1"
@@ -233,7 +234,7 @@ const AdvancedWindCalculator = () => {
                                 </FormField>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="dual-field-grid">
                                 <FormField label="Exp. Hellman (α)" tooltip="Rugosidad. 0.10:Mar, 0.14:Tierra, 0.20:Urbano">
                                     <Input 
                                         type="number" step="0.01"
@@ -250,7 +251,7 @@ const AdvancedWindCalculator = () => {
                                 </FormField>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="dual-field-grid">
                                 <FormField label="Weibull Forma (k)">
                                     <Input 
                                         type="number" step="0.1"
@@ -284,11 +285,11 @@ const AdvancedWindCalculator = () => {
 
                     {/* Financial Parameters (Advanced Only) */}
                     {advancedMode && (
-                        <div className="md:col-span-2 space-y-6 pt-4">
-                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700 flex items-center gap-2">
+                        <div className="financial-section-container">
+                            <h3 className="section-title-icon">
                                 <Settings size={18} /> Asunciones Financieras
                             </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="financial-grid">
                                 <FormField label="Precio Energía (€/MWh)">
                                     <Input 
                                         type="number" 
@@ -321,16 +322,16 @@ const AdvancedWindCalculator = () => {
                             </div>
                             
                             {(formData.financial_params.debt_ratio || 0) > 0 && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                <div className="debt-section">
                                     <FormField label="Ratio Deuda (%)">
-                                        <div className="flex items-center gap-2">
+                                        <div className="range-slider-container">
                                             <input 
                                                 type="range" min="0" max="100" 
                                                 value={formData.financial_params.debt_ratio} 
                                                 onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                                className="range-slider"
                                             />
-                                            <span className="w-12 text-sm font-mono">{formData.financial_params.debt_ratio}%</span>
+                                            <span className="range-value">{formData.financial_params.debt_ratio}%</span>
                                         </div>
                                     </FormField>
                                     <FormField label="Tasa Interés (%)">
@@ -353,8 +354,8 @@ const AdvancedWindCalculator = () => {
                     )}
                 </div>
 
-                <div className="mt-8 flex justify-end">
-                    <button onClick={handleSimulate} disabled={loading} className="btn-primary">
+                <div className="submit-container">
+                    <button onClick={handleSimulate} disabled={loading} className="btn-primary-wind">
                         {loading ? 'Procesando...' : 'Ejecutar Simulación'}
                     </button>
                 </div>

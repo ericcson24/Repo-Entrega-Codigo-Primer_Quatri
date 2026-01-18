@@ -4,6 +4,7 @@ import { FormField, Input, Select, Switch } from '../../components/common/FormCo
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './HydroCalculator.css';
 
 const SPANISH_CITIES = [
     { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
@@ -88,7 +89,7 @@ const HydroCalculator = () => {
     const handleSimulate = async () => {
         setLoading(true);
         try {
-            // Prepare payload - force debt_ratio to 0 if debt logic is disabled
+            // Preparar payload - forzar ratio de deuda a 0 si la lógica de deuda está desactivada
             const payload = {
                 ...formData,
                 financial_params: {
@@ -102,7 +103,7 @@ const HydroCalculator = () => {
             setResults(data);
         } catch (error) {
             console.error(error);
-            alert("Simulation failed.");
+            alert("Simulación fallida.");
         } finally {
             setLoading(false);
         }
@@ -115,14 +116,14 @@ const HydroCalculator = () => {
 
     if (results) {
         return (
-            <div className="space-y-6 animate-fade-in">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                        <Droplets className="text-cyan-500" /> Resultados Hidráulica
+            <div className="hydro-results-container">
+                <div className="hydro-header">
+                    <h2 className="hydro-title">
+                        <Droplets className="icon-title-hydro" /> Resultados Hidráulica
                     </h2>
                     <button 
                         onClick={resetForm}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        className="btn-new-simulation-hydro"
                     >
                         <RotateCcw size={16} /> Nueva Simulación
                     </button>
@@ -133,12 +134,12 @@ const HydroCalculator = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between items-start mb-8">
+        <div className="calculator-app-container">
+            <div className="calculator-main-card">
+                <div className="card-top-header">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Configuración Central Hidroeléctrica</h2>
-                        <p className="text-gray-500 dark:text-gray-400">Simulación de minihidráulica y fluyente.</p>
+                        <h2 className="card-main-title">Configuración Central Hidroeléctrica</h2>
+                        <p className="card-subtitle">Simulación de minihidráulica y fluyente.</p>
                     </div>
                     <Switch 
                         label="Modo Avanzado" 
@@ -147,9 +148,9 @@ const HydroCalculator = () => {
                     />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <div className="space-y-6">
-                        <h3 className="section-title">Datos Básicos</h3>
+                <div className="main-input-grid">
+                    <div className="input-column">
+                        <h3 className="hydro-section-title">Datos Básicos</h3>
                         <FormField label="Capacidad (kW)"><Input type="number" value={formData.capacity_kw} onChange={(e) => handleInputChange('capacity_kw', parseFloat(e.target.value))} /></FormField>
                         <FormField label="Presupuesto (€)"><Input type="number" value={formData.budget} onChange={(e) => handleInputChange('budget', parseFloat(e.target.value))} /></FormField>
                         
@@ -167,20 +168,20 @@ const HydroCalculator = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-6">
-                         <h3 className="section-title">Hidrología e Hidráulica</h3>
-                         <div className="grid grid-cols-2 gap-4">
+                    <div className="input-column">
+                         <h3 className="hydro-section-title">Hidrología e Hidráulica</h3>
+                         <div className="dual-input-row">
                             <FormField label="Caudal Diseño (m³/s)" tooltip="Q de diseño"><Input type="number" step="0.1" value={formData.parameters.flow_rate_design} onChange={(e) => handleParamChange('flow_rate_design', e.target.value)} /></FormField>
                             <FormField label="Salto Bruto (m)" tooltip="Desnivel vertical"><Input type="number" step="0.1" value={formData.parameters.gross_head} onChange={(e) => handleParamChange('gross_head', e.target.value)} /></FormField>
                          </div>
                          
                          {advancedMode && (
                              <>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="dual-input-row">
                                     <FormField label="Caudal Eco (m³/s)" tooltip="Caudal ecológico reservado"><Input type="number" step="0.1" value={formData.parameters.ecological_flow} onChange={(e) => handleParamChange('ecological_flow', e.target.value)} /></FormField>
                                     <FormField label="Eficiencia Turbina (0-1)"><Input type="number" step="0.01" max="1" value={formData.parameters.turbine_efficiency} onChange={(e) => handleParamChange('turbine_efficiency', e.target.value)} /></FormField>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="dual-input-row">
                                     <FormField label="Long. Tubería (m)"><Input type="number" step="1" value={formData.parameters.penstock_length} onChange={(e) => handleParamChange('penstock_length', e.target.value)} /></FormField>
                                     <FormField label="Diám. Tubería (m)"><Input type="number" step="0.1" value={formData.parameters.penstock_diameter} onChange={(e) => handleParamChange('penstock_diameter', e.target.value)} /></FormField>
                                 </div>
@@ -190,12 +191,12 @@ const HydroCalculator = () => {
 
                     {/* Financial Parameters (Advanced Only) */}
                     {advancedMode && (
-                        <div className="md:col-span-2 space-y-6 pt-4">
-                            <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2">
-                                <h3 className="section-title mb-0 flex items-center gap-2"><Settings size={18} /> Parámetros Financieros</h3>
+                        <div className="financial-section-wrapper">
+                            <div className="financial-header">
+                                <h3 className="financial-title-wrapper"><Settings size={18} /> Parámetros Financieros</h3>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="financial-inputs-grid">
                                 <FormField label="Precio Energía (€/MWh)">
                                     <Input 
                                         type="number" 
@@ -227,16 +228,16 @@ const HydroCalculator = () => {
                             </div>
                                 
                             {formData.financial_params.use_debt && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                                <div className="debt-panel">
                                     <FormField label="Ratio Deuda (%)">
-                                        <div className="flex items-center gap-2">
+                                        <div className="debt-range-wrapper">
                                             <input 
                                                 type="range" min="0" max="100" 
                                                 value={formData.financial_params.debt_ratio} 
                                                 onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                                className="range-slider-input"
                                             />
-                                            <span className="w-12 text-sm font-mono">{formData.financial_params.debt_ratio}%</span>
+                                            <span className="range-label-mono">{formData.financial_params.debt_ratio}%</span>
                                         </div>
                                     </FormField>
                                     <FormField label="Tasa Interés (%)">
@@ -259,8 +260,8 @@ const HydroCalculator = () => {
                     )}
                 </div>
 
-                 <div className="mt-8 flex justify-end">
-                    <button onClick={handleSimulate} disabled={loading} className="btn-primary">
+                 <div className="action-bar">
+                    <button onClick={handleSimulate} disabled={loading} className="btn-primary-hydro">
                         {loading ? 'Procesando...' : 'Ejecutar Simulación'}
                     </button>
                 </div>

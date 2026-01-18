@@ -74,40 +74,40 @@ const testScenarios = [
 ];
 
 async function runTests() {
-    console.log("🚀 Starting End-to-End Integration Tests...");
-    console.log(`Target: ${API_URL}`);
+    console.log("Iniciando Pruebas de Integración End-to-End...");
+    console.log(`Objetivo: ${API_URL}`);
     console.log("------------------------------------------------");
 
     for (const test of testScenarios) {
-        console.log(`\nTesting: ${test.name}`);
+        console.log(`\nProbando: ${test.name}`);
         try {
             const start = Date.now();
             const response = await axios.post(API_URL, test.payload);
             const duration = Date.now() - start;
 
             if (response.status === 200 && response.data.financials) {
-                console.log(`✅ SUCCESS (${duration}ms)`);
-                console.log(`   NPV: €${response.data.financials.npv_eur.toLocaleString()}`);
-                console.log(`   IRR: ${response.data.financials.irr_percent.toFixed(2)}%`);
+                console.log(`EXITO (${duration}ms)`);
+                console.log(`   VAN: €${response.data.financials.npv_eur.toLocaleString()}`);
+                console.log(`   TIR: ${response.data.financials.irr_percent.toFixed(2)}%`);
                 // Check if meta reflects the call
                 // console.log(`   Meta:`, response.data.meta);
             } else {
-                console.log(`⚠️  RECEIVED STATUS ${response.status} but invalid data format`);
+                console.log(`ADVERTENCIA ESTADO RECIBIDO ${response.status} pero formato de datos inválido`);
             }
         } catch (error) {
-            console.error(`❌ FAILED`);
+            console.error(`FALLO`);
             if (error.code === 'ECONNREFUSED') {
-                console.error("   Connection refused. Is the Backend Server (Port 4000) running?");
+                console.error("   Conexión rechazada. ¿Está el Servidor Backend (Puerto 4000) en ejecución?");
             } else if (error.response) {
-                console.error(`   Status: ${error.response.status}`);
-                console.error(`   Data:`, error.response.data);
+                console.error(`   Estado: ${error.response.status}`);
+                console.error(`   Datos:`, error.response.data);
             } else {
                 console.error(`   Error:`, error.message);
             }
         }
     }
     console.log("\n------------------------------------------------");
-    console.log("🏁 Tests Completed.");
+    console.log("Pruebas Completadas.");
 }
 
 runTests();

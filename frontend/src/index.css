@@ -42,3 +42,11 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Icons */
+.icon-yellow { @apply text-yellow-500; }
+.icon-green { @apply text-green-500; }
+.icon-cyan { @apply text-cyan-500; }
+.icon-blue { @apply text-blue-500; }
+.text-hidden { @apply hidden; }
+

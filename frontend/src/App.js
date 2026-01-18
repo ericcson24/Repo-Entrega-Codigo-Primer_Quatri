@@ -19,7 +19,7 @@ const MainLayout = ({ children }) => {
             <Sidebar />
             
             <div className="flex-1 ml-64 flex flex-col min-h-screen">
-                {/* Header for Theme Toggle */}
+                {/* Cabecera para Cambio de Tema */}
                 <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 h-16 px-6 flex items-center justify-end">
                     <button
                         onClick={toggleTheme}

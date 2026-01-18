@@ -1,0 +1,100 @@
+/* SolarCalculator.css */
+
+.solar-results-container {
+    @apply space-y-6;
+}
+
+.solar-header {
+    @apply flex justify-between items-center mb-6;
+}
+
+.solar-title {
+    @apply text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2;
+}
+
+.btn-new-simulation-solar {
+    @apply flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors;
+}
+
+.calculator-wrapper {
+    @apply max-w-4xl mx-auto space-y-8;
+}
+
+.solar-card {
+    @apply bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700;
+}
+
+.card-head-wrapper {
+    @apply flex justify-between items-start mb-8;
+}
+
+.solar-main-title {
+    @apply text-2xl font-bold text-gray-900 dark:text-white mb-2;
+}
+
+.solar-subtitle {
+    @apply text-gray-500 dark:text-gray-400;
+}
+
+.solar-grid-layout {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6;
+}
+
+.solar-col {
+    @apply space-y-6;
+}
+
+.solar-section-title {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700;
+}
+
+.grid-2-col {
+    @apply grid grid-cols-2 gap-4;
+}
+
+.financial-area {
+    @apply md:col-span-2 space-y-6 pt-4;
+}
+
+.financial-title {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700 flex items-center gap-2;
+}
+
+.financial-grid-4 {
+    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+}
+
+.debt-container {
+    @apply space-y-4 pt-2;
+}
+
+.debt-details-box {
+    @apply pl-4 border-l-2 border-blue-500 space-y-4;
+}
+
+.business-model-layout {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-gray-100 dark:border-gray-700;
+}
+
+.business-model-column {
+    @apply space-y-4;
+}
+
+.business-model-header {
+    @apply text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider;
+}
+
+.submit-wrapper {
+    @apply mt-8 flex justify-end;
+}
+
+.btn-submit-solar {
+    @apply flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.spinner {
+    @apply w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin;
+}
+
+.icon-title-solar { @apply text-yellow-500; }
+

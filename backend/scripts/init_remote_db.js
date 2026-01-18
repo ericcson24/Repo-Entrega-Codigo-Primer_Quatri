@@ -1,9 +1,16 @@
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
-// Connection string from DOCS_DEPLOY.md
-const connectionString = 'postgresql://neondb_owner:npg_rS6EFRuv3Mmt@ep-frosty-smoke-ahu1b8ye-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require';
+// Se obtienen las credenciales de las variables de entorno
+// Ejemplo: DB_CONNECTION_STRING='postgresql://usuario:password@host/db?sslmode=require'
+const connectionString = process.env.DB_CONNECTION_STRING;
+
+if (!connectionString) {
+  console.error("Error: La variable de entorno DB_CONNECTION_STRING no está definida.");
+  process.exit(1);
+}
 
 const pool = new Pool({
   connectionString,
@@ -13,42 +20,28 @@ const pool = new Pool({
 });
 
 async function runMigration() {
-  console.log('🔌 Connecting to Neon Database...');
+  console.log('Iniciando conexión a la Base de Datos...');
   
   const client = await pool.connect();
   
   try {
     const sqlPath = path.join(__dirname, '../../database/init/01_init.sql');
-    console.log(`📂 Reading SQL file from: ${sqlPath}`);
+    console.log(`Leyendo script SQL desde: ${sqlPath}`);
     
     let sql = fs.readFileSync(sqlPath, 'utf8');
     
-    // Neon Free Tier might not support TimescaleDB easily or requires dashboard activation.
-    // We will try to run the script. 
-    // If it fails on CREATE EXTENSION, we might need a fallback, but let's try standard first.
+    console.log('Ejecutando script de inicialización...');
     
-    console.log('🚀 Executing SQL script...');
+    // Ejecución de la consulta
     await client.query(sql);
     
-    console.log('✅ Upgrade Successful! Tables created.');
+    console.log('Migración completada exitosamente.');
     
-    // Check if tables exist
-    const res = await client.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-    `);
-    
-    console.log('📊 Current Tables:', res.rows.map(r => r.table_name));
-
   } catch (err) {
-    console.error('❌ Error executing script:', err.message);
-    if (err.message.includes('timescaledb')) {
-        console.log('⚠️  Note: TimescaleDB extension issues are common on free tiers. The standard tables might still have been created.');
-    }
+    console.error('Error durante la migración:', err);
   } finally {
     client.release();
-    pool.end();
+    await pool.end();
   }
 }
 

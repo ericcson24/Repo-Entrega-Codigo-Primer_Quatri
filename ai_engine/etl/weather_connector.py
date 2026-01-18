@@ -7,27 +7,27 @@ from config.database import db
 
 class WeatherConnector:
     def __init__(self):
-        # Setup the Open-Meteo API client with cache and retry on error
+        # Configurar cliente API de Open-Meteo con caché y reintentos
         cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
         retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
         self.openmeteo = openmeteo_requests.Client(session=retry_session)
         self.url = settings.OPENMETEO_URL
 
     def fetch_historical_weather(self, lat, lon, start_date, end_date, tilt=None, azimuth=None):
-        # 0. Check Database Cache
-        # CRITICAL: If 'tilt' is provided (Solar Expert), we need 'global_tilted_irradiance' (POA).
-        # The current DB schema only stores 'radiation' (GHI).
-        # Using GHI for tilted panels underestimates winter production and flattens geographic differences.
-        # Therefore, we SKIP reading from cache if tilt is used, to ensure we fetch POA from OpenMeteo.
-        # We still SAVE the GHI part to DB for other uses.
+        # 0. Verificar Caché en Base de Datos
+        # CRÍTICO: Si se incluye 'tilt' (Experto Solar), necesitamos 'global_tilted_irradiance' (POA).
+        # El esquema actual de BD solo almacena 'radiation' (GHI).
+        # Usar GHI para paneles inclinados subestima la producción invernal y aplana diferencias geográficas.
+        # Por tanto, SALTAMOS la lectura de caché si se usa tilt, asegurando que pedimos POA a OpenMeteo.
+        # Aún guardamos la parte GHI en BD para otros usos futuros.
         
         year = int(start_date.split("-")[0]) 
         lat_rounded = round(lat, 4)
         lon_rounded = round(lon, 4)
         
-        # Only load from DB if we don't need expert solar data (tilt=None)
+        # Solo cargar de BD si no necesitamos datos expertos solares (tilt=None)
         if tilt is None and db.check_weather_exists(lat_rounded, lon_rounded, year):
-             print(f"Cache Hit: Loading weather from DB for {lat_rounded}, {lon_rounded}")
+             print(f"Acierto en Caché: Cargando clima desde BD para {lat_rounded}, {lon_rounded}")
              return db.load_weather_data(lat_rounded, lon_rounded, year)
 
         params = {
@@ -38,15 +38,15 @@ class WeatherConnector:
             "hourly": ["temperature_2m", "precipitation", "wind_speed_10m", "wind_speed_100m", "shortwave_radiation", "direct_normal_irradiance", "diffuse_radiation", "surface_pressure"]
         }
         
-        # Add POA params if available for advanced solar
+        # Añadir parámetros POA si están disponibles para solar avanzado
         if tilt is not None and azimuth is not None:
              params["tilt"] = tilt
              
-             # Conversion: System uses 180=South (Standard), OpenMeteo uses 0=South
-             # Formula: openmeteo_az = azimuth - 180
+             # Conversión: El sistema usa 180=Sur (Estándar), OpenMeteo usa 0=Sur
+             # Fórmula: openmeteo_az = azimuth - 180
              openmeteo_az = azimuth - 180
              
-             # Normalize to -180 to 180 range
+             # Normalizar al rango -180 a 180
              if openmeteo_az < -180: openmeteo_az += 360
              if openmeteo_az > 180: openmeteo_az -= 360
              

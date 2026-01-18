@@ -4,6 +4,7 @@ import { FormField, Input, Select, Switch } from '../../components/common/FormCo
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './SolarCalculator.css';
 
 const SPANISH_CITIES = [
     { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
@@ -99,26 +100,26 @@ const SolarCalculator = () => {
     const handleSimulate = async () => {
         setLoading(true);
         try {
-            // Prepare payload for Backend/Python (Percentages to Decimals, key mapping)
+            // Preparar carga útil para Backend/Python (Porcentajes a Decimales, mapeo de claves)
             const payload = {
                 ...formData,
-                user_email: currentUser?.email, // Add user email for history
+                user_email: currentUser?.email, // Añadir email para historial
                 parameters: {
                     ...formData.parameters,
-                    // If keys in state are still legacy, map them here. 
-                    // But we will rename state keys to match Python for simplicity where possible.
-                    // Unit Conversions:
+                    // Si las claves en estado son antiguas, mapearlas aquí. 
+                    // Renombraremos claves de estado para coincidir con Python por simplicidad.
+                    // Conversiones de Unidades:
                     inverter_efficiency: formData.parameters.inverter_efficiency / 100.0,
                     system_loss: formData.parameters.system_loss / 100.0,
                     degradation_rate_annual: (formData.parameters.degradation_rate || 0.5) / 100.0,
                     
-                    // Allow legacy keys if they exist in state, but prefer correct keys
+                    // Permitir claves antiguas si existen, pero preferir las correctas
                     tilt: formData.parameters.tilt || formData.parameters.tilt_angle,
                     azimuth: formData.parameters.azimuth || formData.parameters.azimuth_angle
                 },
                 financial_params: {
                    ...formData.financial_params,
-                   debtRatio: (formData.financial_params.debt_ratio || 0) / 100.0, // Backend expects decimal 0.0 - 1.0, key 'debtRatio'
+                   debtRatio: (formData.financial_params.debt_ratio || 0) / 100.0, // Backend espera decimal 0.0 - 1.0
                    interestRate: (formData.financial_params.interest_rate || 4.5) / 100.0,
                    loanTerm: parseInt(formData.financial_params.loan_term || 15)
                 }
@@ -127,8 +128,8 @@ const SolarCalculator = () => {
             const data = await apiService.simulate(payload);
             setResults(data);
         } catch (error) {
-            console.error("Simulation failed:", error);
-            alert("Simulation failed. Check console details.");
+            console.error("Fallo en simulación:", error);
+            alert("La simulación falló. Revisa la consola para más detalles.");
         } finally {
             setLoading(false);
         }
@@ -141,14 +142,14 @@ const SolarCalculator = () => {
 
     if (results) {
         return (
-            <div className="space-y-6 animate-fade-in">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                        <Sun className="text-yellow-500" /> Resultados de Simulación
+            <div className="solar-results-container">
+                <div className="solar-header">
+                    <h2 className="solar-title">
+                        <Sun className="icon-title-solar" /> Resultados de Simulación
                     </h2>
                     <button 
                         onClick={resetForm}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                        className="btn-new-simulation-solar"
                     >
                         <RotateCcw size={16} /> Nueva Simulación
                     </button>
@@ -163,12 +164,12 @@ const SolarCalculator = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
-                <div className="flex justify-between items-start mb-8">
+        <div className="calculator-wrapper">
+             <div className="solar-card">
+                <div className="card-head-wrapper">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Configuración Solar FV</h2>
-                        <p className="text-gray-500 dark:text-gray-400">Configura los parámetros de tu sistema fotovoltaico.</p>
+                        <h2 className="solar-main-title">Configuración Solar FV</h2>
+                        <p className="solar-subtitle">Configura los parámetros de tu sistema fotovoltaico.</p>
                     </div>
                     <Switch 
                         label="Modo Avanzado" 
@@ -177,12 +178,11 @@ const SolarCalculator = () => {
                     />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="solar-grid-layout">
                     
                     {/* Basic Parameters */}
-                    <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Datos Básicos</h3>
-                        
+                    <div className="solar-col">
+                        <h3 className="solar-section-title">Datos Básicos</h3>
                         <FormField label="Capacidad del Sistema (kW)" tooltip="Potencia pico total instalada">
                             <Input 
                                 type="number" 
@@ -227,8 +227,8 @@ const SolarCalculator = () => {
                     </div>
 
                     {/* Technical Parameters */}
-                    <div className="space-y-6">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700">Ajustes Técnicos</h3>
+                    <div className="solar-col">
+                        <h3 className="solar-section-title">Ajustes Técnicos</h3>
                         
                         <FormField label="Tecnología de Paneles">
                             <Select 
@@ -244,7 +244,7 @@ const SolarCalculator = () => {
                         
                         {advancedMode && (
                             <>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid-2-col">
                                     <FormField label="Inclinación (º)">
                                         <Input 
                                             type="number" 
@@ -261,10 +261,10 @@ const SolarCalculator = () => {
                                     </FormField>
                                 </div>
                                 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid-2-col">
                                     <FormField label="Pérdidas Sistema (%)">
                                         <Input 
-                                            type="number" step="0.1"
+                                            type="number" step="0.1" 
                                             value={formData.parameters.system_loss} 
                                             onChange={(e) => handleParamChange('system_loss', parseFloat(e.target.value))}
                                         />
@@ -292,11 +292,11 @@ const SolarCalculator = () => {
 
                     {/* Financial Parameters (Advanced Only) */}
                     {advancedMode && (
-                        <div className="md:col-span-2 space-y-6 pt-4">
-                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700 flex items-center gap-2">
+                        <div className="financial-area">
+                            <h3 className="financial-title">
                                 <Settings size={18} /> Asunciones Financieras
                             </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="financial-grid-4">
                                 <FormField label="Vida Útil (Años)">
                                     <Input 
                                         type="number" 
@@ -312,7 +312,7 @@ const SolarCalculator = () => {
                                     />
                                 </FormField>
 
-                                <div className="space-y-4 pt-2">
+                                <div className="debt-container">
                                     <Switch 
                                         label="Financiación Externa (Deuda)" 
                                         checked={(formData.financial_params.debt_ratio || 0) > 0} 
@@ -320,7 +320,7 @@ const SolarCalculator = () => {
                                     />
                                     
                                     {(formData.financial_params.debt_ratio || 0) > 0 && (
-                                        <div className="pl-4 border-l-2 border-blue-500 space-y-4">
+                                        <div className="debt-details-box">
                                             <FormField label="Ratio Deuda (%)" tooltip="Porcentaje financiado con banco">
                                                 <Input 
                                                     type="number" step="1" max="100" min="1" 
@@ -348,10 +348,10 @@ const SolarCalculator = () => {
                             </div>
                             
                              {/* Advanced Business Model & OPEX */}
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                             <div className="business-model-layout">
                                 {/* Autoconsumo */}
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">Modelo de Ingresos</h4>
+                                <div className="business-model-column">
+                                    <h4 className="business-model-header">Modelo de Ingresos</h4>
                                     <FormField label="% Autoconsumo" tooltip="Porcentaje de energía consumida in-situ (vs vendida a red)">
                                         <Input 
                                             type="number" min="0" max="100"
@@ -359,7 +359,7 @@ const SolarCalculator = () => {
                                             onChange={(e) => handleFinancialChange('self_consumption_ratio', parseFloat(e.target.value) / 100)}
                                         />
                                     </FormField>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid-2-col">
                                         <FormField label="Precio Ahorrado (€/kWh)" tooltip="Coste evitado de compra a red">
                                             <Input 
                                                 type="number" step="0.001"
@@ -378,9 +378,9 @@ const SolarCalculator = () => {
                                 </div>
 
                                 {/* OPEX & Taxes */}
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">Gastos y Fiscalidad</h4>
-                                    <div className="grid grid-cols-2 gap-4">
+                                <div className="business-model-column">
+                                    <h4 className="business-model-header">Gastos y Fiscalidad</h4>
+                                    <div className="grid-2-col">
                                         <FormField label="Impuesto Sociedades (%)">
                                             <Input 
                                                 type="number" 
@@ -396,7 +396,7 @@ const SolarCalculator = () => {
                                             />
                                         </FormField>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid-2-col">
                                         <FormField label="Subvenciones (€)" tooltip="Ayudas directas a la inversión (NextGen, etc)">
                                             <Input 
                                                 type="number" 
@@ -418,15 +418,15 @@ const SolarCalculator = () => {
                     )}
                 </div>
 
-                <div className="mt-8 flex justify-end">
+                <div className="submit-wrapper">
                     <button
                         onClick={handleSimulate}
                         disabled={loading}
-                        className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="btn-submit-solar"
                     >
                         {loading ? (
                             <>
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <div className="spinner" />
                                 <span>Simulando...</span>
                             </>
                         ) : (

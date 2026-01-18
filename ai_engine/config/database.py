@@ -6,15 +6,15 @@ from datetime import datetime
 
 Base = declarative_base()
 
-# Define Weather Table Model (Matching init.sql roughly but via ORM)
+# Definir Modelo de Tabla de Clima (Coincide con init.sql aproximadamente vía ORM)
 class WeatherData(Base):
     __tablename__ = 'weather_data'
     
-    # Composite PK logically, but SQLAlchemy likes a PK. 
-    # Hypertable in raw SQL handles it, but here we can just map.
-    # We won't use auto-id for hypertable ideal, but let's stick to simple mapping.
-    # Actually, for bulk inserts into Timescale, standard SQL/Pandas is faster than ORM objects.
-    # We will use this class primarily for checking existence or reading if needed.
+    # Clave primaria compuesta lógica, pero SQLAlchemy prefiere una PK explícita.
+    # Hypertable en SQL puro lo maneja, pero aquí mapeamos.
+    # No usamos auto-id para ideal hypertable, pero mantenemos mapeo simple.
+    # Nota: Para inserciones masivas en Timescale, SQL estándar/Pandas es más rápido que objetos ORM.
+    # Usaremos esta clase principalmente para verificaciones de existencia o lecturas puntuales.
     
     time = Column(DateTime, primary_key=True)
     latitude = Column(Float, primary_key=True)

@@ -1,24 +1,24 @@
 const axios = require('axios');
 const FinancialService = require('../services/financialService');
-const aiService = require('../services/aiService'); // Added import
+const aiService = require('../services/aiService');
 const { URLS } = require('../config/constants');
 const { pool } = require('../config/db');
 
 class SimulationController {
     
-    // NEW: Get Solar Potential
+    // Obtener Potencial Solar
     static async getSolarPotential(req, res) {
         try {
             const { lat, lon } = req.query;
             if (!lat || !lon) {
-                return res.status(400).json({ error: "Missing lat/lon parameters" });
+                return res.status(400).json({ error: "Faltan parámetros de latitud/longitud" });
             }
             
             const data = await aiService.getSolarPotential(parseFloat(lat), parseFloat(lon));
             res.json(data);
         } catch (error) {
             console.error(error);
-            res.status(500).json({ error: "Error fetching solar potential" });
+            res.status(500).json({ error: "Error al obtener el potencial solar" });
         }
     }
 
@@ -26,10 +26,10 @@ class SimulationController {
         try {
             const { user_email } = req.query;
             if (!user_email) {
-                return res.status(400).json({ error: "Email is required" });
+                return res.status(400).json({ error: "El correo electrónico es obligatorio" });
             }
 
-            // Fallback for memory-only mode if DB is down
+            // Alternativa en modo memoria si la BD falla
             try {
                 const result = await pool.query(
                     'SELECT id, project_type, input_params, results, created_at FROM simulations WHERE user_email = $1 ORDER BY created_at DESC LIMIT 50',
@@ -37,12 +37,12 @@ class SimulationController {
                 );
                 res.json(result.rows);
             } catch (dbErr) {
-                console.warn("Database error in getHistory:", dbErr.message);
-                res.json([]); // Return empty history gracefully
+                console.warn("Advertencia de base de datos en getHistory:", dbErr.message);
+                res.json([]); // Retornar historial vacío gracefully
             }
         } catch (error) {
-            console.error("Error fetching history:", error);
-            res.status(500).json({ error: "Internal Server Error" });
+            console.error("Error obteniendo historial:", error);
+            res.status(500).json({ error: "Error Interno del Servidor" });
         }
     }
 
@@ -56,7 +56,7 @@ class SimulationController {
                 budget, 
                 parameters,
                 financial_params, // { debtRatio, interestRate, loanTerm }
-                user_email // NEW: Optional for saving
+                user_email // Opcional para guardar
             } = req.body;
             const aiUrl = URLS.AI_ENGINE_BASE_URL;
 
@@ -65,35 +65,52 @@ class SimulationController {
                 return res.status(400).json({ error: "Faltan parámetros obligatorios" });
             }
 
-            // 1. Obtener Predicción de Generación del AI Engine
+            // 1. Obtener Predicción de Generación del Motor de Cálculo
             // Mapeamos el endpoint según tecnología
             const endpoint = `${aiUrl}/predict/${project_type}`;
             
             let genResponse;
-            // Structure payload strictly for Python Pydantic Model
+            // Estructurar carga útil estrictamente para el modelo Pydantic de Python
             const payload = {
                 project_type,
                 latitude, 
                 longitude, 
                 capacity_kw, 
-                parameters,      // Pass as dictionary
-                financial_params // Pass as dictionary
+                parameters,      // Pasar como diccionario
+                financial_params // Pasar como diccionario
             };
 
             try {
-                genResponse = await axios.post(endpoint, payload);
+                // Retry logic for AI Engine connection
+                const MAX_RETRIES = 5;
+                const RETRY_DELAY = 1000; // 1 second
+
+                for (let i = 0; i < MAX_RETRIES; i++) {
+                    try {
+                        genResponse = await axios.post(endpoint, payload);
+                        break; // Success, exit loop
+                    } catch (err) {
+                        const isConnRefused = err.code === 'ECONNREFUSED' || (err.response && err.response.status === 503);
+                        if (isConnRefused && i < MAX_RETRIES - 1) {
+                            console.warn(`Intento ${i + 1}/${MAX_RETRIES} fallido al conectar con AI Engine. Reintentando en ${RETRY_DELAY/1000}s...`);
+                            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                        } else {
+                            throw err; // Not actionable or max retries reached
+                        }
+                    }
+                }
             } catch (aiError) {
-                console.error("Error conectando con AI Engine:", aiError.message);
+                console.error("Error conectando con Motor de Estimación:", aiError.message);
                 
-                // Si el AI engine devuelve 404 (No data), comunicarlo al cliente limpiamente
+                // Si el motor devuelve 404 (Sin datos), comunicarlo al cliente limpiamente
                 if (aiError.response && aiError.response.status === 404) {
                     return res.status(404).json({ error: "No se encontraron datos meteorológicos para esta ubicación." });
                 }
                 
-                // NEW: Log validation errors from Python
+                // Log de errores de validación de Python
                 if (aiError.response && aiError.response.status === 422) {
-                     console.error("Validation Error from Python:", JSON.stringify(aiError.response.data, null, 2));
-                     console.error("Payload sent:", JSON.stringify(payload, null, 2));
+                     console.error("Error de Validación desde Python:", JSON.stringify(aiError.response.data, null, 2));
+                     console.error("Payload enviado:", JSON.stringify(payload, null, 2));
                 }
 
                 throw aiError;

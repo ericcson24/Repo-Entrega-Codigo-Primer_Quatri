@@ -6,29 +6,82 @@ import {
 } from 'recharts';
 import { Download, Share2, Printer, TrendingUp, DollarSign, Zap, Calendar, Activity, BatteryCharging, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import './ResultsDashboard.css';
 
-const KPICard = ({ title, value, unit, icon: Icon, trend, color, description }) => (
-  <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition-all hover:shadow-xl">
-    <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-lg ${color} bg-opacity-10 dark:bg-opacity-20`}>
-        <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
+/* Helper to map series names/keys to CSS classes */
+const getSeriesColorClass = (name) => {
+    const map = {
+        'Ventas a Red': 'text-color-sales',
+        'Ahorro por Autoconsumo': 'text-color-savings',
+        'Costes Operativos': 'text-color-opex',
+        'Flujo de Caja Acumulado (Equity)': 'text-color-equity',
+        'Producción Anual (kWh)': 'text-color-production',
+        'Generación (kWh)': 'text-color-gen',
+        'Invierno': 'text-color-winter',
+        'Primavera': 'text-color-spring',
+        'Verano': 'text-color-summer',
+        'Otoño': 'text-color-autumn',
+        'Potencia Output': 'text-color-power'
+    };
+    return map[name] || '';
+};
+
+/* Custom Tooltip Component replacing inline styles */
+const CustomTooltip = ({ active, payload, label, formatter, labelFormatter }) => {
+  if (active && payload && payload.length) {
+    const labelStr = labelFormatter ? labelFormatter(label) : label;
+    return (
+      <div className="custom-tooltip">
+        <p className="custom-tooltip-label">{labelStr}</p>
+        {payload.map((entry, index) => {
+             const val = formatter ? formatter(entry.value, entry.name, entry) : entry.value;
+             const colorClass = getSeriesColorClass(entry.name);
+             return (
+              <div key={index} className={`custom-tooltip-item ${colorClass}`}>
+                <span className="name">{entry.name}:</span>
+                <span className="value">{val}</span>
+              </div>
+             );
+        })}
+      </div>
+    );
+  }
+  return null;
+};
+
+const KPICard = ({ title, value, unit, icon: Icon, trend, color, description }) => {
+  // Map legacy color prop (bg-green-500) to semantic variant class
+  // Simple heuristic mapping or pass variant prop directly in future
+  const getVariant = (colorClass) => {
+      if(colorClass?.includes('green')) return 'kpi-green';
+      if(colorClass?.includes('emerald')) return 'kpi-emerald';
+      if(colorClass?.includes('blue')) return 'kpi-blue';
+      if(colorClass?.includes('purple')) return 'kpi-purple';
+      if(colorClass?.includes('orange')) return 'kpi-orange';
+      return '';
+  };
+  const variant = getVariant(color);
+
+  return (
+  <div className={`kpi-card ${variant}`}>
+    <div className="kpi-header">
+      <div className="kpi-icon-box">
+        <Icon className="kpi-icon" />
       </div>
       {trend && (
-        <span className={`text-sm font-medium px-2 py-1 rounded ${
-          trend > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700'
-        }`}>
+        <span className={`kpi-trend-badge ${trend > 0 ? 'kpi-trend-positive' : 'kpi-trend-negative'}`}>
           {trend > 0 ? '+' : ''}{trend}%
         </span>
       )}
     </div>
-    <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium uppercase tracking-wider">{title}</h3>
-    <div className="mt-2 flex items-baseline">
-      <span className="text-3xl font-bold text-gray-900 dark:text-white">{value}</span>
-      <span className="ml-2 text-gray-500 dark:text-gray-400 font-medium">{unit}</span>
+    <h3 className="kpi-title">{title}</h3>
+    <div className="kpi-value-row">
+      <span className="kpi-value-text">{value}</span>
+      <span className="kpi-unit-text">{unit}</span>
     </div>
-    {description && <p className="mt-2 text-sm text-gray-400">{description}</p>}
+    {description && <p className="kpi-desc-text">{description}</p>}
   </div>
-);
+)};
 
 const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParams, viewMode = 'full' }) => {
   const { isDark } = useTheme();
@@ -182,11 +235,11 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
   const isResidential = viewMode === 'residential';
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20">
+    <div className="dashboard-container">
       
       {/* Executive Summary - Only show in Full/Utility Mode */}
       {!isResidential && (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="executive-summary-grid">
         <KPICard 
           title="Valor Actual Neto (VAN)" 
           value={formatCurrency(financials.npv_eur)}
@@ -243,7 +296,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
       )}
 
       {/* Controle Tabs */}
-      <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="tabs-header">
         {[
             // Hide Financial tabs in Residential Mode
             ...(isResidential ? [] : [{id: 'financial', label: 'Financiero'}]), 
@@ -253,55 +306,49 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
           <button
             key={tab.id}
             onClick={() => setActiveView(tab.id)}
-            className={`pb-4 px-4 font-medium capitalize transition-colors relative ${
-              activeView === tab.id 
-                ? 'text-blue-600 dark:text-blue-400' 
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
+            className={`dashboard-tab ${activeView === tab.id ? 'dashboard-tab-active' : ''}`}
           >
             {tab.label}
             {activeView === tab.id && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400" />
+              <div className="dashboard-tab-indicator" />
             )}
           </button>
         ))}
       </div>
 
       {/* Export Buttons */}
-      <div className="flex justify-end space-x-2 mt-4 no-print">
+      <div className="toolbar-row">
         <button 
           onClick={handleExportCSV}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+          className="btn-dashboard-export"
         >
           <Download size={16} />
-          <span>CSV Export</span>
+          <span>Exportar CSV</span>
         </button>
         <button 
           onClick={handlePrintReport}
-          className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+          className="btn-dashboard-secondary"
         >
           <Printer size={16} />
-          <span>Print Report</span>
+          <span>Imprimir</span>
         </button>
       </div>
 
       {/* Main Chart Area */}
-      <div className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 ${activeView !== 'financial' && activeView !== 'production' ? 'h-[500px]' : ''}`}>
+      <div className={`dashboard-chart-container ${activeView !== 'financial' && activeView !== 'production' ? 'chart-container-expanded' : ''}`}>
         
         {activeView === 'financial' && (
-          <div className="space-y-10">
+          <div className="chart-section-container">
             {/* Chart 1: Annual Breakdown */}
-            <div className="h-96">
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Desglose de Flujos Anuales (Ventas vs Ahorro)</h3>
+            <div className="chart-block">
+                <h3 className="chart-heading">Desglose de Flujos Anuales (Ventas vs Ahorro)</h3>
                 <ResponsiveContainer width="100%" height="90%">
                 <BarChart data={yearly_projection}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
                     <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#4b5563"} />
                     <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} tickFormatter={(val) => `€${val/1000}k`} />
                     <Tooltip 
-                    contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb', color: isDark ? '#fff' : '#000' }}
-                    formatter={(value) => formatCurrency(value)}
-                    labelFormatter={(years) => `Año ${years}`}
+                        content={<CustomTooltip formatter={(value) => formatCurrency(value)} labelFormatter={(years) => `Año ${years}`} />}
                     />
                     <Legend />
                     <Bar dataKey="revenue_sales" stackId="a" name="Ventas a Red" fill="#3b82f6" radius={[0, 0, 0, 0]} />
@@ -326,8 +373,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
                     <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#4b5563"} />
                     <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} tickFormatter={(val) => `€${val/1000}k`} />
                     <Tooltip 
-                    contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }}
-                    formatter={(value) => formatCurrency(value)}
+                        content={<CustomTooltip formatter={(value) => formatCurrency(value)} />}
                     />
                     <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="3 3" />
                     <Legend />
@@ -402,7 +448,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
                     <XAxis dataKey="month" stroke={isDark ? "#9ca3af" : "#4b5563"} />
                     <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} />
-                    <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }} />
+                    <Tooltip content={<CustomTooltip />} />
                     <Legend />
                     <Area type="monotone" dataKey="generation_kwh" stroke="#f59e0b" fillOpacity={1} fill="url(#colorProd)" name="Generación (kWh)" />
                   </AreaChart>
@@ -418,9 +464,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
                         <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#4b5563"} type="number" domain={[1, 'auto']} />
                         <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} domain={['auto', 'auto']} />
                         <Tooltip 
-                            contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }}
-                            formatter={(value) => formatEnergy(value)}
-                            labelFormatter={(year) => `Año ${year}`}
+                            content={<CustomTooltip formatter={(value) => formatEnergy(value)} labelFormatter={(year) => `Año ${year}`} />}
                         />
                          <Legend />
                         <Line type="monotone" dataKey="generation_kwh" stroke="#ef4444" name="Producción Anual (kWh)" strokeWidth={2} dot={false} />
@@ -437,7 +481,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
                             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
                             <XAxis dataKey="hour" label={{ value: 'Hora Solar', position: 'insideBottom', offset: -5 }} stroke={isDark ? "#9ca3af" : "#4b5563"} />
                             <YAxis stroke={isDark ? "#9ca3af" : "#4b5563"} />
-                            <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }} />
+                            <Tooltip content={<CustomTooltip labelFormatter={(val) => `${val}:00 h`} />} />
                             <Legend />
                             <Line type="monotone" dataKey="Invierno" stroke="#3b82f6" dot={false} strokeWidth={2} />
                             <Line type="monotone" dataKey="Primavera" stroke="#10b981" dot={false} strokeWidth={2} />
@@ -455,7 +499,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
                             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
                             <XAxis dataKey="hours" label={{ value: 'Horas Excedidas', position: 'insideBottom', offset: -5 }} stroke={isDark ? "#9ca3af" : "#4b5563"} />
                             <YAxis label={{ value: 'Potencia (kW)', angle: -90, position: 'insideLeft' }} stroke={isDark ? "#9ca3af" : "#4b5563"} />
-                            <Tooltip contentStyle={{ backgroundColor: isDark ? '#1f2937' : '#fff', borderColor: isDark ? '#374151' : '#e5e7eb' }} />
+                            <Tooltip content={<CustomTooltip />} />
                             <Area type="monotone" dataKey="load" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} name="Potencia Output" />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -467,19 +511,19 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
                 <div className="md:col-span-2 bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg">
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Especificaciones Técnicas Simuladas</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                        <div className="tech-spec-card">
                             <p className="text-gray-500">Panel</p>
                             <p className="font-semibold dark:text-gray-200 capitalize">{technicalParams.panel_type}</p>
                         </div>
-                         <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                         <div className="tech-spec-card">
                             <p className="text-gray-500">Orientación</p>
                             <p className="font-semibold dark:text-gray-200">{technicalParams.azimuth}° (Sur=180)</p>
                         </div>
-                        <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                        <div className="tech-spec-card">
                             <p className="text-gray-500">Inclinación</p>
                             <p className="font-semibold dark:text-gray-200">{technicalParams.tilt}°</p>
                         </div>
-                        <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">
+                        <div className="tech-spec-card">
                             <p className="text-gray-500">Pérdidas Totales</p>
                             <p className="font-semibold dark:text-gray-200">{technicalParams.system_loss}%</p>
                         </div>
@@ -492,7 +536,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
         {activeView === 'cashflow' && (
             <div className="overflow-x-auto h-full">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                    <thead className="dashboard-table-header">
                         <tr>
                             <th className="px-6 py-3">Año</th>
                             <th className="px-6 py-3">Ingresos</th>
@@ -503,7 +547,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
                     </thead>
                     <tbody>
                         {yearly_projection.map((year, index) => (
-                            <tr key={year.year} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <tr key={year.year} className="dashboard-table-row">
                                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{year.year}</td>
                                 <td className="px-6 py-4 text-green-600 dark:text-green-400">+{formatCurrency(year.revenue)}</td>
                                 <td className="px-6 py-4 text-red-600 dark:text-red-400">-{formatCurrency(year.opex)}</td>

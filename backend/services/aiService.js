@@ -9,8 +9,8 @@ class AIService {
             const response = await axios.post(endpoint, params);
             return response.data;
         } catch (error) {
-            console.error(`Error calling AI Engine for ${techType}:`, error.message);
-            // Fallback mock logic if AI engine is down
+            console.error(`Error al llamar al Motor de Estimación para ${techType}:`, error.message);
+            // Lógica alternativa si el motor de estimación no está disponible
             return this.getMockData(techType, params);
         }
     }
@@ -20,8 +20,8 @@ class AIService {
             const response = await axios.post(`${AI_ENGINE_URL}/train/${techType}`);
             return response.data;
         } catch (error) {
-            console.error("Training trigger failed:", error.message);
-            throw new Error("AI Training Unavailable");
+            console.error("Fallo al iniciar entrenamiento:", error.message);
+            throw new Error("Entrenamiento no disponible");
         }
     }
 

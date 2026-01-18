@@ -18,78 +18,78 @@ if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR);
 }
 
-// --- Scenarios Definition ---
+// --- Definición de Escenarios ---
 
 const SCENARIOS = {
     solar: [
         {
-            name: "Optimal Conditions (Madrid, South, New)",
+            name: "Condiciones Óptimas (Madrid, Sur, Nuevo)",
             params: { "latitude": 40.41, "longitude": -3.7, "capacity_kw": 100, "tilt": 35, "azimuth": 180, "years_operation": 0, "soiling_loss": 0.02 }
         },
         {
-            name: "Bad Orientation (North Facing)",
+            name: "Mala Orientación (Norte)",
             params: { "latitude": 40.41, "longitude": -3.7, "capacity_kw": 100, "tilt": 35, "azimuth": 0, "years_operation": 0, "soiling_loss": 0.02 }
         },
         {
-            name: "End of Life (20 Years Old)",
+            name: "Fin de Vida Útil (20 Años)",
             params: { "latitude": 40.41, "longitude": -3.7, "capacity_kw": 100, "tilt": 35, "azimuth": 180, "years_operation": 20, "degradation_rate_annual": 0.008 }
         },
         {
-            name: "High Soiling (Desert Storm)",
+            name: "Alta Suciedad (Tormenta del Desierto)",
             params: { "latitude": 40.41, "longitude": -3.7, "capacity_kw": 100, "tilt": 35, "azimuth": 180, "years_operation": 0, "soiling_loss": 0.15 }
         }
     ],
     wind: [
         {
-            name: "Standard Onshore (80m Hub)",
+            name: "Terrestre Estándar (Buje 80m)",
             params: { "latitude": 43, "longitude": -8, "capacity_kw": 2000, "hub_height": 80, "rotor_diameter": 90, "hellman_exponent": 0.143, "weibull_scale": 7 }
         },
         {
-            name: "Offshore Giant (150m Hub)",
+            name: "Marino Gigante (Buje 150m)",
             params: { "latitude": 43, "longitude": -8, "capacity_kw": 5000, "hub_height": 150, "rotor_diameter": 140, "hellman_exponent": 0.1, "weibull_scale": 9.5 }
         },
         {
-            name: "Poor Wind Site (Low Speed)",
+            name: "Sitio con Poco Viento",
             params: { "latitude": 43, "longitude": -8, "capacity_kw": 2000, "hub_height": 80, "rotor_diameter": 90, "hellman_exponent": 0.143, "weibull_scale": 4.5 }
         },
         {
-            name: "High Wake Losses (Wind Farm)",
+            name: "Pérdidas por Estela (Parque Eólico)",
             params: { "latitude": 43, "longitude": -8, "capacity_kw": 2000, "hub_height": 80, "rotor_diameter": 90, "losses_wake": 0.15 }
         }
     ],
     hydro: [
         {
-            name: "Standard River Run-of-River",
+            name: "Fluyente Estándar",
             params: { "latitude": 42, "longitude": -1, "capacity_kw": 500, "flow_rate_design": 4, "gross_head": 15, "ecological_flow": 0.5 }
         },
         {
-            name: "Mountain Stream (High Head)",
+            name: "Arroyo de Montaña (Gran Salto)",
             params: { "latitude": 42, "longitude": -1, "capacity_kw": 500, "flow_rate_design": 0.8, "gross_head": 80, "ecological_flow": 0.1 }
         },
         {
-            name: "Severe Drought / Eco Constraints",
+            name: "Sequía Severa / Restricción Ecológica",
             params: { "latitude": 42, "longitude": -1, "capacity_kw": 500, "flow_rate_design": 4, "gross_head": 15, "ecological_flow": 3.5 }
         },
         {
-            name: "Inefficient Penstock (Friction Loss)",
+            name: "Tubería Ineficiente (Pérdida por Fricción)",
             params: { "latitude": 42, "longitude": -1, "capacity_kw": 500, "flow_rate_design": 4, "gross_head": 15, "penstock_length": 500, "penstock_diameter": 0.5 }
         }
     ],
     biomass: [
         {
-            name: "Dry Pellets (Standard)",
+            name: "Pellets Secos (Estándar)",
             params: { "latitude": 39, "longitude": -3, "capacity_kw": 1000, "feedstock_type": "pellets", "moisture_content": 8, "calorific_value_dry": 19 }
         },
         {
-            name: "Wet Wood Chips (Low Efficiency)",
+            name: "Astillas Húmedas (Baja Eficiencia)",
             params: { "latitude": 39, "longitude": -3, "capacity_kw": 1000, "feedstock_type": "chips", "moisture_content": 45, "calorific_value_dry": 19 }
         },
         {
-            name: "Heavy Maintenance Schedule",
+            name: "Mantenimiento Pesado",
             params: { "latitude": 39, "longitude": -3, "capacity_kw": 1000, "feedstock_type": "pellets", "moisture_content": 10, "availability_factor": 0.7 }
         },
         {
-            name: "High Tech Plant (ORC Cycle)",
+            name: "Planta Alta Tecnología (Ciclo ORC)",
             params: { "latitude": 39, "longitude": -3, "capacity_kw": 1000, "feedstock_type": "pellets", "moisture_content": 10, "plant_efficiency": 0.35 }
         }
     ]
@@ -99,7 +99,7 @@ const SCENARIOS = {
 
 const getMonthlyStats = (hourlyData, chunk = 730) => {
     const months = [];
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     
     // Safety check
     if (!hourlyData || hourlyData.length === 0) return monthNames.map(m => ({ name: m, sum: 0, avg: 0, max: 0 }));
@@ -125,41 +125,41 @@ const formatTable = (headers, rows) => {
     return `${headerRow}\n${separatorRow}\n${dataRows}`;
 };
 
-// --- Reports Generators ---
+// --- Generadores de Informes ---
 
 async function generateReport(tech, scenarios) {
-    let reportContent = `# 🧪 PHYSICS VALIDATION REPORT: ${tech.toUpperCase()}\n`;
-    reportContent += `**Date:** ${new Date().toISOString()}\n\n`;
-    reportContent += `This document contains detailed monthly breakdowns of the physics simulation logic.\n\n`;
+    let reportContent = `# REPORTE DE VALIDACION FISICA: ${tech.toUpperCase()}\n`;
+    reportContent += `**Fecha:** ${new Date().toISOString()}\n\n`;
+    reportContent += `Este documento contiene desgloses mensuales detallados de la lógica de simulación física.\n\n`;
 
-    console.log(`\nGenerating ${tech} report...`);
+    console.log(`\nGenerando reporte para ${tech}...`);
 
     for (const scenario of scenarios) {
-        console.log(`   Running: ${scenario.name}`);
+        console.log(`   Ejecutando: ${scenario.name}`);
         try {
             const res = await axios.post(`${API_URL}/predict/${tech}`, { ...scenario.params, debug: true });
             const data = res.data;
             const debug = data.debug_info || {};
             const details = debug.data && debug.data.hourly_details ? debug.data.hourly_details : {};
 
-            reportContent += `## Scenario: ${scenario.name}\n`;
-            reportContent += `**Input Parameters:** \`${JSON.stringify(scenario.params)}\`\n\n`;
-            reportContent += `**Annual Generation:** ${Math.round(data.annual_generation_kwh).toLocaleString()} kWh\n\n`;
+            reportContent += `## Escenario: ${scenario.name}\n`;
+            reportContent += `**Parámetros de Entrada:** \`${JSON.stringify(scenario.params)}\`\n\n`;
+            reportContent += `**Generación Anual:** ${Math.round(data.annual_generation_kwh).toLocaleString()} kWh\n\n`;
             
-            reportContent += `### Internal Physics Logs\n`;
+            reportContent += `### Logs de Física Interna\n`;
             reportContent += "```\n" + (debug.logs || []).join('\n') + "\n```\n\n";
 
-            reportContent += `### Monthly Breakdown\n`;
+            reportContent += `### Desglose Mensual\n`;
             
-            // Build Table based on Tech
-            let headers = ["Month", "Generation (kWh)"];
+            // Construir Tabla según Tecnología
+            let headers = ["Mes", "Generación (kWh)"];
             let tableData = [];
             
-            // Get Generation Stats
+            // Obtener Estadísticas de Generación
             const genStats = getMonthlyStats(data.hourly_generation_kwh);
             
             if (tech === 'solar') {
-                headers.push("Avg GHI (W/m2)", "Avg POA (W/m2)", "Avg Cell Temp (C)");
+                headers.push("GHI Promedio (W/m2)", "POA Promedio (W/m2)", "Temp Celda Promedio (C)");
                 const ghiStats = getMonthlyStats(details.ghi || []);
                 const poaStats = getMonthlyStats(details.poa_global || []);
                 const tempStats = getMonthlyStats(details.cell_temperature || []);
@@ -173,7 +173,7 @@ async function generateReport(tech, scenarios) {
                 ]);
             } 
             else if (tech === 'wind') {
-                headers.push("Speed 10m (m/s)", "Speed Hub (m/s)", "Gross Gen (kWh)", "Losses");
+                headers.push("Vel 10m (m/s)", "Vel Buje (m/s)", "Gen Bruta (kWh)", "Pérdidas");
                 const windRefStats = getMonthlyStats(details.wind_speed_10m || []);
                 const windHubStats = getMonthlyStats(details.wind_speed_hub || []);
                 const grossStats = getMonthlyStats(details.gross_power_kw || []);
@@ -194,7 +194,7 @@ async function generateReport(tech, scenarios) {
                 });
             }
             else if (tech === 'hydro') {
-                headers.push("Avg Avail Flow (m3/s)", "Generation (kWh)"); // Gen is duplicated for clarity
+                headers.push("Caudal Disp Prom (m3/s)", "Generación (kWh)"); // Gen is duplicated for clarity
                 const flowStats = getMonthlyStats(details.flow_available_m3s || []);
                 
                 tableData = genStats.map((m, i) => [
@@ -205,7 +205,7 @@ async function generateReport(tech, scenarios) {
                 ]);
             }
             else if (tech === 'biomass') {
-                headers.push("Avg Fuel Rate (kg/h)", "Est Fuel Consumed (Tons)");
+                headers.push("Tasa Combustible Prom (kg/h)", "Est Combustible Consumido (Toneladas)");
                 const fuelStats = getMonthlyStats(details.fuel_rate_kgh || []);
                 
                 tableData = genStats.map((m, i) => [
@@ -220,14 +220,14 @@ async function generateReport(tech, scenarios) {
             reportContent += "\n\n---\n\n";
 
         } catch (e) {
-            console.error(`Error in ${scenario.name}:`, e.message);
+            console.error(`Error en ${scenario.name}:`, e.message);
             reportContent += `**ERROR:** ${e.message}\n\n`;
         }
     }
 
     const filename = `DEBUG_REPORT_${tech.toUpperCase()}.md`;
     fs.writeFileSync(path.join(OUTPUT_DIR, filename), reportContent);
-    console.log(`✅ Saved: ${filename}`);
+    console.log(`Guardado: ${filename}`);
 }
 
 async function runAll() {
@@ -235,7 +235,7 @@ async function runAll() {
     await generateReport('wind', SCENARIOS.wind);
     await generateReport('hydro', SCENARIOS.hydro);
     await generateReport('biomass', SCENARIOS.biomass);
-    console.log("\n🚀 All reports generated in /debug_reports folder.");
+    console.log("\nTodos los reportes generados en la carpeta /debug_reports.");
 }
 
 runAll();

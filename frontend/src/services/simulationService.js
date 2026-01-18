@@ -10,7 +10,7 @@ const api = axios.create({
 
 export const SimulationService = {
     /**
-     * Run a new simulation
+     * Ejecuta una nueva simulación
      * @param {Object} data - { project_type, latitude, longitude, capacity_kw, budget, parameters }
      */
     runSimulation: async (data) => {
@@ -18,13 +18,13 @@ export const SimulationService = {
             const response = await api.post('/simulate', data);
             return response.data;
         } catch (error) {
-            console.error("Simulation Error:", error);
-            throw error.response ? error.response.data : new Error("Network Error");
+            console.error("Error en Simulación:", error);
+            throw error.response ? error.response.data : new Error("Error de Red");
         }
     },
 
     /**
-     * Get equipment catalog for a technology
+     * Obtiene el catálogo de equipamiento para una tecnología
      * @param {string} technology - 'solar', 'wind', 'hydro', 'biomass', 'battery'
      */
     getCatalog: async (technology) => {
@@ -32,7 +32,7 @@ export const SimulationService = {
             const response = await api.get(`/catalog/${technology}`);
             return response.data;
         } catch (error) {
-            console.error(`Catalog Error (${technology}):`, error);
+            console.error(`Error en Catálogo (${technology}):`, error);
             return [];
         }
     }

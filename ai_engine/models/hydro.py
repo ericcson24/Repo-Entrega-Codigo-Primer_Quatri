@@ -3,7 +3,7 @@ import pandas as pd
 
 class HydroModel:
     def __init__(self, head_height, efficiency=0.85, catchment_area_km2=10, runoff_coef=0.5, flow_design=None, turbine_params=None):
-        self.head_height = float(head_height) # meters
+        self.head_height = float(head_height) # metros
         self.efficiency = float(efficiency)
         self.catchment_area_m2 = float(catchment_area_km2) * 1_000_000
         self.runoff_coef = float(runoff_coef)
@@ -12,41 +12,40 @@ class HydroModel:
         self.water_density = 1000 # kg/m3
         self.turbine_params = turbine_params or {}
         
-        # Override efficiency if provided in turbine params
+        # Sobreescribir eficiencia si se da en parámetros de turbina
         if self.turbine_params.get("efficiency"):
              self.efficiency = float(self.turbine_params["efficiency"])
 
     def _get_turbine_efficiency(self, flow_ratio):
-        # Industrial: Simple efficiency curve adjustment
-        # If flow < min_flow, efficiency drops rapidly or is zero (cutoff)
+        # Industrial: Ajuste de curva de eficiencia simple
+        # Si caudal < caudal_mínimo, la eficiencia cae rápidamente o es cero (corte)
         min_flow_ratio = self.turbine_params.get("min_flow_ratio", 0.1)
         if flow_ratio < min_flow_ratio:
             return 0.0
-        # Simple curve: Rated Eff * (1 - (1-flow)^2 * 0.2) or similar, 
-        # but let's stick to constant eff for valid range for robustness unless we have the curve points.
+        # Curva simple para rango válido, mantenemos constante por robustez a menos que tengamos puntos de curva.
         return self.efficiency
 
     def predict_generation(self, precipitation_mm_hour_series):
         """
-        Convert precipitation (mm/h) to Power (kW).
-        Validation: 1 mm = 0.001 m.
-        Volume (m3) = Precip (m) * Area (m2).
-        Flow Q (m3/s) = Volume / 3600 (since data is hourly).
-        Power (W) = rho * g * Q * H * eff
+        Convierte precipitación (mm/h) a Potencia (kW).
+        Validación: 1 mm = 0.001 m.
+        Volumen (m3) = Precip (m) * Área (m2).
+        Caudal Q (m3/s) = Volumen / 3600 (ya que datos son horarios).
+        Potencia (W) = rho * g * Q * H * eff
         """
-        # Robustness: Fill NaNs and ensure float
+        # Robustez: Rellenar NaNs y asegurar float
         precip_series = pd.Series(precipitation_mm_hour_series).fillna(0.0).astype(float)
         precip_m = precip_series / 1000.0
-        # Lag effect: Rainfall doesn't become streamflow instantly. 
-        # Simple hydrology: Apply a rolling mean (concentration time) to simulate river response
-        # 24h rolling average IS TOO FAST for river base flow. Use 72h-120h for "River Inertia".
-        # This smoothes the crazy hourly jumps.
+        # Efecto retardo: La lluvia no se convierte en caudal instantáneamente. 
+        # Hidrología simple: Aplicar media móvil (tiempo de concentración) para simular respuesta del río.
+        # 24h es muy rápido para flujo base. Usamos 72h-120h para "Inercia del Río".
+        # Esto suaviza los picos horarios extremos.
         precip_rolling = precip_m.rolling(window=120, min_periods=1, center=False).mean()
         
-        # Calculate raw physical flow potentially available from the default small catchment
+        # Calcular caudal físico potencial disponible de la cuenca pequeña por defecto
         volume_m3 = precip_rolling.to_numpy() * self.catchment_area_m2 * self.runoff_coef
         
-        # Taking hourly totals as flow spread over the hour
+        # Tomando totales horarios como flujo repartido en la hora
         flow_q_m3s = volume_m3 / 3600.0 
         
         # CRITICAL UPDATE for User Experience:

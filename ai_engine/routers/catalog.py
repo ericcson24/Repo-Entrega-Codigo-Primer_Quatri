@@ -4,7 +4,7 @@ import os
 
 router = APIRouter()
 
-# Load catalogs once (or could be DB)
+# Cargar catálogos (desde archivo local, extensible a DB)
 CATALOG_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "catalogs")
 
 def load_json(name):
@@ -18,8 +18,8 @@ def load_json(name):
 @router.get("/{technology}")
 def get_catalog(technology: str):
     """
-    Get equipment catalog for technology.
-    technology: solar, wind, battery, hydro, biomass
+    Obtener catálogo de equipamiento por tecnología.
+    tecnología: solar, wind (eólica), battery (baterías), hydro (hidráulica), biomass (biomasa)
     """
     if technology == "solar":
         return load_json("panels.json")

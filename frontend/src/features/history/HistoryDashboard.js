@@ -9,6 +9,13 @@ const HistoryDashboard = () => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    const typeMap = { 
+        solar: 'Solar', 
+        wind: 'Eólica', 
+        hydro: 'Hidráulica', 
+        biomass: 'Biomasa' 
+    };
+
     useEffect(() => {
         if (currentUser?.email) {
             fetchHistory();
@@ -23,7 +30,7 @@ const HistoryDashboard = () => {
                 setHistory(data);
             }
         } catch (error) {
-            console.error("Failed to load history", error);
+            console.error("Fallo al cargar historial", error);
         } finally {
             setLoading(false);
         }
@@ -33,25 +40,25 @@ const HistoryDashboard = () => {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500">
                 <AlertCircle size={48} className="mb-4" />
-                <p className="text-lg">Please sign in to view your simulation history.</p>
+                <p className="text-lg">Por favor inicia sesión para ver tu historial.</p>
             </div>
         );
     }
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading history...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500">Cargando historial...</div>;
 
     if (history.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-gray-500">
                 <Clock size={48} className="mb-4" />
-                <p className="text-lg">No history found. Run a simulation to save it here!</p>
+                <p className="text-lg">No hay historial. ¡Ejecuta una simulación para guardarla aquí!</p>
             </div>
         );
     }
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Simulation History</h2>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Historial de Simulaciones</h2>
             
             <div className="grid grid-cols-1 gap-6">
                 {history.map((sim) => {
@@ -62,10 +69,10 @@ const HistoryDashboard = () => {
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize mb-2">
-                                        {sim.project_type}
+                                        {typeMap[sim.project_type] || sim.project_type}
                                     </span>
                                     <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-                                        {params.capacity_kw} kW System in {params.latitude}, {params.longitude}
+                                        Sistema de {params.capacity_kw} kW en {params.latitude}, {params.longitude}
                                     </h3>
                                     <p className="text-sm text-gray-500">
                                         {new Date(sim.created_at).toLocaleString()}
@@ -75,21 +82,21 @@ const HistoryDashboard = () => {
                                     <div className="text-2xl font-bold text-green-600">
                                         €{results?.npv_eur?.toLocaleString()}
                                     </div>
-                                    <div className="text-sm text-gray-500">NPV</div>
+                                    <div className="text-sm text-gray-500">VAN</div>
                                 </div>
                             </div>
                             
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <div>
-                                    <span className="block text-xs text-gray-500">IRR</span>
+                                    <span className="block text-xs text-gray-500">TIR</span>
                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{results?.irr_percent?.toFixed(2)}%</span>
                                 </div>
                                 <div>
-                                    <span className="block text-xs text-gray-500">Payback</span>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{results?.payback_years?.toFixed(1)} years</span>
+                                    <span className="block text-xs text-gray-500">Retorno</span>
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{results?.payback_years?.toFixed(1)} años</span>
                                 </div>
                                 <div>
-                                    <span className="block text-xs text-gray-500">Investment</span>
+                                    <span className="block text-xs text-gray-500">Inversión</span>
                                     <span className="font-semibold text-gray-800 dark:text-gray-200">€{sim.input_params.budget.toLocaleString()}</span>
                                 </div>
                                 <div>

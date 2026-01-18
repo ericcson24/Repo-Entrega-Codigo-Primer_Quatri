@@ -1,0 +1,93 @@
+/* AdvancedWindCalculator.css */
+
+.wind-results-container {
+    @apply space-y-6;
+}
+
+.wind-header {
+    @apply flex justify-between items-center mb-6;
+}
+
+.wind-title {
+    @apply text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2;
+}
+
+.btn-new-simulation {
+    @apply flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors;
+}
+
+.calculator-container {
+    @apply max-w-4xl mx-auto space-y-8;
+}
+
+.calculator-card {
+    @apply bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700;
+}
+
+.card-header {
+    @apply flex justify-between items-start mb-8;
+}
+
+.card-title {
+    @apply text-2xl font-bold text-gray-900 dark:text-white mb-2;
+}
+
+.card-description {
+    @apply text-gray-500 dark:text-gray-400;
+}
+
+.form-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6;
+}
+
+/* Sections */
+.section-container {
+    @apply space-y-6;
+}
+
+.section-title {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700;
+}
+
+.section-title-icon {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700 flex items-center gap-2;
+}
+
+/* Grids */
+.dual-field-grid {
+    @apply grid grid-cols-2 gap-4;
+}
+
+.financial-grid {
+    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+}
+
+.financial-section-container {
+    @apply md:col-span-2 space-y-6 pt-4;
+}
+
+/* Debt Section */
+.debt-section {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg;
+}
+
+.range-slider-container {
+    @apply flex items-center gap-2;
+}
+
+.range-slider {
+    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
+}
+
+.range-value {
+    @apply w-12 text-sm font-mono;
+}
+
+/* Buttons */
+.submit-container {
+    @apply mt-8 flex justify-end;
+}
+
+.btn-primary-wind {
+     @apply px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed;
+}

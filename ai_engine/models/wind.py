@@ -4,50 +4,48 @@ import pandas as pd
 class WindModel:
     def __init__(self, hub_height=80, rough_length=0.03):
         self.hub_height = hub_height
-        self.rough_length = rough_length # Roughness length z0 (approx 0.03 for crop land)
-        self.ref_height = 10 # Data usually at 10m
+        self.rough_length = rough_length # Longitud de rugosidad z0 (aprox 0.03 para tierras de cultivo)
+        self.ref_height = 10 # Datos meteorológicos usualmente a 10m
 
     def extrapolate_wind_speed(self, wind_speed_10m):
         """
-        Log law for wind shear.
+        Ley Logarítmica para cortante de viento (wind shear).
         v_h = v_ref * (ln(z_h / z0) / ln(z_ref / z0))
         """
-        # Avoid division by zero or log of zero if wind is 0 (though wind is usually > 0 in data or 0 explicitly)
+        # Evitar división por cero o log de cero
         scale_factor = np.log(self.hub_height / self.rough_length) / np.log(self.ref_height / self.rough_length)
         return wind_speed_10m * scale_factor
 
     def power_curve_interpolated(self, wind_speed, curve_data):
         """
-        Specific Power Curve Interpolation
-        curve_data: list of [speed, power] points
+        Interpolación de Curva de Potencia Específica
+        curve_data: lista de puntos [velocidad, potencia]
         """
-        # Unzip points
+        # Descomprimir puntos
         curve_speeds = np.array([p[0] for p in curve_data])
         curve_powers = np.array([p[1] for p in curve_data])
         
-        # Use numpy interp (Linear interpolation between points)
-        # Assuming wind_speed is a vector
-        # Scale power by capacity? Usually curves are absolute kW in catalog.
-        # But if user defines different capacity, we scale.
-        # For now, we assume the Curve IS the turbine.
+        # Usar interpolación lineal de numpy
+        # Si la velocidad del viento es un vector
+        # Asumimos que la curva define la turbina completa (kW absolutos)
         
         return np.interp(wind_speed, curve_speeds, curve_powers, left=0, right=0)
 
     def power_curve(self, wind_speed, capacity_kw):
         """
-        Generic Power Curve (Sigmoid/Cubic approximation)
-        Used when no specific manufacturer curve is provided.
+        Curva de Potencia Genérica (Aproximación Sigmoide/Cúbica)
+        Usada cuando no se provee curva específica del fabricante.
         """
         cut_in = 3.0
         rated = 12.0
         cut_out = 25.0
         
-        # Initialize output array
+        # Inicializar array de salida
         power = np.zeros_like(wind_speed)
         
-        # Region 2: Cubic rise from Cut-in to Rated
+        # Región 2: Crecimiento cúbico desde Cut-in hasta Rated
         # P ~ v^3
-        # Simple cubic fit: P(v) = Capacity * ((v - cut_in) / (rated - cut_in))^3
+        # Ajuste cúbico simple: P(v) = Capacidad * ((v - cut_in) / (rated - cut_in))^3
         mask_ramp = (wind_speed >= cut_in) & (wind_speed < rated)
         power[mask_ramp] = capacity_kw * ((wind_speed[mask_ramp] - cut_in) / (rated - cut_in)) ** 3
         

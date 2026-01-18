@@ -4,10 +4,10 @@ import pandas as pd
 class BiomassOptimizer:
     def __init__(self, efficiency=0.25, fuel_cost_eur_ton=150, pci_kwh_kg=4.5, tech_params=None):
         """
-        efficiency: Thermal to Electric efficiency
-        fuel_cost_eur_ton: Cost of biomass
-        pci_kwh_kg: Lower Heating Value (kWh per kg)
-        tech_params: Dict from catalog
+        efficiency: Eficiencia Térmica a Eléctrica
+        fuel_cost_eur_ton: Coste de biomasa
+        pci_kwh_kg: Poder Calorífico Inferior (kWh por kg)
+        tech_params: Diccionario del catálogo
         """
         self.efficiency = float(efficiency)
         self.fuel_cost_eur_kg = float(fuel_cost_eur_ton) / 1000.0
@@ -17,23 +17,23 @@ class BiomassOptimizer:
         if self.tech_params.get("efficiency_electric"):
              self.efficiency = float(self.tech_params["efficiency_electric"])
              
-        # New parameter for fuel constraint
+        # Nuevo parámetro para restricción de combustible
         self.max_fuel_kg_year = float(self.tech_params.get("max_fuel_ton", 0)) * 1000.0
 
     def optimize_dispatch(self, price_series_eur_mwh, capacity_kw):
         """
-        Determine when to run based on marginal cost and fuel availability.
-        Returns: Power Generation Series (kW).
+        Determina cuándo operar basándose en coste marginal y disponibilidad de combustible.
+        Retorna: Serie de Generación de Potencia (kW).
         """
-        # Ensure input is numpy array
+        # Asegurar que entrada es array numpy
         price_series_eur_mwh = np.array(price_series_eur_mwh)
 
-        # Calculate Marginal Cost (EUR/MWh)
-        # 1 MWh electric needs (1/eff) MWh thermal
-        # 1 MWh thermal = 1000 kWh.
-        # Fuel needed (kg) = 1000 / PCI
-        # Cost (EUR/MWh_thermal) = (1000 / PCI) * Cost_kg
-        # Cost (EUR/MWh_electric) = Cost_thermal / Efficiency
+        # Calcular Coste Marginal (EUR/MWh)
+        # 1 MWh eléctrico necesita (1/eff) MWh térmico
+        # 1 MWh térmico = 1000 kWh.
+        # Combustible necesario (kg) = 1000 / PCI
+        # Coste (EUR/MWh_térmico) = (1000 / PCI) * Coste_kg
+        # Coste (EUR/MWh_eléctrico) = Coste_térmico / Eficiencia
         
         fuel_needed_kg_per_kwh_thermal = 1.0 / self.pci
         cost_per_kwh_thermal = fuel_needed_kg_per_kwh_thermal * self.fuel_cost_eur_kg
@@ -41,13 +41,13 @@ class BiomassOptimizer:
         
         marginal_cost_eur_mwh = cost_per_mwh_thermal / self.efficiency
         
-        # Calculate fuel consumption at full load per hour
-        # Output: capacity_kw (kWh per hour)
-        # Input Thermal: capacity_kw / efficiency
-        # Input Fuel (kg): (capacity_kw / efficiency) / pci
+        # Calcular consumo de combustible a plena carga por hora
+        # Salida: capacity_kw (kWh por hora)
+        # Entrada Térmica: capacity_kw / efficiency
+        # Entrada Combustible (kg): (capacity_kw / efficiency) / pci
         fuel_consumption_kg_per_hour = (capacity_kw / self.efficiency) / self.pci
 
-        # Calculate Net Profit for every hour if running
+        # Calcular Beneficio Neto para cada hora si operara
         # Profit = (Price - MarginalCost) * Capacity_MW
         # We just need to compare Price vs Marginal Cost to know priority
         profits = price_series_eur_mwh - marginal_cost_eur_mwh

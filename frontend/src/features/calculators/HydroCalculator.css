@@ -1,0 +1,96 @@
+/* HydroCalculator.css */
+
+.hydro-results-container {
+    @apply space-y-6;
+}
+
+.hydro-header {
+    @apply flex justify-between items-center mb-6;
+}
+
+.hydro-title {
+    @apply text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2;
+}
+
+.btn-new-simulation-hydro {
+    @apply flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors;
+}
+
+.calculator-app-container {
+    @apply max-w-4xl mx-auto space-y-8;
+}
+
+.calculator-main-card {
+    @apply bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700;
+}
+
+.card-top-header {
+    @apply flex justify-between items-start mb-8;
+}
+
+.card-main-title {
+    @apply text-2xl font-bold text-gray-900 dark:text-white mb-2;
+}
+
+.card-subtitle {
+    @apply text-gray-500 dark:text-gray-400;
+}
+
+.main-input-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6;
+}
+
+.input-column {
+    @apply space-y-6;
+}
+
+.hydro-section-title {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700;
+}
+
+.dual-input-row {
+    @apply grid grid-cols-2 gap-4;
+}
+
+.financial-section-wrapper {
+    @apply md:col-span-2 space-y-6 pt-4;
+}
+
+.financial-header {
+    @apply flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2;
+}
+
+.financial-title-wrapper {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 mb-0 flex items-center gap-2;
+}
+
+.financial-inputs-grid {
+    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+}
+
+.debt-panel {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg;
+}
+
+.debt-range-wrapper {
+    @apply flex items-center gap-2;
+}
+
+.range-slider-input {
+    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
+}
+
+.range-label-mono {
+    @apply w-12 text-sm font-mono;
+}
+
+.action-bar {
+    @apply mt-8 flex justify-end;
+}
+
+.btn-primary-hydro {
+    @apply px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.icon-title-hydro { @apply text-cyan-500; }
+
