@@ -5,7 +5,8 @@ import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area, ReferenceLine } from 'recharts';
-import './ResidentialSolarCalculator.css';
+import { useTheme } from '../../contexts/ThemeContext'; // Import ThemeContext for Chart Colors
+import './ResidentialSolarCalculator.css'; // Styled via external CSS as requested
 
 const SPANISH_CITIES = [
     { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
@@ -30,6 +31,8 @@ const INSTALLATION_COST_PER_PANEL = 150; // Coste variable (Mano de obra cualifi
 
 // --- RESIDENTIAL RESULTS COMPONENT ---
 const ResidentialResults = ({ system, annualGeneration, params }) => {
+    const { isDark } = useTheme(); // Use hook
+    
     // Cálculos Financieros
     const annualGenKwh = annualGeneration;
     const ratio = params.selfConsumptionRatio / 100;
@@ -66,69 +69,69 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
     }
 
     return (
-        <div className="results-container">
-            <div className="results-grid">
+        <div className="calculator-stack">
+            <div className="grid-responsive-4">
                 {/* 1. SAVINGS CARD */}
                 <div className="savings-card">
-                    <div className="card-header-flex">
-                        <PiggyBank className="icon-savings" size={20} />
-                        <h4 className="title-savings">Ahorro Anual</h4>
+                    <div className="flex-center-gap mb-2">
+                        <PiggyBank className="text-green-primary" size={20} />
+                        <h4 className="text-title-card text-green-dark">Ahorro Anual</h4>
                     </div>
-                    <div className="value-savings">
-                        {Math.round(totalAnnualSavings)}€ <span className="unit-savings">/ año</span>
+                    <div className="text-value-large text-green-highlight">
+                        {Math.round(totalAnnualSavings)}€ <span className="text-xs font-normal text-green-primary">/ año</span>
                     </div>
                     {system.batteryIncluded && (
-                        <div className="footer-savings">
-                            <BatteryCharging size={12}/> Incluye ahorro almacenamiento
+                        <div className="text-xs text-green-primary mt-1 flex-center-gap">
+                            <BatteryCharging size={12}/> Incluye ahorro batería
                         </div>
                     )}
                 </div>
 
                 {/* 2. PAYBACK CARD */}
                 <div className="payback-card">
-                    <div className="card-header-flex">
-                        <Zap className="icon-payback" size={20} />
-                        <h4 className="title-payback">Retorno Inversión</h4>
+                    <div className="flex-center-gap mb-2">
+                        <Zap className="text-blue-primary" size={20} />
+                        <h4 className="text-title-card text-blue-dark">Retorno Inversión</h4>
                     </div>
-                    <div className="value-payback">
-                        {paybackYears < 1 ? "< 1" : paybackYears.toFixed(1)} <span className="unit-payback">años</span>
+                    <div className="text-value-large text-blue-highlight">
+                        {paybackYears < 1 ? "< 1" : paybackYears.toFixed(1)} <span className="text-xs font-normal text-blue-primary">años</span>
                     </div>
-                    <div className="footer-payback">
+                    <div className="text-xs text-blue-primary mt-1">
                         Punto de equilibrio
                     </div>
                 </div>
 
                 {/* 3. INDEPENDENCE CARD */}
                 <div className="independence-card">
-                    <div className="card-header-flex">
-                        <BatteryCharging className="icon-independence" size={20} />
-                        <h4 className="title-independence">Independencia Red</h4>
+                    <div className="flex-center-gap mb-2">
+                        <BatteryCharging className="text-purple-primary" size={20} />
+                        <h4 className="text-title-card text-purple-dark">Independencia Red</h4>
                     </div>
-                    <div className="value-independence">
+                    <div className="text-value-large text-purple-highlight">
                         {params.selfConsumptionRatio}%
                     </div>
-                     <div className="footer-independence">
+                     <div className="text-xs text-purple-primary mt-1">
                         {system.batteryIncluded ? 'Potenciado por Batería' : 'Solo Solar'}
                     </div>
                 </div>
 
                 {/* 4. CO2 CARD (NEW) */}
                 <div className="co2-card">
-                    <div className="card-header-flex">
-                        <Home className="icon-co2" size={20} />
-                        <h4 className="title-co2">CO2 Evitado</h4>
+                    <div className="flex-center-gap mb-2">
+                        <Home className="text-teal-primary" size={20} />
+                        <h4 className="text-title-card text-teal-dark">CO2 Evitado</h4>
                     </div>
-                    <div className="value-co2">
-                        {(annualGenKwh * 0.3).toFixed(1)} <span className="unit-general">tons</span>
+                    <div className="text-value-large text-teal-highlight">
+                        {(annualGenKwh * 0.3).toFixed(1)} <span className="text-xs font-normal">tons</span>
                     </div>
-                     <div className="footer-co2">
+                     <div className="text-xs text-teal-primary mt-1">
                         Equivalente a árboles
                     </div>
                 </div>
             </div>
 
-            <div className="chart-container-wrapper">
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Recuperación de Inversión (25 Años)</h4>
+            <div className="chart-container-card">
+                <h4 className="text-gray-title">Recuperación de Inversión (25 Años)</h4>
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                         <defs>
@@ -137,14 +140,20 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
                                 <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="year" />
-                        <YAxis />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? "#374151" : "#e5e7eb"} />
+                        <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#6b7280"} />
+                        <YAxis stroke={isDark ? "#9ca3af" : "#6b7280"} />
                         <Tooltip 
+                            contentStyle={{ 
+                                backgroundColor: isDark ? '#1f2937' : '#ffffff', 
+                                borderColor: isDark ? '#374151' : '#e5e7eb',
+                                color: isDark ? '#f3f4f6' : '#111827'
+                            }}
+                            itemStyle={{ color: isDark ? '#10b981' : '#059669' }}
                             formatter={(value) => [`${value}€`, 'Balance']}
                             labelFormatter={(label) => `Año ${label}`}
                         />
-                        <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="3 3"/>
+                        <ReferenceLine y={0} stroke={isDark ? "#6b7280" : "#9ca3af"} strokeDasharray="3 3"/>
                         <Area type="monotone" dataKey="balance" stroke="#10B981" fillOpacity={1} fill="url(#colorBalance)" />
                     </AreaChart>
                 </ResponsiveContainer>
@@ -366,11 +375,11 @@ const ResidentialSolarCalculator = () => {
 
     if (results) {
         return (
-            <div className="space-y-8 animate-fade-in">
+            <div className="calculator-stack animate-fade-in">
                 <div className="results-header-container">
                     <div>
                         <h2 className="results-title">
-                            <Sun className="text-yellow-500" /> 
+                            <Sun className="text-yellow" /> 
                             Tus Resultados de Potencial Solar
                         </h2>
                         <p className="results-subtitle">
@@ -389,7 +398,7 @@ const ResidentialSolarCalculator = () => {
                 {/* 1. Impacto Financiero (Residencial) */}
                 <div className="results-card">
                      <h3 className="analysis-title">
-                        <PiggyBank className="text-green-500" />
+                        <PiggyBank className="text-green-active" />
                         Análisis Económico
                     </h3>
                     <ResidentialResults 
@@ -403,7 +412,7 @@ const ResidentialSolarCalculator = () => {
                 <div className="chart-card">
                     <div className="chart-header">
                         <h3 className="chart-title">
-                            <Zap className="text-blue-500" />
+                            <Zap className="text-blue" />
                             Previsión de Producción
                         </h3>
                     </div>
@@ -421,28 +430,28 @@ const ResidentialSolarCalculator = () => {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="calculator-stack animate-fade-in">
             <header className="calculator-header">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                        <Home className="text-blue-600" />
+                    <h1 className="calculator-title">
+                        <Home className="text-blue" />
                         Planificador Solar Residencial
                     </h1>
-                    <p className="text-gray-500 mt-1 dark:text-gray-400">Diseña tu sistema doméstico según espacio y presupuesto.</p>
+                    <p className="calculator-description">Diseña tu sistema doméstico según espacio y presupuesto.</p>
                 </div>
             </header>
 
             {/* MAIN INPUT GRID - Now balanced and centered */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            <div className="calculator-grid">
                 
                 {/* COLUMN 1: HOME & CONSUMPTION */}
-                <div className="space-y-6">
+                <div className="calculator-stack">
                     {/* STEP 1: HOME PROFILE */}
                     <div className="input-section-card">
                         <h3 className="input-section-title">
                             <span className="step-badge-blue">Paso 1</span> Perfil de Tu Hogar
                         </h3>
-                        <div className="custom-input-group space-y-4">
+                        <div className="custom-input-group">
                             <FormField label="Ubicación (Ciudad)" icon={<MapPin size={16}/>}>
                                 <Select 
                                     value={selectedCity.name} 
@@ -451,7 +460,7 @@ const ResidentialSolarCalculator = () => {
                                 />
                             </FormField>
                             
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid-2-cols">
                                 <FormField label="Superficie de Tejado (m²)">
                                     <Input 
                                         type="number" 
@@ -485,18 +494,18 @@ const ResidentialSolarCalculator = () => {
                             </FormField>
 
                              <div className="consumption-estimate-box">
-                                <div className="flex items-center gap-2">
-                                    <Lightbulb size={16} className="text-blue-600"/>
-                                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Consumo Est.:</span>
+                                <div className="flex-center-gap">
+                                    <Lightbulb size={16} className="text-blue"/>
+                                    <span className="text-consumption-label">Consumo Est.:</span>
                                 </div>
-                                <span className="font-bold text-blue-700 dark:text-blue-300">~{estimatedAnnualConsumption} kWh/año</span>
+                                <span className="text-consumption-value">~{estimatedAnnualConsumption} kWh/año</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* COLUMN 2: EQUIPMENT & BUDGET */}
-                <div className="space-y-6">
+                <div className="calculator-stack">
                     {/* STEP 2: BUDGET & BATTERY */}
                     <div className="input-section-card">
                          <h3 className="input-section-title">
@@ -515,16 +524,16 @@ const ResidentialSolarCalculator = () => {
                         </FormField>
 
                         <div className="battery-toggle-box">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
-                                    <BatteryCharging className={includeBattery ? "text-green-500" : "text-gray-400"} size={20} />
+                            <div className="flex-between section-divider">
+                                <span className="flex-center-gap font-medium text-primary">
+                                    <BatteryCharging className={includeBattery ? "text-green-active" : "text-gray-400"} size={20} />
                                     Include Battery?
                                 </span>
                                 <Switch checked={includeBattery} onChange={setIncludeBattery} />
                             </div>
                             
                             {includeBattery && (
-                                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 mt-4">
+                                <div className="battery-details-grid">
                                      <FormField label="Capacity (kWh)">
                                         <Input 
                                             type="number" step="0.5"
@@ -546,7 +555,7 @@ const ResidentialSolarCalculator = () => {
 
                     {/* STEP 3. Panel Selection */}
                     <div className="input-section-card">
-                        <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-700 pb-3">
+                        <div className="input-section-title flex-between">
                             <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-white">
                                 <span className="step-badge-orange">Paso 3</span> Paneles
                             </h3>
@@ -568,16 +577,16 @@ const ResidentialSolarCalculator = () => {
 
                         {/* CUSTOM PANEL FORM */}
                         {isCustomPanel ? (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="custom-panel-container">
                                 <div className="custom-panel-info-box">
                                     <div className="flex items-start gap-3">
-                                        <Edit size={18} className="text-orange-600 mt-1" />
-                                        <p className="text-sm text-orange-800 dark:text-orange-300">
+                                        <Edit size={18} className="text-orange mt-1" />
+                                        <p className="text-sm text-orange-dim">
                                             Introduce las especificaciones de cualquier panel para simular su rendimiento.
                                         </p>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid-2-cols">
                                     <FormField label="Potencia (Watts)">
                                         <Input 
                                             type="number" 
@@ -640,19 +649,19 @@ const ResidentialSolarCalculator = () => {
                                         <Sun className="text-gray-400" />
                                     </div>
                                     <div className="flex-1">
-                                        <div className="flex justify-between items-start">
-                                            <h4 className="font-bold text-gray-800 dark:text-gray-100">{panel.brand}</h4>
-                                            <span className="text-sm font-bold text-blue-600">{panel.price_eur}€</span>
+                                        <div className="flex-between items-start">
+                                            <h4 className="font-bold text-primary">{panel.brand}</h4>
+                                            <span className="text-sm font-bold text-blue">{panel.price_eur}€</span>
                                         </div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">{panel.model}</p>
-                                        <div className="flex gap-2 mt-1">
+                                        <p className="text-xs text-gray-inactive">{panel.model}</p>
+                                        <div className="flex-center-gap mt-1">
                                             <span className="panel-tag">{panel.p_max_w}W</span>
                                             <span className="panel-tag">{panel.efficiencyPercent}% Ef.</span>
                                             <span className="panel-type-tag">{panel.type}</span>
                                         </div>
                                     </div>
                                     {selectedPanel?.id === panel.id && (
-                                        <div className="absolute top-2 right-2 text-blue-600">
+                                        <div className="absolute top-2 right-2 text-blue">
                                             <CheckCircle size={16} />
                                         </div>
                                     )}
@@ -667,11 +676,11 @@ const ResidentialSolarCalculator = () => {
             {/* 4. FINE TUNING (Full width bottom) */}
             <div className="fine-tuning-card">
                     <h3 className="fine-tuning-title">
-                    <Zap size={20} className="text-yellow-500" />
+                    <Zap size={20} className="text-yellow" />
                     Ajuste Fino
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="fine-tuning-grid">
                         <FormField label={`Precio Electricidad Actual (${electricityPrice} €/kWh)`}>
                         <div className="slider-container">
                             <input 
@@ -691,7 +700,7 @@ const ResidentialSolarCalculator = () => {
                                 disabled={true} // Ahora calculado automáticamente
                                 className="range-slider-disabled"
                             />
-                            <span className="text-xs text-gray-500">{includeBattery ? 'Potenciado con Batería' : 'Basado en Perfil'}</span>
+                            <span className="text-xs text-gray-inactive">{includeBattery ? 'Potenciado con Batería' : 'Basado en Perfil'}</span>
                         </div>
                     </FormField>
                         <FormField label={`Precio Comp. Excedentes (${surplusPrice} €/kWh)`}>
@@ -712,13 +721,13 @@ const ResidentialSolarCalculator = () => {
                     <div className="decoration-circle-top"></div>
                     <div className="decoration-circle-bottom"></div>
 
-                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div className="summary-content">
                         
                         {/* Summary Stats */}
-                        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-8 w-full">
+                        <div className="summary-stats-grid">
                             <div>
                                 <div className="stat-label">Tamaño Sistema</div>
-                                <div className="stat-value">{calculatedSystem.panelCount} <span className="text-lg font-normal text-gray-400">paneles</span></div>
+                                <div className="stat-value">{calculatedSystem.panelCount} <span className="text-lg-normal-gray">paneles</span></div>
                                 <div className="stat-sub-blue">{calculatedSystem.totalPowerKw} kWp Potencia Total</div>
                             </div>
                             
@@ -749,7 +758,7 @@ const ResidentialSolarCalculator = () => {
                                         {loading ? 'Procesando...' : 'Simular Ahorros'}
                                         {!loading && <ArrowRight className="transition-transform" />}
                                     </button>
-                                    <p className="text-xs text-center text-gray-400">
+                                    <p className="text-xs-center-gray">
                                         Ver análisis completo de ROI y Amortización
                                     </p>
                                 </>
