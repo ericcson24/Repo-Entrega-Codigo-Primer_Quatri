@@ -316,24 +316,6 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
         ))}
       </div>
 
-      {/* Export Buttons */}
-      <div className="toolbar-row">
-        <button 
-          onClick={handleExportCSV}
-          className="btn-dashboard-export"
-        >
-          <Download size={16} />
-          <span>Exportar CSV</span>
-        </button>
-        <button 
-          onClick={handlePrintReport}
-          className="btn-dashboard-secondary"
-        >
-          <Printer size={16} />
-          <span>Imprimir</span>
-        </button>
-      </div>
-
       {/* Main Chart Area */}
       <div className={`dashboard-chart-container ${activeView !== 'financial' && activeView !== 'production' ? 'chart-container-expanded' : ''}`}>
         
@@ -566,7 +548,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
 
       {/* Action Bar */}
       <div className="flex justify-end space-x-4">
-        <button className="flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+        <button onClick={handlePrintReport} className="flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
           <Printer size={18} />
           <span>Imprimir Informe</span>
         </button>
