@@ -49,28 +49,25 @@ class WindModel:
         mask_ramp = (wind_speed >= cut_in) & (wind_speed < rated)
         power[mask_ramp] = capacity_kw * ((wind_speed[mask_ramp] - cut_in) / (rated - cut_in)) ** 3
         
-        # Region 3: Constant Rated Power from Rated to Cut-out
+        # Región 3: Potencia Nominal Constante desde Rated hasta Cut-out
         mask_rated = (wind_speed >= rated) & (wind_speed < cut_out)
         power[mask_rated] = capacity_kw
         
-        # Region 4: Cut-out (Automatic zero via initialization)
+        # Región 4: Cut-out (Cero automático vía inicialización)
         
         return power
 
     def predict_generation(self, wind_speed_10m_series, capacity_kw, temperature_c=None, pressure_hpa=None, specific_curve=None):
         """
-        Predict with optional specific turbine curve.
-        specific_curve: List of [speed, power]
+        Predicción con curva específica opcional de turbina.
+        specific_curve: Lista de [velocidad, potencia]
         """
         v_hub = self.extrapolate_wind_speed(wind_speed_10m_series)
         
-        # Calculate Base Power
+        # Calcular Potencia Base
         if specific_curve:
             power_output = self.power_curve_interpolated(v_hub, specific_curve)
-            # If the curve is for 1 turbine (e.g. 4.2MW) but capacity request is 42MW, we simply scale?
-            # Industrial logic: Capacity / TurbineRating = Number of Turbines.
-            # But here we might just assume curve is normalized or we normalize it.
-            # Let's Normalize Curve to [0, 1] then multiply to Capacity for simplicity in "Total Park" context.
+            # Normalizar curva a [0, 1] y luego multiplicar por Capacidad para contexto de "Parque Total".
             
             curve_max = max([p[1] for p in specific_curve])
             if curve_max > 0:
@@ -78,25 +75,25 @@ class WindModel:
         else:
             power_output = self.power_curve(v_hub, capacity_kw)
         
-        # Apply Density Correction if environmental data is provided
+        # Aplicar corrección por densidad si hay datos ambientales
         if temperature_c is not None and pressure_hpa is not None:
-             # Handle NaNs
+             # Manejo de NaNs
              temperature_c = np.nan_to_num(temperature_c, nan=15.0)
              pressure_hpa = np.nan_to_num(pressure_hpa, nan=1013.25)
              
-             # Convert to Kelvin and Pascals (hPa * 100)
+             # Convertir a Kelvin y Pascales (hPa * 100)
              temp_k = temperature_c + 273.15
              pressure_pa = pressure_hpa * 100.0
              
-             # Gas constant for dry air
+             # Constante de gas para aire seco
              r_specific = 287.058 
              
              rho_site = pressure_pa / (r_specific * temp_k)
              rho_std = 1.225
              
-             # Correction Factor
-             # Power is proportional to density: P ~ rho * v^3
-             # Corrected Power = Power_std * (rho_site / rho_std)
+             # Factor de Corrección
+             # La potencia es proporcional a la densidad: P ~ rho * v^3
+             # Potencia Corregida = Power_std * (rho_site / rho_std)
              power_output = power_output * (rho_site / rho_std)
         
         # --- NEW REALISM FIX ---

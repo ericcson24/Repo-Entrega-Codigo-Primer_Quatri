@@ -18,27 +18,27 @@ class SimulationRequest(BaseModel):
     longitude: float
     capacity_kw: float
     parameters: dict = {}
-    financial_params: dict = {} # Added to allow passing debt structs to generic request if needed, though usually processed in Node
+    financial_params: dict = {} # Permite pasar estructuras de deuda para solicitudes genéricas, aunque usualmente se procesan en Node
 
 @router.get("/solar-potential")
 async def get_solar_potential(lat: float, lon: float):
     try:
         connector = WeatherConnector()
-        # Fetch 1 representative year (BASE_YEAR)
+        # Obtener 1 año representativo (BASE_YEAR)
         year = settings.BASE_YEAR
         df = connector.fetch_historical_weather(lat, lon, f"{year}-01-01", f"{year}-12-31")
         
         if df.empty:
-            return {"peak_sun_hours": 1500.0} # Fallback
+            return {"peak_sun_hours": 1500.0} # Valor por defecto
             
-        # annual sum (W/m2) -> /1000 -> kWh/m2 (Peak Sun Hours)
-        # Note: df uses hourly resolution
-        # Check column name (it varies if fetched live 'radiation_ghi' or old code 'radiation')
+        # Suma anual (W/m2) -> /1000 -> kWh/m2 (HSP - Horas Sol Pico)
+        # Nota: df usa resolución horaria
+        # Verificar nombre de columna (varía si se obtiene 'radiation_ghi' en vivo o 'radiation' en histórico antiguo)
         col_name = 'radiation_ghi' if 'radiation_ghi' in df.columns else 'radiation'
         
         if col_name not in df.columns:
-            # Fallback if no radiation column found
-            print(f"Warning: No radiation column found. Columns: {df.columns}")
+            # Si no se encuentra columna de radiación
+            print(f"Advertencia: No se encontró columna de radiación. Columnas: {df.columns}")
             return {"peak_sun_hours": 1500.0}
 
         ghi_sum = df[col_name].sum() 
@@ -46,7 +46,7 @@ async def get_solar_potential(lat: float, lon: float):
         
         return {"peak_sun_hours": round(peak_hours, 1)}
     except Exception as e:
-        print(f"Error fetching solar potential: {e}")
+        print(f"Error obteniendo potencial solar: {e}")
         return {"peak_sun_hours": 1500.0}
 
 def get_weather_data(lat, lon, tilt=None, azimuth=None):

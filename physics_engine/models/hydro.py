@@ -48,56 +48,54 @@ class HydroModel:
         # Tomando totales horarios como flujo repartido en la hora
         flow_q_m3s = volume_m3 / 3600.0 
         
-        # CRITICAL UPDATE for User Experience:
-        # If the user provided a 'flow_rate_design' (Design Flow), we should assume the river matches that scale.
-        # The precipitation data gives us the VARIABILITY (seasonality), but we mock the MAGNITUDE.
+        # Ajuste para Experiencia de Usuario:
+        # Si el usuario proporciona un 'flow_rate_design' (Caudal de Diseño), asumimos que el río coincide con esa escala.
+        # Los datos de precipitación nos dan la VARIABILIDAD (estacionalidad), pero ajustamos la MAGNITUD.
         if self.flow_design:
-            # Normalize the flow array (0 to 1 scaling relative to its peaks)
-            # Use 60th percentile as "Design capacity" reference.
+            # Normalizar el array de flujo (escalado de 0 a 1 relativo a sus picos)
+            # Usar el percentil 60 como referencia de "Capacidad de diseño".
             max_flow_ref = np.percentile(flow_q_m3s, 60)
             if max_flow_ref > 1e-6:
                 scale_factor = self.flow_design / max_flow_ref
                 flow_q_m3s = flow_q_m3s * scale_factor
             else:
-                # FALLBACK: Synthetic Seasonal Flow
-                # Simpler "Slow" curve using sine waves, NO random noise for hourly stability.
-                # --- AUDITOR CHANGE: High Performance Hydrology ---
-                # To reach Break-Even (3.15 GWh/yr) with high CAPEX (2M/500kW), we assume a "Prime River".
-                # Previous: 0.7 base + 0.5 amplitude -> ~56% Capacity Factor.
-                # New: 0.9 base + 0.3 amplitude -> ~72% Capacity Factor.
-                # This simulates a river with very consistent flow, minimizing dry season impact.
+                # FALLBACK: Flujo Estacional Sintético
+                # Curva "Lenta" simple usando ondas sinusoidales, SIN ruido aleatorio para estabilidad horaria.
+                # Optimización Hidrológica de Alto Rendimiento:
+                # Para alcanzar el punto de equilibrio (break-even) con alto CAPEX, asumimos un "Río Principal".
+                # Configuración: 0.9 base + 0.3 amplitud -> ~72% Factor de Planta.
+                # Esto simula un río con flujo muy consistente, minimizando el impacto de la estación seca.
                 N = len(flow_q_m3s)
                 t = np.linspace(0, 2 * np.pi, N)
                 
-                # Base 0.9 means average flow is 90% of design (before clip).
+                # Base 0.9 significa que el flujo promedio es 90% del diseño (antes del recorte).
                 seasonal_trend = 0.9 + 0.3 * np.sin(t - np.pi/2) 
                 
-                # Add tiny noise just so it's not a math drawing, but smoothed
+                # Añadir pequeño ruido para evitar curva matemática perfecta, pero suavizada
                 noise = np.random.normal(0, 0.02, N)
                 
                 synthetic_flow = self.flow_design * (seasonal_trend + noise)
                 flow_q_m3s = np.clip(synthetic_flow, 0, self.flow_design * 1.5)
 
-            # Cap flow at design capacity (Turbine limit)
+            # Limitar flujo a la capacidad de diseño (Límite de turbina)
             flow_q_m3s = np.minimum(flow_q_m3s, self.flow_design)
 
-        # Apply ecological flow subtraction if present in params
+        # Aplicar sustracción de caudal ecológico si está presente en parámetros
         ecological_flow = self.turbine_params.get("ecological_flow", 0.0)
         flow_q_m3s = np.maximum(flow_q_m3s - ecological_flow, 0.0)
 
-        # PIPE LOSS CALCULATION (Darcy-Weisbach / Manning)
-        # If user provided penstock details, we MUST calculate head loss.
-        # h_loss = S * L.  Manning formula for S (Hydraulic gradient):
+        # CÁLCULO DE PÉRDIDAS EN TUBERÍA (Darcy-Weisbach / Manning)
+        # Si se proporcionan detalles de tubería forzada, calcular pérdida de carga.
+        # h_loss = S * L. Fórmula de Manning para S (Gradiente hidráulico):
         # V = (1/n) * R^(2/3) * S^(1/2)  => S = (V * n)^2 / R^(4/3)
         # h_loss = L * ( (V*n)^2 / R^(4/3) )
         if self.turbine_params.get("penstock_length") and self.turbine_params.get("penstock_diameter"):
              L = float(self.turbine_params["penstock_length"])
              D = float(self.turbine_params["penstock_diameter"])
 
-             # --- AUDITOR FIX 2.0: Aggressive Optimization ---
-             # The previous fix (threshold 4.0 m/s) was too lenient.
-             # Auditor: "Velocidad recomendada 3-4 m/s". High friction kills NPV.
-             # New Logic: Enforce strict velocity limit of 3.0 m/s for optimal head preservation.
+             # Optimización Agresiva:
+             # Velocidad recomendada 3-4 m/s. La alta fricción reduce el VPN.
+             # Nueva Lógica: Imponer límite estricto de velocidad de 3.0 m/s para preservación óptima de altura.
              if self.flow_design:
                  A_check = np.pi * (D**2) / 4.0
                  if A_check > 0:

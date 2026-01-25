@@ -48,56 +48,52 @@ class BiomassOptimizer:
         fuel_consumption_kg_per_hour = (capacity_kw / self.efficiency) / self.pci
 
         # Calcular Beneficio Neto para cada hora si operara
-        # Profit = (Price - MarginalCost) * Capacity_MW
-        # We just need to compare Price vs Marginal Cost to know priority
+        # Beneficio = (Precio - CosteMarginal) * Capacidad
+        # Solo necesitamos comparar Precio vs Coste Marginal para saber la prioridad
         profits = price_series_eur_mwh - marginal_cost_eur_mwh
         
-        # Initialize dispatch array with zeros
+        # Inicializar array de despacho con ceros
         dispatch = np.zeros_like(price_series_eur_mwh)
         
-        # If we have a fuel limit (and it's positive), we use "Limited Energy Dispatch"
+        # Si tenemos límite de combustible (y es positivo), usamos "Despacho de Energía Limitada"
         if self.max_fuel_kg_year > 0:
-            # We want to run in the MOST profitable hours
-            # First, filter mostly profitable hours (Profit > 0)
-            # Actually, even if Profit < 0, we shouldn't run.
+            # Queremos operar en las horas MÁS rentables
+            # Primero, filtrar horas mayormente rentables (Profit > 0)
+            # En realidad, si Profit < 0, no deberíamos operar de todos modos.
             
-            # Create a dataframe to sort
+            # Crear dataframe para ordenar
             df_dispatch = pd.DataFrame({
                 "profit": profits,
                 "original_index": np.arange(len(profits))
             })
             
-            # Filter only profitable hours
+            # Filtrar solo horas rentables
             df_dispatch = df_dispatch[df_dispatch["profit"] > 0]
             
-            # Sort by profit descending
+            # Ordenar por beneficio descendente
             df_dispatch = df_dispatch.sort_values(by="profit", ascending=False)
             
-            # Calculate how many hours we can run
-            # Total hours possible = Total Fuel / Fuel per Hour
+            # Calcular cuántas horas podemos operar
+            # Total horas posibles = Combustible Total / Combustible por Hora
             max_hours = int(self.max_fuel_kg_year / fuel_consumption_kg_per_hour)
             
-            # Select top hours
+            # Seleccionar mejores horas
             selected_indices = df_dispatch.head(max_hours)["original_index"].values
             
-            # Set dispatch
+            # Establecer despacho
             if len(selected_indices) > 0:
                 dispatch[selected_indices] = capacity_kw
         else:
-            # Infinite fuel mode (or old behavior: run whenever profitable)
-            # BUT Diagnosis says "No fuel input implies 0 generation".
-            # So if max_fuel_kg_year is 0, we should generate 0.
-            # To be safe and support legacy/testing, if explicit 0 is passed, it is 0.
-            # However, previously tech_params didn't have "max_fuel_ton".
-            # If tech_params is None or missing key, we might default to infinite?
-            # User instructions imply we need to fix the "0 generation" issue by providing fuel.
-            # So if I default to 0 here, correct behavior is achieved (it was 0 before due to cost, now 0 due to fuel).
-            # But wait! The previous code generated 0 because marginal cost was HIGH.
-            # If I fix marginal cost (via correct PCI), it WOULD generate.
-            # But the user wants fuel constraint.
+            # Modo combustible infinito (comportamiento legacy: opera siempre que sea rentable)
+            # Decisión de diseño: Si "max_fuel_ton" no está en tech_params, asumimos infinito.
+            # Si "max_fuel_ton" está presente y es 0, la generación será 0.
+            pass # Lógica por defecto de operar si hay beneficio (ya calculado si profit > 0 se usara)
             
-            # Let's decide: If "max_fuel_ton" is NOT in tech_params, infinite.
-            # If "max_fuel_ton" IS in tech_params, respect it.
+            # En modo "infinito", simplemente despachamos si Profit > 0
+            # Filtrar horas rentables
+            profitable_indices = np.where(profits > 0)[0]
+            if len(profitable_indices) > 0:
+                dispatch[profitable_indices] = capacity_kw
             if "max_fuel_ton" not in self.tech_params:
                  # Legacy / Infinite
                  dispatch = np.where(

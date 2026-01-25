@@ -9,30 +9,30 @@ class MarketModel:
 
     def generate_annual_price_curve(self, year=2023):
         """
-        Generates a synthetic but realistic hourly price curve for a year (8760 hours).
-        Uses a base daily profile + seasonal effect + random volatility.
-        This serves as a sophisticated fallback method for projections when real future data is unknown.
+        Genera una curva de precios horarios sintética pero realista para un año (8760 horas).
+        Utiliza un perfil diario base + efecto estacional + volatilidad aleatoria.
+        Esto sirve como un método de respaldo avanzado para proyecciones cuando se desconocen los datos reales futuros.
         """
         hours = 8760
         t = np.arange(hours)
         
-        # Seasonal component (Higher in Winter/Summer, lower in Spring/Autumn)
-        # Cosine with period of a year
+        # Componente Estacional (Más alto en Invierno/Verano, más bajo en Primavera/Otoño)
+        # Coseno con periodo de un año
         seasonal = 10 * np.cos(2 * np.pi * t / 8760)
         
-        # Daily component (Duck curve peaks: Morning 8-10, Evening 19-22)
+        # Componente Diario (Picos de curva de pato: Mañana 8-10, Noche 19-22)
         day_hour = t % 24
         daily = 15 * np.sin(2 * np.pi * (day_hour - 8)/24) + 10 * np.sin(2 * np.pi * (day_hour - 20)/24)
         
-        # Trend
+        # Tendencia
         trend_component = self.trend * t
         
-        # Volatility (Random Walk or White Noise)
+        # Volatilidad (Paseo Aleatorio o Ruido Blanco)
         noise = np.random.normal(0, self.base_price * self.volatility, hours)
         
         prices = self.base_price + seasonal + daily + trend_component + noise
         
-        # Clip negative prices if not allowed (though they exist in EU markets, usually rare)
+        # Recortar precios negativos si no permitidos (aunque existen en mercados UE, raros en sim simple)
         prices = prices.clip(min=0)
         
         return prices.tolist()
