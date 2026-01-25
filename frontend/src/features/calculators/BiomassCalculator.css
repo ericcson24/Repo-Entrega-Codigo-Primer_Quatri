@@ -1,97 +1,324 @@
-/* BiomassCalculator.css */
+/* BiomassCalculator.css - Sin Tailwind */
 
+/* Results Section */
 .biomass-results-container {
-    @apply space-y-6;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 .biomass-header {
-    @apply flex justify-between items-center mb-6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
 }
 
 .biomass-title {
-    @apply text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark .biomass-title {
+    color: #ffffff;
+}
+
+.icon-title-biomass {
+    color: #10b981;
 }
 
 .btn-new-simulation-biomass {
-    @apply flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    color: #4b5563;
+    background-color: transparent;
+    border: none;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+    cursor: pointer;
 }
 
+.dark .btn-new-simulation-biomass {
+    color: #d1d5db;
+}
+
+.btn-new-simulation-biomass:hover {
+    background-color: #f3f4f6;
+}
+
+.dark .btn-new-simulation-biomass:hover {
+    background-color: #374151;
+}
+
+/* Calculator Container */
 .calculator-wrapper {
-    @apply max-w-4xl mx-auto space-y-8;
+    max-width: 64rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
 }
 
 .biomass-card {
-    @apply bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700;
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid #f3f4f6;
+}
+
+.dark .biomass-card {
+    background-color: #1f2937;
+    border-color: #374151;
 }
 
 .card-head-wrapper {
-    @apply flex justify-between items-start mb-8;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
 }
 
 .biomass-main-title {
-    @apply text-2xl font-bold text-gray-900 dark:text-white mb-2;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.dark .biomass-main-title {
+    color: #ffffff;
 }
 
 .biomass-subtitle {
-    @apply text-gray-500 dark:text-gray-400;
+    color: #6b7280;
 }
 
+.dark .biomass-subtitle {
+    color: #9ca3af;
+}
+
+/* Grid Layouts */
 .biomass-grid-layout {
-    @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem 2rem;
+}
+
+@media (min-width: 768px) {
+    .biomass-grid-layout {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .biomass-col {
-    @apply space-y-6;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 .biomass-section-title {
-    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 border-b pb-2 border-gray-200 dark:border-gray-700;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.dark .biomass-section-title {
+    color: #e5e7eb;
+    border-bottom-color: #374151;
 }
 
 .grid-2-col {
-    @apply grid grid-cols-2 gap-4;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
 }
 
+/* Financial Section */
 .financial-area {
-    @apply md:col-span-2 space-y-6 pt-4;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 1rem;
+}
+
+@media (min-width: 768px) {
+    .financial-area {
+        grid-column: span 2;
+    }
 }
 
 .financial-header-row {
-    @apply flex justify-between items-center mb-4 border-b border-gray-100 dark:border-gray-700 pb-2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 0.5rem;
+}
+
+.dark .financial-header-row {
+    border-bottom-color: #374151;
 }
 
 .financial-title {
-    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 mb-0 flex items-center gap-2;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dark .financial-title {
+    color: #e5e7eb;
 }
 
 .financial-grid-4 {
-    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
 }
 
+@media (min-width: 768px) {
+    .financial-grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Debt Section */
 .debt-box {
-    @apply grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1rem;
+    background-color: #f9fafb;
+    border-radius: 0.5rem;
 }
 
+@media (min-width: 768px) {
+    .debt-box {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.dark .debt-box {
+    background-color: rgba(55, 65, 81, 0.3);
+}
+
+/* Range Slider */
 .debt-slider-row {
-    @apply flex items-center gap-2;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .debt-slider {
-    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
+    width: 100%;
+    height: 0.5rem;
+    background-color: #e5e7eb;
+    border-radius: 0.5rem;
+    appearance: none;
+    cursor: pointer;
+}
+
+.debt-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    background-color: #10b981;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.debt-slider::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    background-color: #10b981;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
 }
 
 .debt-value {
-    @apply w-12 text-sm font-mono;
+    width: 3rem;
+    font-size: 0.875rem;
+    font-family: monospace;
 }
 
+/* Submit Section */
 .submit-area {
-    @apply mt-8 flex justify-end;
+    margin-top: 2rem;
+    display: flex;
+    justify-content: flex-end;
 }
 
 .btn-biomass {
-    @apply px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: 0.75rem 1.5rem;
+    background-color: #059669;
+    color: #ffffff;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    transition: all 0.2s;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border: none;
+    cursor: pointer;
 }
 
-.icon-title-biomass { @apply text-green-500; }
-.hidden-section { @apply hidden; }
+.btn-biomass:hover {
+    background-color: #047857;
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+}
+
+.btn-biomass:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Spinner */
+.spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Utilities */
+.hidden-section {
+    display: none;
+}
+
+.space-y-4 > * + * {
+    margin-top: 1rem;
+}
+
+.space-y-6 > * + * {
+    margin-top: 1.5rem;
+}
+
+.pt-2 {
+    padding-top: 0.5rem;
+}
+
+.pt-4 {
+    padding-top: 1rem;
+}
 

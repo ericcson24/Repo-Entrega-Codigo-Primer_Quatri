@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Clock, Download, AlertCircle } from 'lucide-react';
+import { Clock, AlertCircle } from 'lucide-react';
+import './HistoryDashboard.css';
 
 const HistoryDashboard = () => {
     const { currentUser } = useAuth();
@@ -38,70 +38,70 @@ const HistoryDashboard = () => {
 
     if (!currentUser) {
         return (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                <AlertCircle size={48} className="mb-4" />
-                <p className="text-lg">Por favor inicia sesión para ver tu historial.</p>
+            <div className="empty-state">
+                <AlertCircle size={48} className="empty-state-icon" />
+                <p className="empty-state-text">Por favor inicia sesión para ver tu historial.</p>
             </div>
         );
     }
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Cargando historial...</div>;
+    if (loading) return <div className="loading-state">Cargando historial...</div>;
 
     if (history.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                <Clock size={48} className="mb-4" />
-                <p className="text-lg">No hay historial. ¡Ejecuta una simulación para guardarla aquí!</p>
+            <div className="empty-state">
+                <Clock size={48} className="empty-state-icon" />
+                <p className="empty-state-text">No hay historial. ¡Ejecuta una simulación para guardarla aquí!</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Historial de Simulaciones</h2>
+        <div className="history-container">
+            <h2 className="history-title">Historial de Simulaciones</h2>
             
-            <div className="grid grid-cols-1 gap-6">
+            <div className="history-grid">
                 {history.map((sim) => {
                     const params = sim.input_params;
                     const results = sim.results?.financials;
                     return (
-                        <div key={sim.id} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
-                            <div className="flex justify-between items-start mb-4">
+                        <div key={sim.id} className="simulation-card">
+                            <div className="simulation-header">
                                 <div>
-                                    <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize mb-2">
+                                    <span className="simulation-type-badge">
                                         {typeMap[sim.project_type] || sim.project_type}
                                     </span>
-                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">
+                                    <h3 className="simulation-title">
                                         Sistema de {params.capacity_kw} kW en {params.latitude}, {params.longitude}
                                     </h3>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="simulation-date">
                                         {new Date(sim.created_at).toLocaleString()}
                                     </p>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-2xl font-bold text-green-600">
+                                <div className="simulation-npv-container">
+                                    <div className="simulation-npv-value">
                                         €{results?.npv_eur?.toLocaleString()}
                                     </div>
-                                    <div className="text-sm text-gray-500">VAN</div>
+                                    <div className="simulation-npv-label">VAN</div>
                                 </div>
                             </div>
                             
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <div className="simulation-metrics">
                                 <div>
-                                    <span className="block text-xs text-gray-500">TIR</span>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{results?.irr_percent?.toFixed(2)}%</span>
+                                    <span className="metric-label">TIR</span>
+                                    <span className="metric-value">{results?.irr_percent?.toFixed(2)}%</span>
                                 </div>
                                 <div>
-                                    <span className="block text-xs text-gray-500">Retorno</span>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{results?.payback_years?.toFixed(1)} años</span>
+                                    <span className="metric-label">Retorno</span>
+                                    <span className="metric-value">{results?.payback_years?.toFixed(1)} años</span>
                                 </div>
                                 <div>
-                                    <span className="block text-xs text-gray-500">Inversión</span>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">€{sim.input_params.budget.toLocaleString()}</span>
+                                    <span className="metric-label">Inversión</span>
+                                    <span className="metric-value">€{sim.input_params.budget.toLocaleString()}</span>
                                 </div>
                                 <div>
-                                    <span className="block text-xs text-gray-500">ROI</span>
-                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{results?.roi_percent?.toFixed(1)}%</span>
+                                    <span className="metric-label">ROI</span>
+                                    <span className="metric-value">{results?.roi_percent?.toFixed(1)}%</span>
                                 </div>
                             </div>
                         </div>

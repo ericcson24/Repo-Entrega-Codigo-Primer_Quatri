@@ -1,0 +1,160 @@
+/* HistoryDashboard.css */
+
+.history-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+.history-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 1.5rem;
+}
+
+.dark .history-title {
+    color: #ffffff;
+}
+
+.history-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 16rem;
+    color: #6b7280;
+}
+
+.empty-state-icon {
+    margin-bottom: 1rem;
+}
+
+.empty-state-text {
+    font-size: 1.125rem;
+}
+
+.loading-state {
+    padding: 2rem;
+    text-align: center;
+    color: #6b7280;
+}
+
+.simulation-card {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #f3f4f6;
+}
+
+.dark .simulation-card {
+    background-color: #1f2937;
+    border-color: #374151;
+}
+
+.simulation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.simulation-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #dbeafe;
+    color: #1e40af;
+    text-transform: capitalize;
+    margin-bottom: 0.5rem;
+}
+
+.dark .simulation-type-badge {
+    background-color: #1e3a8a;
+    color: #93c5fd;
+}
+
+.simulation-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.dark .simulation-title {
+    color: #ffffff;
+}
+
+.simulation-date {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.simulation-npv-container {
+    text-align: right;
+}
+
+.simulation-npv-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #16a34a;
+}
+
+.simulation-npv-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.simulation-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+@media (min-width: 768px) {
+    .simulation-metrics {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.dark .simulation-metrics {
+    border-top-color: #374151;
+}
+
+.metric-label {
+    display: block;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.metric-value {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.dark .metric-value {
+    color: #e5e7eb;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

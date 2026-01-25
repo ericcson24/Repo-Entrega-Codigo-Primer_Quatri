@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calculator, Sun, Euro, Maximize, Grid, CheckCircle, Info, BatteryCharging, Zap, PiggyBank, Edit, RotateCcw, MapPin, Lightbulb, ArrowRight } from 'lucide-react';
+import { Home, Sun, Euro, Maximize, CheckCircle, BatteryCharging, Zap, PiggyBank, Edit, RotateCcw, MapPin, Lightbulb, ArrowRight } from 'lucide-react';
 import { FormField, Input, Select, Switch } from '../../components/common/FormComponents';
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area, ReferenceLine } from 'recharts';
-import { useTheme } from '../../contexts/ThemeContext'; // Import ThemeContext for Chart Colors
-import './ResidentialSolarCalculator.css'; // Styled via external CSS as requested
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts';
+import { useTheme } from '../../contexts/ThemeContext';
+import './ResidentialSolarCalculator.css';
 
 const SPANISH_CITIES = [
     { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
@@ -49,12 +48,6 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
     // Retorno de Inversión
     const paybackYears = system.estimatedCost / totalAnnualSavings;
     
-    // Datos para Gráfico de Independencia
-    const independenceData = [
-        { name: 'Autoconsumo', value: ratio * 100, fill: '#10B981' }, // Verde
-        { name: 'Red Eléctrica', value: (1 - ratio) * 100, fill: '#F59E0B' } // Naranja
-    ];
-    
     // Datos de Gráfico Acumulativo
     const chartData = [];
     let cumulativeSavings = -system.estimatedCost;
@@ -67,6 +60,21 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
         // Añadir ahorros para el siguiente año
         cumulativeSavings += totalAnnualSavings; 
     }
+
+    // Custom Tooltip Component
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className={isDark ? 'recharts-tooltip-dark' : 'recharts-tooltip-light'}>
+                    <p className="tooltip-label">{`Año ${label}`}</p>
+                    <p className={isDark ? 'recharts-tooltip-item-dark' : 'recharts-tooltip-item-light'}>
+                        {`Balance: ${payload[0].value}€`}
+                    </p>
+                </div>
+            );
+        }
+        return null;
+    };
 
     return (
         <div className="calculator-stack">
@@ -143,16 +151,7 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? "#374151" : "#e5e7eb"} />
                         <XAxis dataKey="year" stroke={isDark ? "#9ca3af" : "#6b7280"} />
                         <YAxis stroke={isDark ? "#9ca3af" : "#6b7280"} />
-                        <Tooltip 
-                            contentStyle={{ 
-                                backgroundColor: isDark ? '#1f2937' : '#ffffff', 
-                                borderColor: isDark ? '#374151' : '#e5e7eb',
-                                color: isDark ? '#f3f4f6' : '#111827'
-                            }}
-                            itemStyle={{ color: isDark ? '#10b981' : '#059669' }}
-                            formatter={(value) => [`${value}€`, 'Balance']}
-                            labelFormatter={(label) => `Año ${label}`}
-                        />
+                        <Tooltip content={<CustomTooltip />} />
                         <ReferenceLine y={0} stroke={isDark ? "#6b7280" : "#9ca3af"} strokeDasharray="3 3"/>
                         <Area type="monotone" dataKey="balance" stroke="#10B981" fillOpacity={1} fill="url(#colorBalance)" />
                     </AreaChart>
@@ -163,7 +162,6 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
 };
 
 const ResidentialSolarCalculator = () => {
-    const { currentUser } = useAuth();
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
     
@@ -353,17 +351,7 @@ const ResidentialSolarCalculator = () => {
                 }
             };
 
-            console.log("DEBUG - Parámetros Simulación:", {
-                city: selectedCity.name,
-                panels: calculatedSystem.panelCount,
-                battery: includeBattery ? `${batteryCapacity}kWh` : 'Ninguna',
-                estimatedConsumption: estimatedAnnualConsumption,
-                ratio: selfConsumptionRatio
-            });
-            console.log("Enviando Payload:", simulationPayload);
-
             const data = await apiService.runSimulation(simulationPayload);
-            console.log("Resultados de Simulación Recibidos:", data);
             
             setResults(data);
         } catch (error) {

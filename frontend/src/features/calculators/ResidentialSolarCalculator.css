@@ -971,3 +971,41 @@
 .dark .text-gray-100 { color: #f3f4f6; }
 .dark .border-gray-700 { border-color: #374151; }
 .dark .bg-gray-800 { background-color: #1f2937; }
+
+/* --- Recharts Tooltip Styles --- */
+.recharts-tooltip-light {
+    background-color: #ffffff !important;
+    border-color: #e5e7eb !important;
+    color: #111827 !important;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+.recharts-tooltip-dark {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+    color: #f3f4f6 !important;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    border: 1px solid #374151;
+}
+
+.recharts-tooltip-item-light {
+    color: #059669 !important;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+.recharts-tooltip-item-dark {
+    color: #10b981 !important;
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+.tooltip-label {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}

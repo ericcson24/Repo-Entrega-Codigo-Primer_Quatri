@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sun, RotateCcw, Play, Settings, MapPin } from 'lucide-react';
+import { Sun, RotateCcw, Settings, MapPin, Zap } from 'lucide-react';
 import { FormField, Input, Select, Switch } from '../../components/common/FormComponents';
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
@@ -431,7 +431,7 @@ const SolarCalculator = () => {
                             </>
                         ) : (
                             <>
-                                <Play size={20} fill="currentColor" />
+                                <Zap size={20} />
                                 <span>Ejecutar Simulación</span>
                             </>
                         )}

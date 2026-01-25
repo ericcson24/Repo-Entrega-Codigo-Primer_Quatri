@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wind, RotateCcw, Play, Settings, MapPin } from 'lucide-react';
+import { Wind, RotateCcw, Settings, MapPin } from 'lucide-react';
 import { FormField, Input, Select, Switch } from '../../components/common/FormComponents';
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
