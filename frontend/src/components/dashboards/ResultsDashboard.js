@@ -273,7 +273,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
           color="bg-purple-500"
           description={financials.leverage_ratio > 0 ? "Retorno sobre Equity" : "Retorno Inversión Total"}
         />
-        {financials.leverage_ratio > 0 ? (
+        {financials.leverage_ratio > 0 && (
           <KPICard 
               title="Estructura de Capital" 
               value={`${(financials.leverage_ratio * 100 ?? 0).toFixed(0)}% Deuda`}
@@ -281,15 +281,6 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
               icon={Zap}
               color="bg-orange-500"
               description={`Intereses Totales: ${formatCurrency(financials.total_interest_paid || 0)}`}
-          />
-        ) : (
-          <KPICard 
-              title="LCOE" 
-              value={financials.lcoe?.toFixed(2) || "N/A"} 
-              unit="€/MWh"
-              icon={Zap}
-              color="bg-orange-500"
-              description="Coste nivelado de energía"
           />
         )}
       </div>

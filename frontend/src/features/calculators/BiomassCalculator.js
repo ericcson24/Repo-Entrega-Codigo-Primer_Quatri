@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Leaf, RotateCcw, Settings, MapPin } from 'lucide-react';
+import { Leaf, RotateCcw, Settings, MapPin, Play } from 'lucide-react';
 import { FormField, Input, Select, Switch } from '../../components/common/FormComponents';
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './SharedComponents.css';
 import './BiomassCalculator.css';
 
 const SPANISH_CITIES = [
@@ -32,8 +33,8 @@ const BiomassCalculator = () => {
         project_type: 'biomass',
         latitude: 40.4168,
         longitude: -3.7038,
-        capacity_kw: 1000,
-        budget: 3000000,
+        capacity_kw: 2000,
+        budget: 2500000,
         parameters: {
             feedstock_type: 'wood_chips',
             moisture_content: 20,
@@ -256,26 +257,27 @@ const BiomassCalculator = () => {
                                     onChange={(e) => handleFinancialChange('discount_rate', e.target.value)}
                                 />
                             </FormField>
-                            <div className="space-y-4 pt-2">
-                                <Switch 
-                                    label="Financiación Externa" 
-                                    checked={formData.financial_params.use_debt} 
-                                    onChange={(checked) => handleFinancialChange('use_debt', checked)} 
-                                    />
-                            </div>
+                        </div>
+
+                        <div className="shared-debt-toggle">
+                            <Switch 
+                                label="Financiación Externa" 
+                                checked={formData.financial_params.use_debt} 
+                                onChange={(checked) => handleFinancialChange('use_debt', checked)} 
+                                />
                         </div>
                             
                         {formData.financial_params.use_debt && (
-                            <div className="debt-box">
+                            <div className="shared-debt-panel">
                                 <FormField label="Ratio Deuda (%)">
-                                    <div className="debt-slider-row">
+                                    <div className="shared-debt-slider-container">
                                         <input 
                                             type="range" min="0" max="100" 
                                             value={formData.financial_params.debt_ratio} 
                                             onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
-                                            className="debt-slider"
+                                            className="shared-debt-slider"
                                         />
-                                        <span className="debt-value">{formData.financial_params.debt_ratio}%</span>
+                                        <span className="shared-debt-value">{formData.financial_params.debt_ratio}%</span>
                                     </div>
                                 </FormField>
                                 <FormField label="Tasa Interés (%)">
@@ -297,8 +299,13 @@ const BiomassCalculator = () => {
                     </div>
                 )}
 
-                <div className="submit-area">
-                    <button onClick={handleSimulate} disabled={loading} className="btn-biomass">
+                <div className="shared-submit-wrapper">
+                    <button 
+                        onClick={handleSimulate} 
+                        disabled={loading} 
+                        className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Play size={20} fill="currentColor" />
                         {loading ? 'Procesando...' : 'Ejecutar Simulación'}
                     </button>
                 </div>

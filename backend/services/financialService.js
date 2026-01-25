@@ -459,6 +459,27 @@ class FinancialService {
         // Total Intereses Pagados
         const totalInterestPaid = annualBreakdown.reduce((acc, item) => acc + item.interest, 0);
 
+        // Cálculo del LCOE (Levelized Cost of Energy)
+        // LCOE = Suma(Costos_t / (1+r)^t) / Suma(Energía_t / (1+r)^t)
+        // Costos_t = Investment_t + O&M_t + Fuel_t (si aplica)
+        // Para energías renovables sin combustible: Investment + O&M
+        let sumDiscountedCosts = Math.abs(effectiveInvestment); // Año 0 (ya actualizado)
+        let sumDiscountedEnergy = 0;
+
+        for (let y = 1; y <= years; y++) {
+            const breakdown = annualBreakdown[y - 1];
+            // Costos = O&M + cualquier otro costo operativo
+            // No incluimos intereses ni impuestos en LCOE (es un costo técnico, no financiero)
+            const yearCosts = breakdown.om_cost + (breakdown.year === inverterYear ? inverterCost : 0);
+            const yearEnergy = breakdown.generation_kwh / 1000; // Convertir kWh a MWh
+            
+            const discountFactor = Math.pow(1 + wacc, y);
+            sumDiscountedCosts += yearCosts / discountFactor;
+            sumDiscountedEnergy += yearEnergy / discountFactor;
+        }
+
+        const lcoe = sumDiscountedEnergy > 0 ? sumDiscountedCosts / sumDiscountedEnergy : null;
+
         return {
             financials: {
                 // Devolvemos Equity Metrics como principales si hay deuda, o Proyecto si no.
@@ -476,7 +497,9 @@ class FinancialService {
 
                 roi_percent: roiPercent,
                 total_interest_paid: totalInterestPaid,
-                total_nominal_profit: totalNetProfitNominal
+                total_nominal_profit: totalNetProfitNominal,
+                
+                lcoe: lcoe // €/MWh
             },
             cashFlows: cashFlowsEquity, // Graficaremos flujos del inversor por defecto
             annualBreakdown

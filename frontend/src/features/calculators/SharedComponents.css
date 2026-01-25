@@ -1,0 +1,60 @@
+/* SharedComponents.css - Solo elementos compartidos entre calculadores */
+
+/* ==================== PANEL DE DEUDA COMPARTIDO ==================== */
+.shared-debt-toggle {
+    @apply mb-0;
+}
+
+.shared-debt-panel {
+    @apply mt-6 p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4 shadow-sm;
+}
+
+.shared-debt-slider-container {
+    @apply flex items-center gap-4;
+}
+
+.shared-debt-slider {
+    @apply flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer;
+}
+
+.shared-debt-slider::-webkit-slider-thumb {
+    @apply appearance-none w-5 h-5 bg-blue-600 rounded-full cursor-pointer hover:bg-blue-700;
+}
+
+.shared-debt-slider::-moz-range-thumb {
+    @apply w-5 h-5 bg-blue-600 rounded-full cursor-pointer hover:bg-blue-700 border-0;
+}
+
+.shared-debt-value {
+    @apply min-w-[4rem] text-right font-semibold text-gray-700 dark:text-gray-300;
+}
+
+/* ==================== BOTÓN EJECUTAR SIMULACIÓN COMPARTIDO ==================== */
+.shared-submit-wrapper {
+    @apply flex justify-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-600;
+}
+
+.shared-submit-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    color: white;
+    background: linear-gradient(to right, #2563eb, #1d4ed8);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    transition: all 0.15s;
+    cursor: pointer;
+    border: none;
+}
+
+.shared-submit-btn:hover {
+    background: linear-gradient(to right, #1d4ed8, #1e40af);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.shared-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

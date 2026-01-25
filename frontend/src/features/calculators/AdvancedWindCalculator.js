@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Wind, RotateCcw, Settings, MapPin } from 'lucide-react';
+import { Wind, RotateCcw, Settings, MapPin, Play } from 'lucide-react';
 import { FormField, Input, Select, Switch } from '../../components/common/FormComponents';
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './SharedComponents.css';
 import './AdvancedWindCalculator.css';
 
 const SPANISH_CITIES = [
@@ -51,7 +52,7 @@ const AdvancedWindCalculator = () => {
             initial_electricity_price: 50.0,
             discount_rate: 5.0,
             project_lifetime: 20,
-            debt_ratio: 70, // Por defecto 70%
+            debt_ratio: 0, // Desactivado por defecto
             interest_rate: 4.5,
             loan_term: 15
         }
@@ -311,27 +312,27 @@ const AdvancedWindCalculator = () => {
                                         onChange={(e) => handleFinancialChange('discount_rate', e.target.value)}
                                     />
                                 </FormField>
+                            </div>
 
-                                <div className="space-y-4 pt-2">
-                                    <Switch 
-                                        label="Financiación Externa" 
-                                        checked={(formData.financial_params.debt_ratio || 0) > 0} 
-                                        onChange={(checked) => handleFinancialChange('debt_ratio', checked ? 70 : 0)}
-                                    />
-                                </div>
+                            <div className="shared-debt-toggle">
+                                <Switch 
+                                    label="Financiación Externa" 
+                                    checked={(formData.financial_params.debt_ratio || 0) > 0} 
+                                    onChange={(checked) => handleFinancialChange('debt_ratio', checked ? 70 : 0)}
+                                />
                             </div>
                             
                             {(formData.financial_params.debt_ratio || 0) > 0 && (
-                                <div className="debt-section">
+                                <div className="shared-debt-panel">
                                     <FormField label="Ratio Deuda (%)">
-                                        <div className="range-slider-container">
+                                        <div className="shared-debt-slider-container">
                                             <input 
                                                 type="range" min="0" max="100" 
                                                 value={formData.financial_params.debt_ratio} 
                                                 onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
-                                                className="range-slider"
+                                                className="shared-debt-slider"
                                             />
-                                            <span className="range-value">{formData.financial_params.debt_ratio}%</span>
+                                            <span className="shared-debt-value">{formData.financial_params.debt_ratio}%</span>
                                         </div>
                                     </FormField>
                                     <FormField label="Tasa Interés (%)">
@@ -354,8 +355,13 @@ const AdvancedWindCalculator = () => {
                     )}
                 </div>
 
-                <div className="submit-container">
-                    <button onClick={handleSimulate} disabled={loading} className="btn-primary-wind">
+                <div className="shared-submit-wrapper">
+                    <button 
+                        onClick={handleSimulate} 
+                        disabled={loading} 
+                        className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Play size={20} fill="currentColor" />
                         {loading ? 'Procesando...' : 'Ejecutar Simulación'}
                     </button>
                 </div>

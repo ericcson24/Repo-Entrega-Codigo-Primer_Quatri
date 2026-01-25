@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Sun, RotateCcw, Settings, MapPin, Zap } from 'lucide-react';
+import { Sun, RotateCcw, Settings, MapPin, Zap, Play } from 'lucide-react';
 import { FormField, Input, Select, Switch } from '../../components/common/FormComponents';
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './SharedComponents.css';
 import './SolarCalculator.css';
 
 const SPANISH_CITIES = [
@@ -32,8 +33,8 @@ const SolarCalculator = () => {
         project_type: 'solar',
         latitude: 40.4168,
         longitude: -3.7038,
-        capacity_kw: 100,
-        budget: 75000, 
+        capacity_kw: 2000,
+        budget: 1800000, 
         parameters: {
             panel_type: 'monocrystalline',
             orientation: 'south',
@@ -311,41 +312,45 @@ const SolarCalculator = () => {
                                         onChange={(e) => handleFinancialChange('discount_rate', e.target.value)}
                                     />
                                 </FormField>
-
-                                <div className="debt-container">
-                                    <Switch 
-                                        label="Financiación Externa (Deuda)" 
-                                        checked={(formData.financial_params.debt_ratio || 0) > 0} 
-                                        onChange={(checked) => handleFinancialChange('debt_ratio', checked ? 70 : 0)}
-                                    />
-                                    
-                                    {(formData.financial_params.debt_ratio || 0) > 0 && (
-                                        <div className="debt-details-box">
-                                            <FormField label="Ratio Deuda (%)" tooltip="Porcentaje financiado con banco">
-                                                <Input 
-                                                    type="number" step="1" max="100" min="1" 
-                                                    value={formData.financial_params.debt_ratio} 
-                                                    onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
-                                                />
-                                            </FormField>
-                                            <FormField label="Tipo Interés (%)">
-                                                <Input 
-                                                    type="number" step="0.1"
-                                                    value={formData.financial_params.interest_rate} 
-                                                    onChange={(e) => handleFinancialChange('interest_rate', e.target.value)}
-                                                />
-                                            </FormField>
-                                            <FormField label="Plazo Préstamo (Años)">
-                                                <Input 
-                                                    type="number" step="1"
-                                                    value={formData.financial_params.loan_term || 15} 
-                                                    onChange={(e) => handleFinancialChange('loan_term', e.target.value)}
-                                                />
-                                            </FormField>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
+
+                            <div className="shared-debt-toggle">
+                                <Switch 
+                                    label="Financiación Externa" 
+                                    checked={(formData.financial_params.debt_ratio || 0) > 0} 
+                                    onChange={(checked) => handleFinancialChange('debt_ratio', checked ? 70 : 0)}
+                                />
+                            </div>
+
+                            {(formData.financial_params.debt_ratio || 0) > 0 && (
+                                <div className="shared-debt-panel">
+                                    <FormField label="Ratio Deuda (%)" tooltip="Porcentaje financiado con banco">
+                                        <div className="shared-debt-slider-container">
+                                            <input 
+                                                type="range" min="0" max="100" 
+                                                value={formData.financial_params.debt_ratio} 
+                                                onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
+                                                className="shared-debt-slider"
+                                            />
+                                            <span className="shared-debt-value">{formData.financial_params.debt_ratio}%</span>
+                                        </div>
+                                    </FormField>
+                                    <FormField label="Tipo Interés (%)">
+                                        <Input 
+                                            type="number" step="0.1"
+                                            value={formData.financial_params.interest_rate} 
+                                            onChange={(e) => handleFinancialChange('interest_rate', e.target.value)}
+                                        />
+                                    </FormField>
+                                    <FormField label="Plazo Préstamo (Años)">
+                                        <Input 
+                                            type="number" step="1"
+                                            value={formData.financial_params.loan_term || 15} 
+                                            onChange={(e) => handleFinancialChange('loan_term', e.target.value)}
+                                        />
+                                    </FormField>
+                                </div>
+                            )}
                             
                              {/* Advanced Business Model & OPEX */}
                              <div className="business-model-layout">
@@ -418,23 +423,14 @@ const SolarCalculator = () => {
                     )}
                 </div>
 
-                <div className="submit-wrapper">
+                <div className="shared-submit-wrapper">
                     <button
                         onClick={handleSimulate}
                         disabled={loading}
-                        className="btn-submit-solar"
+                        className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {loading ? (
-                            <>
-                                <div className="spinner" />
-                                <span>Simulando...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Zap size={20} />
-                                <span>Ejecutar Simulación</span>
-                            </>
-                        )}
+                        <Play size={20} fill="currentColor" />
+                        {loading ? 'Procesando...' : 'Ejecutar Simulación'}
                     </button>
                 </div>
             </div>

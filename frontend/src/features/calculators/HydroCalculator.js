@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Droplets, RotateCcw, Settings, MapPin } from 'lucide-react';
+import { Droplets, RotateCcw, Settings, MapPin, Play } from 'lucide-react';
 import { FormField, Input, Select, Switch } from '../../components/common/FormComponents';
 import ResultsDashboard from '../../components/dashboards/ResultsDashboard';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import './SharedComponents.css';
 import './HydroCalculator.css';
 
 const SPANISH_CITIES = [
@@ -218,26 +219,27 @@ const HydroCalculator = () => {
                                         onChange={(e) => handleFinancialChange('discount_rate', e.target.value)}
                                     />
                                 </FormField>
-                                <div className="space-y-4 pt-2">
-                                    <Switch 
-                                        label="Financiación Externa" 
-                                        checked={formData.financial_params.use_debt} 
-                                        onChange={(checked) => handleFinancialChange('use_debt', checked)} 
-                                    />
-                                </div>
+                            </div>
+
+                            <div className="shared-debt-toggle">
+                                <Switch 
+                                    label="Financiación Externa" 
+                                    checked={formData.financial_params.use_debt} 
+                                    onChange={(checked) => handleFinancialChange('use_debt', checked)} 
+                                />
                             </div>
                                 
                             {formData.financial_params.use_debt && (
-                                <div className="debt-panel">
+                                <div className="shared-debt-panel">
                                     <FormField label="Ratio Deuda (%)">
-                                        <div className="debt-range-wrapper">
+                                        <div className="shared-debt-slider-container">
                                             <input 
                                                 type="range" min="0" max="100" 
                                                 value={formData.financial_params.debt_ratio} 
                                                 onChange={(e) => handleFinancialChange('debt_ratio', parseFloat(e.target.value))}
-                                                className="range-slider-input"
+                                                className="shared-debt-slider"
                                             />
-                                            <span className="range-label-mono">{formData.financial_params.debt_ratio}%</span>
+                                            <span className="shared-debt-value">{formData.financial_params.debt_ratio}%</span>
                                         </div>
                                     </FormField>
                                     <FormField label="Tasa Interés (%)">
@@ -260,8 +262,13 @@ const HydroCalculator = () => {
                     )}
                 </div>
 
-                 <div className="action-bar">
-                    <button onClick={handleSimulate} disabled={loading} className="btn-primary-hydro">
+                 <div className="shared-submit-wrapper">
+                    <button 
+                        onClick={handleSimulate} 
+                        disabled={loading} 
+                        className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Play size={20} fill="currentColor" />
                         {loading ? 'Procesando...' : 'Ejecutar Simulación'}
                     </button>
                 </div>
