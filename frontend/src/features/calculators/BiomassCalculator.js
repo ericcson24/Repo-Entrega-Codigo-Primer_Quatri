@@ -303,7 +303,15 @@ const BiomassCalculator = () => {
                     <button 
                         onClick={handleSimulate} 
                         disabled={loading} 
-                        className="flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="shared-submit-btn"
+                        style={{
+                            appearance: 'none',
+                            WebkitAppearance: 'none',
+                            MozAppearance: 'none',
+                            background: 'linear-gradient(to right, #2563eb, #1d4ed8)',
+                            border: 'none',
+                            color: '#ffffff'
+                        }}
                     >
                         <Play size={20} fill="currentColor" />
                         {loading ? 'Procesando...' : 'Ejecutar Simulación'}
