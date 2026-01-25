@@ -1,51 +1,50 @@
-﻿# Simulador de Energías Renovables ⚡️
+﻿# Simulador de Inversión en Energías Renovables
 
-Proyecto para la simulación financiera y técnica de plantas de energía renovable. Permite calcular la viabilidad de instalaciones solares, eólicas, hidroeléctricas y de biomasa basándose en datos climáticos reales y parámetros económicos.
+Este proyecto es una plataforma completa para la simulación financiera y técnica de proyectos de energía renovable (Solar, Eólica, Hidráulica y Biomasa).
 
 ## Estructura del Proyecto
 
-El sistema está dividido en microservicios dockerizados para separar la lógica de cálculo (pesada) de la gestión de usuarios y la interfaz.
+El repositorio está organizado en tres componentes principales:
 
-*   **`frontend/`**: La intefaz de usuario. Está hecha con React y Tailwind. Sirve para configurar los parámetros de la simulación y ver los gráficos de resultados.
-*   **`backend/`** (Node.js): Es el orquestador. Gestiona la API principal, guarda las simulaciones en la base de datos y se comunica con el motor de física cuando hace falta calcular algo nuevo.
-*   **`physics_engine/`** (Python): Aquí está la "chicha" del cálculo. Usamos Python con Pandas/NumPy porque es mucho más eficiente para procesar las series temporales de datos meteorológicos y aplicar las fórmulas de generación de energía. Expone una API con FastAPI.
-*   **`database/`**: Configuración de TimescaleDB (PostgreSQL tuneado para series de tiempo).
+1.  **Frontend (`/frontend`)**: Interfaz de usuario construida con React, con calculadoras interactivas y paneles de visualización.
+2.  **Backend (`/backend`)**: API RESTful en Node.js/Express que gestiona usuarios, simulaciones y la lógica de negocio.
+3.  **Motor de Física (`/physics_engine`)**: Microservicio en Python (FastAPI) encargado de los cálculos técnicos complejos de generación de energía.
 
-## Cómo levantarlo en local
+## Requisitos Previos
 
-Lo más sencillo es usar Docker Compose, así no tienes que instalar Python ni Node en tu máquina local si no quieres.
+*   Node.js (v18+)
+*   Python (v3.10+)
+*   Docker (Opcional, para despliegue contenerizado)
 
-1.  Clónate el repo.
-2.  Asegúrate de tener Docker corriendo.
-3.  Ejecuta:
+## Instalación y Ejecución Local
 
-```bash
-docker-compose up --build
-```
+1.  **Instalar dependencias globales:**
+    ```bash
+    npm install
+    ```
 
-Esto va a levantar:
-*   Postgres en el puerto `5432`
-*   El backend en el `3000` (interno, a veces expuesto)
-*   El motor de física en el `8000`
-*   El frontend (normalmente en el `3000` o `8080` dependiendo de la config de React, mira la consola).
+2.  **Instalar dependencias de subproyectos:**
+    ```bash
+    npm run install:all
+    ```
+    *(Nota: También deberá instalar las dependencias de Python en `physics_engine` manualmente si no usa Docker)*
 
-### Si quieres desarrollar (sin Docker para el código)
+3.  **Iniciar entornos de desarrollo:**
+    ```bash
+    npm start
+    ```
+    Esto iniciará concurrentemente el Frontend, Backend y el Motor de Física.
 
-Si quieres tocar código y ver cambios rápido, suele ser mejor levantar la base de datos con Docker y correr los servicios en local:
+## Despliegue
 
-1.  `docker-compose up timescaledb -d`
-2.  **Backend:** `cd backend && npm install && npm run dev`
-3.  **Physics:** Ve a `physics_engine`, crea un virtualenv, instala `requirements.txt` y corre `uvicorn main:app --reload`.
-4.  **Frontend:** `cd frontend && npm install && npm start`.
+Consulte el archivo `DOCS_DEPLOY.md` para obtener instrucciones detalladas sobre cómo desplegar la aplicación en Google Cloud y Firebase.
 
-## Notas de desarrollo
+## Tecnologías Utilizadas
 
-*   **Datos climáticos:** Usamos la API de Open-Meteo. No requiere API Key para uso básico, pero tenlo en cuenta si haces muchas peticiones seguidas.
-*   **Base de datos:** Los scripts de `database/init` se ejecutan solos la primera vez que se levanta el contenedor de postgres. Si las tablas no se crean, borra el volumen de docker y reinicia.
+*   **Frontend:** React, Recharts, Tailwind CSS (via clases utilitarias)
+*   **Backend:** Node.js, Express, PostgreSQL
+*   **Ciencia de Datos:** Python, Pandas, NumPy, Scikit-learn (potencialmente para futuros modelos)
 
-## Estado del proyecto
+## Autor
 
-Actualmente funcional para simulaciones básicas de las 4 tecnologías.
-*   ✅ Cálculos de generación física (Solar/Eólica funcionan con datos reales).
-*   ✅ Flujo de caja simple (VAN, TIR).
-*   🚧 Faltan tests de integración más exhaustivos.
+Ericcson24

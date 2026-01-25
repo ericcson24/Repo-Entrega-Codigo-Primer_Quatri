@@ -51,21 +51,21 @@ class WeatherConnector:
              if openmeteo_az > 180: openmeteo_az -= 360
              
              params["azimuth"] = openmeteo_az
-             # Request plane of array irradiance
+             # Solicitar irradiancia en plano inclinado
              params["hourly"].append("global_tilted_irradiance")
 
         responses = self.openmeteo.weather_api(self.url, params=params)
         response = responses[0]
         
-        # Process hourly data
+        # Procesar datos horarios
         hourly = response.Hourly()
         
-        # Helper to get by name logic is safer but we use index for speed in TFG context if standard order
-        # But indices change if we append to list. Safer to map by variable name
-        # OpenMeteo library handles this via indices corresponding to request order usually.
-        # We must be careful.
+        # Helper para obtener por nombre lógica más segura, pero usamos índice por velocidad
+        # Los índices cambian si añadimos a la lista. Más seguro mapear por nombre de variable
+        # La librería OpenMeteo maneja esto vía índices correspondientes al orden de solicitud usualmente.
+        # Debemos tener cuidado.
         
-        # Let's trust the order we requested or mapped.
+        # Confiamos en el orden que solicitamos o mapeamos.
         # 0: temp, 1: precip, 2: wind10, 3: wind100, 4: GHI (shortwave), 5: DNI, 6: Diffuse, 7: Pressure
         variable_map = {
              "temperature_2m": 0,
@@ -83,7 +83,7 @@ class WeatherConnector:
              variable_map["global_tilted_irradiance"] = next_idx
              next_idx += 1
 
-        # Safer extraction
+        # Extracción segura
         def get_var(name):
              if name in variable_map:
                 try: 

@@ -184,27 +184,27 @@ def predict_solar(request: SimulationRequest):
         # Esto crea una serie de 12 valores: [AvgEne, AvgFeb, ...]
         avg_monthly_profile = monthly_series.groupby(monthly_series.index.month).mean()
         
-        # Re-construct a "Representative Year" dictionary for frontend
-        # Frontend expects dates logic? Usually just "Jan, Feb". 
-        # But `monthly.to_dict()` keys are Timestamps.
-        # To maintain compatibility, we map 1..12 back to dummy timestamps of Year 0 or BASE_YEAR
+        # Reconstruir un diccionario de "Año Representativo" para el frontend
+        # El frontend espera lógica de fechas. Usualmente solo "Ene, Feb".
+        # Pero las claves de `monthly.to_dict()` son Timestamps.
+        # Para mantener compatibilidad, mapeamos 1..12 a fechas ficticias del Año 0 o AÑO_BASE
         
-        # Better: Return the projected 20 years based on this AVERAGE profile.
-        # We need `create_long_term_monthly_projection` to accept this 12-month profile.
+        # Mejor: Retornar los 20 años proyectados basados en este perfil PROMEDIO.
+        # Necesitamos que `create_long_term_monthly_projection` acepte este perfil de 12 meses.
         
         project_lifetime = int(request.financial_params.get("project_lifetime", 25))
         long_term_projection = create_long_term_monthly_projection(avg_monthly_profile, years=project_lifetime, degradation_annual=degradation)
 
-        # For "monthly_generation_kwh", let's return the representative year (12 months)
-        # mapped to the Base Year dates so frontend graph looks normal (Jan-Dec)
+        # Para "monthly_generation_kwh", retornamos el año representativo (12 meses)
+        # mapeado a las fechas del Año Base para que la gráfica del frontend se vea normal (Ene-Dic)
         base_dates = pd.date_range(start=f"{settings.BASE_YEAR}-01-01", periods=12, freq="ME")
         monthly_dict = dict(zip(base_dates, avg_monthly_profile.values))
         
-        # Hourly? Returning 3 years of hourly data is heavy (26k points).
-        # Should we return just the first year? Or the average 8760?
-        # Average 8760 is hard (leap years etc).
-        # Let's return the LAST year (most recent) as the "Sample Hourly Profile" to keep it light 
-        # but accurate to recent trends.
+        # ¿Horario? Retornar 3 años de datos horarios es pesado (26k puntos).
+        # ¿Deberíamos retornar solo el primer año? ¿O el promedio 8760?
+        # Promediar 8760 es difícil (años bisiestos, etc).
+        # Retornemos el ÚLTIMO año (más reciente) como el "Perfil Horario de Muestra" para mantenerlo ligero
+        # pero preciso a tendencias recientes.
         last_8760 = generation_kw[-8760:].tolist()
 
         return {
@@ -221,7 +221,7 @@ def predict_wind(request: SimulationRequest):
     try:
         df_weather = get_weather_data(request.latitude, request.longitude)
         
-        # Note: df_weather is now a 3-year DataFrame
+        # Nota: df_weather es ahora un DataFrame de 3 años
         
         wind_speed_10m = df_weather["wind_speed_10m"].to_numpy()
         temperature = None
@@ -324,20 +324,19 @@ def predict_hydro(request: SimulationRequest):
 
 @router.post("/biomass")
 def predict_biomass(request: SimulationRequest):
-    # Biomass dispatch depends on market prices.
-    # In a full microservice architecture, we might call the price service internally or 
-    # accept prices as input. Here we simply instantiate the price model locally.
+    # La biomasa depende de precios de mercado para su despacho.
+    # Instanciamos el modelo de precios localmente con los parámetros recibidos.
     try:
         years_to_simulate = [settings.BASE_YEAR - 2, settings.BASE_YEAR - 1, settings.BASE_YEAR]
         
-        # Get base price from request or default
+        # Obtener precio base de la solicitud o por defecto
         base_price = request.financial_params.get("initial_electricity_price", 50.0)
         market_model = MarketModel(base_price=float(base_price))
         
         params = request.parameters
         degradation = params.get("degradation_rate", 0.005)
 
-        # Generate multi-year price curve and simulate year by year to respect annual fuel limits
+        # Generar curva de precios anual y simular año por año para respetar límites de combustible
         gen_list = []
         prices_list = []
         
@@ -345,30 +344,30 @@ def predict_biomass(request: SimulationRequest):
             efficiency=params.get("efficiency", 0.25),
             fuel_cost_eur_ton=params.get("fuel_cost", 150),
             pci_kwh_kg=params.get("pci", 4.5),
-            tech_params=params # Pass integration tech specs
+            tech_params=params 
         )
 
         for _ in years_to_simulate:
             annual_prices = market_model.generate_annual_price_curve()
             prices_list.extend(annual_prices)
             
-            # Dispatch for this specific year
+            # Despacho para este año específico
             annual_gen = model.optimize_dispatch(annual_prices, request.capacity_kw)
             gen_list.extend(annual_gen)
             
         prices = np.array(prices_list)
         generation_kw = np.array(gen_list)
         
-        # Create dates for the entire multi-year range
+        # Crear fechas para todo el rango multi-anual
         full_dates = []
         for year in years_to_simulate:
             full_dates.extend(pd.date_range(start=f"{year}-01-01", end=f"{year}-12-31 23:00", freq="H").tolist())
         
-        # Safe length match in case of leap years vs synthetic 8760 lists
+        # Asegurar coincidencia de longitud (años bisiestos vs listas sintéticas de 8760)
         min_len = min(len(full_dates), len(generation_kw))
         df = pd.DataFrame({"date": full_dates[:min_len], "generation_kw": generation_kw[:min_len]})
         
-        # --- Multi-Year Logic ---
+        # --- Lógica Multi-Anual ---
         total_gen = generation_kw.sum()
         num_years = len(years_to_simulate)
         avg_annual = total_gen / num_years
@@ -392,4 +391,4 @@ def predict_biomass(request: SimulationRequest):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Biomass Prediction Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error en predicción de Biomasa: {str(e)}")

@@ -8,8 +8,8 @@ RUN npm install
 
 COPY . .
 
-# Cloud Run sets PORT variable (usually 8080).
-# Expose default 8080
+# Cloud Run establece la variable PORT (usualmente 8080).
+# Exponer puerto predeterminado 8080
 EXPOSE 8080
 
 CMD ["npm", "start"]
