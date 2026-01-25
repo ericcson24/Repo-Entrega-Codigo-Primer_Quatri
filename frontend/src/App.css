@@ -43,10 +43,22 @@
     border-radius: 9999px;
     transition: background-color 0.2s;
     color: #4b5563;
+    background-color: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .theme-toggle-btn:hover {
     background-color: #f3f4f6;
+}
+
+.theme-toggle-btn:focus {
+    outline: none;
+    box-shadow: none;
 }
 
 .dark .theme-toggle-btn {

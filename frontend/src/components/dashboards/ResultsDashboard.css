@@ -244,19 +244,27 @@
 }
 
 .dashboard-tab {
-    padding: 1rem 1rem 1rem 1rem;
+    padding: 0.75rem 1.5rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: #6b7280;
+    background-color: transparent;
+    border: none;
     border-bottom: 2px solid transparent;
     transition: all 0.2s;
     text-transform: capitalize;
     position: relative;
     cursor: pointer;
+    outline: none;
 }
 
 .dashboard-tab:hover {
     color: #374151;
+    background-color: #f3f4f6;
+}
+
+.dashboard-tab:focus {
+    outline: none;
 }
 
 .dark .dashboard-tab {
@@ -265,11 +273,13 @@
 
 .dark .dashboard-tab:hover {
     color: #d1d5db;
+    background-color: #374151;
 }
 
 .dashboard-tab-active {
     border-bottom-color: #3b82f6;
     color: #2563eb;
+    font-weight: 600;
 }
 
 .dark .dashboard-tab-active {
@@ -330,6 +340,12 @@
     transition: all 0.2s;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     cursor: pointer;
+    outline: none;
+}
+
+.btn-toolbar:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .dark .btn-toolbar {
@@ -339,6 +355,8 @@
 
 .btn-toolbar:hover {
     background-color: #f9fafb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .dark .btn-toolbar:hover {
@@ -358,10 +376,18 @@
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     cursor: pointer;
     border: none;
+    outline: none;
 }
 
 .btn-dashboard-export:hover {
     background-color: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4);
+}
+
+.btn-dashboard-export:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
 .btn-dashboard-secondary {
@@ -376,6 +402,12 @@
     transition: all 0.2s;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     cursor: pointer;
+    outline: none;
+}
+
+.btn-dashboard-secondary:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.1);
 }
 
 .dark .btn-dashboard-secondary {
@@ -386,6 +418,8 @@
 
 .btn-dashboard-secondary:hover {
     background-color: #f9fafb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .dark .btn-dashboard-secondary:hover {
