@@ -7,6 +7,7 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, A
 import { useTheme } from '../../contexts/ThemeContext';
 import './ResidentialSolarCalculator.css';
 
+// Principales ciudades españolas con sus coordenadas
 const SPANISH_CITIES = [
     { name: 'Madrid', lat: 40.4168, lon: -3.7038 },
     { name: 'Barcelona', lat: 41.3851, lon: 2.1734 },
@@ -22,46 +23,43 @@ const SPANISH_CITIES = [
     { name: 'Valladolid', lat: 41.6523, lon: -4.7245 }
 ];
 
+// Costes fijos de instalación
+const INSTALLATION_BASE_COST = 2500;
+const INSTALLATION_COST_PER_PANEL = 150;
 
-// --- MOCK CATALOG END ---
-
-const INSTALLATION_BASE_COST = 2500; // Coste fijo realista (Inversor Híbrido, Legalización, Boletín, Estructura base)
-const INSTALLATION_COST_PER_PANEL = 150; // Coste variable (Mano de obra cualificada, estructura extra, cableado DC)
-
-// --- RESIDENTIAL RESULTS COMPONENT ---
+// Componente que muestra los resultados de la simulación residencial
 const ResidentialResults = ({ system, annualGeneration, params }) => {
-    const { isDark } = useTheme(); // Use hook
+    const { isDark } = useTheme();
     
-    // Cálculos Financieros
     const annualGenKwh = annualGeneration;
+    // Porcentaje de la energía que consumimos directamente
     const ratio = params.selfConsumptionRatio / 100;
     
-    // Beneficio Económico Anual
-    // Ahorro Directo por Autoconsumo
+    // Ahorro por la energía que consumimos directamente
     const savingsFromConsumption = annualGenKwh * ratio * params.electricityPrice;
     
-    // Ingresos por Venta de Excedentes
+    // Ingresos por vender el excedente a la red
     const incomeFromSurplus = annualGenKwh * (1 - ratio) * params.surplusPrice;
     
+    // Ahorro total cada año
     const totalAnnualSavings = savingsFromConsumption + incomeFromSurplus;
     
-    // Retorno de Inversión
+    // Calculamos en cuántos años recuperamos la inversión
     const paybackYears = system.estimatedCost / totalAnnualSavings;
     
-    // Datos de Gráfico Acumulativo
+    // Preparamos datos para la gráfica de flujo de caja acumulado
     const chartData = [];
     let cumulativeSavings = -system.estimatedCost;
+    // Proyectamos 25 años
     for (let yr = 0; yr <= 25; yr++) {
         chartData.push({
             year: yr,
             balance: Math.round(cumulativeSavings),
             breakEven: 0
         });
-        // Añadir ahorros para el siguiente año
         cumulativeSavings += totalAnnualSavings; 
     }
 
-    // Custom Tooltip Component
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             return (
@@ -79,7 +77,6 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
     return (
         <div className="calculator-stack">
             <div className="grid-responsive-4">
-                {/* 1. SAVINGS CARD */}
                 <div className="savings-card">
                     <div className="flex-center-gap mb-2">
                         <PiggyBank className="text-green-primary" size={20} />
@@ -95,7 +92,6 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
                     )}
                 </div>
 
-                {/* 2. PAYBACK CARD */}
                 <div className="payback-card">
                     <div className="flex-center-gap mb-2">
                         <Zap className="text-blue-primary" size={20} />
@@ -109,7 +105,6 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
                     </div>
                 </div>
 
-                {/* 3. INDEPENDENCE CARD */}
                 <div className="independence-card">
                     <div className="flex-center-gap mb-2">
                         <BatteryCharging className="text-purple-primary" size={20} />
@@ -123,7 +118,6 @@ const ResidentialResults = ({ system, annualGeneration, params }) => {
                     </div>
                 </div>
 
-                {/* 4. CO2 CARD (NEW) */}
                 <div className="co2-card">
                     <div className="flex-center-gap mb-2">
                         <Home className="text-teal-primary" size={20} />
@@ -165,7 +159,6 @@ const ResidentialSolarCalculator = () => {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
     
-    // Estado del Catálogo
     const [panelCatalog, setPanelCatalog] = useState([]);
     const [selectedPanel, setSelectedPanel] = useState(null);
     const [isCustomPanel, setIsCustomPanel] = useState(false);
@@ -180,35 +173,29 @@ const ResidentialSolarCalculator = () => {
         type: 'Monocrystalline'
     });
     
-    // Estado de Cálculo
     const [calculatedSystem, setCalculatedSystem] = useState(null);
 
-    // Entradas
     const [selectedCity, setSelectedCity] = useState(SPANISH_CITIES[0]);
-    const [citySunHours, setCitySunHours] = useState(1500); // Datos obtenidos en vivo
+    const [citySunHours, setCitySunHours] = useState(1500);
 
-    const [availableArea, setAvailableArea] = useState(30); // m2
-    const [budget, setBudget] = useState(8000); // € Presupuesto aumentado por defecto para batería
-    const [monthlyBill, setMonthlyBill] = useState(100); // €/mes
+    const [availableArea, setAvailableArea] = useState(30);
+    const [budget, setBudget] = useState(8000);
+    const [monthlyBill, setMonthlyBill] = useState(100);
 
-    // PARÁMETROS AVANZADOS
-    const [electricityPrice, setElectricityPrice] = useState(0.20); // €/kWh
-    const [surplusPrice, setSurplusPrice] = useState(0.06); // €/kWh
-    const [selfConsumptionRatio, setSelfConsumptionRatio] = useState(40); // %
-    const [consumptionProfile, setConsumptionProfile] = useState('balanced'); // 'day', 'evening', 'balanced'
+    const [electricityPrice, setElectricityPrice] = useState(0.20);
+    const [surplusPrice, setSurplusPrice] = useState(0.06);
+    const [selfConsumptionRatio, setSelfConsumptionRatio] = useState(40);
+    const [consumptionProfile, setConsumptionProfile] = useState('balanced');
     
-    // Estado de Batería
     const [includeBattery, setIncludeBattery] = useState(false);
-    const [batteryCapacity, setBatteryCapacity] = useState(5); // kWh
-    const [batteryCost, setBatteryCost] = useState(2500); // €
+    const [batteryCapacity, setBatteryCapacity] = useState(5);
+    const [batteryCost, setBatteryCost] = useState(2500);
     
-    // Ayudante: Manejar cambio de ciudad
     const handleCityChange = (e) => {
         const city = SPANISH_CITIES.find(c => c.name === e.target.value);
         if (city) setSelectedCity(city);
     };
 
-    // Efecto: Obtener el potencial solar cuando cambia la ciudad
     useEffect(() => {
         const fetchSunHours = async () => {
             const data = await apiService.getWeather(selectedCity.lat, selectedCity.lon);
@@ -219,51 +206,38 @@ const ResidentialSolarCalculator = () => {
         fetchSunHours();
     }, [selectedCity]);
 
-    // Ayudante: Estimar consumo de la factura
     const estimatedAnnualConsumption = Math.round((monthlyBill * 12) / electricityPrice);
     
-    // Efecto: Calcular autoconsumo basado en perfil + batería
     useEffect(() => {
-        let baseRatio = 35; // Ratio base para usuario medio
+        let baseRatio = 35;
 
-        // 1. Ajustar basado en Perfil de Consumo
         switch(consumptionProfile) {
-            case 'day': baseRatio = 50; break; // En casa durante el día
-            case 'evening': baseRatio = 25; break; // Oficina durante el día
+            case 'day': baseRatio = 50; break;
+            case 'evening': baseRatio = 25; break;
             case 'balanced': default: baseRatio = 35; break;
         }
 
-        // 2. Ajustar basado en Batería
         if (includeBattery) {
-            // Heurística aproximada: +30-40% independencia con batería
-            // Limitar al 85% porque 100% desconectado es muy difícil/caro
             setSelfConsumptionRatio(Math.min(90, baseRatio + 40)); 
         } else {
             setSelfConsumptionRatio(baseRatio);
         }
     }, [includeBattery, consumptionProfile]);
 
-    // Cargar Catálogo
     useEffect(() => {
         const loadCatalog = async () => {
             try {
                 let panels = await apiService.getCatalog('solar');
                 
                 if (!panels || panels.length === 0) {
-                    // Manejar catálogo vacío elegantemente
                     setPanelCatalog([]);
                     return;
                 }
                 
-                // Enriquecer con precio y campos formateados
                 const enrichedPanels = panels.map(p => ({
                     ...p,
-                    // Estimar Precio Minorista incluyendo margen de IVA si no está presente. 
-                    // Mayorista puede ser 0.30€/W, pero Minorista es cercano a 0.50-0.70€/W
                     price_eur: p.price_eur || (p.p_max_w ? Math.round(p.p_max_w * 0.65) : 250),
-                    // Asegurar que exista área
                     area_m2: p.area_m2 || 2.0,
-                    // Ayudantes de visualización
                     brand: p.manufacturer || 'Genérico',
                     model: p.name || 'Panel Solar',
                     efficiencyPercent: p.efficiency ? (p.efficiency * 100).toFixed(1) : "20.0",
@@ -273,13 +247,11 @@ const ResidentialSolarCalculator = () => {
                 setPanelCatalog(enrichedPanels);
                 if(enrichedPanels.length > 0) setSelectedPanel(enrichedPanels[0]);
             } catch (err) {
-                console.error("Fallo al cargar catálogo", err);
             }
         };
         loadCatalog();
     }, []);
 
-    // Efecto de Pre-cálculo
     useEffect(() => {
         const activePanel = isCustomPanel ? customPanel : selectedPanel;
         if (!activePanel) return;
@@ -288,11 +260,8 @@ const ResidentialSolarCalculator = () => {
         const panelCost = activePanel.price_eur + INSTALLATION_COST_PER_PANEL;
         const storageCost = includeBattery ? batteryCost : 0;
         
-        // 1. Limitar por Área
         const maxPanelsArea = Math.floor(availableArea / panelArea);
         
-        // 2. Limitar por Presupuesto
-        // Presupuesto >= CosteBase + CosteBatería + (N * CostePanel)
         const availableBudgetForPanels = Math.max(0, budget - INSTALLATION_BASE_COST - storageCost);
         const maxPanelsBudget = Math.floor(availableBudgetForPanels / panelCost);
         
@@ -320,7 +289,6 @@ const ResidentialSolarCalculator = () => {
         try {
             const activePanel = isCustomPanel ? customPanel : selectedPanel;
 
-            // Preparar payload compatible con backend existente
             const simulationPayload = {
                 project_type: 'solar',
                 latitude: selectedCity.lat, 
@@ -329,18 +297,16 @@ const ResidentialSolarCalculator = () => {
                 budget: calculatedSystem.estimatedCost,
                 parameters: {
                     panel_type: activePanel.type ? activePanel.type.toLowerCase() : 'monocrystalline',
-                    // Pasar parámetros técnicos específicos si están disponibles (del Catálogo), sino usar predeterminados del Backend
-                    temp_coef: activePanel.temp_coef_pmax || undefined, 
+                    temp_coef: activePanel.temp_coef_pmax || undefined,
                     bifaciality: activePanel.bifaciality_factor || (activePanel.type === 'Bifacial' ? 0.7 : 0.0),
                     
                     orientation: 'south',
                     tilt: 35, 
                     system_loss: 0.14,
                     degradation_rate: 0.005,
-                    battery_kwh: includeBattery ? batteryCapacity : 0 // Informativo para Motor IA si está soportado
+                    battery_kwh: includeBattery ? batteryCapacity : 0
                 },
                 financial_params: {
-                    // Crítico para lógica residencial en backend:
                     self_consumption_ratio: selfConsumptionRatio / 100.0,
                     electricity_price_saved: electricityPrice,
                     electricity_price_surplus: surplusPrice,
@@ -355,7 +321,6 @@ const ResidentialSolarCalculator = () => {
             
             setResults(data);
         } catch (error) {
-            console.error(error);
         } finally {
             setLoading(false);
         }
@@ -383,7 +348,6 @@ const ResidentialSolarCalculator = () => {
                     </button>
                 </div>
 
-                {/* 1. Impacto Financiero (Residencial) */}
                 <div className="results-card">
                      <h3 className="analysis-title">
                         <PiggyBank className="text-green-active" />
@@ -396,7 +360,6 @@ const ResidentialSolarCalculator = () => {
                     />
                 </div>
 
-                {/* 2. Gráficos Técnicos / Producción */}
                 <div className="chart-card">
                     <div className="chart-header">
                         <h3 className="chart-title">

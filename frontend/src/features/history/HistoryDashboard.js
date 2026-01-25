@@ -30,7 +30,6 @@ const HistoryDashboard = () => {
                 setHistory(data);
             }
         } catch (error) {
-            console.error("Fallo al cargar historial", error);
         } finally {
             setLoading(false);
         }

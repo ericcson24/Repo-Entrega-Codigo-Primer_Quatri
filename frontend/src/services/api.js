@@ -1,12 +1,12 @@
 import axios from 'axios';
 
-// En producción usa la variable de entorno, en local usa el proxy o relativo
+// URL base de nuestra API backend
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api'; 
 
 export const apiService = {
+  // Ejecuta una simulación de proyecto renovable
   simulate: async (data) => {
     try {
-      // Datos contienen: { project_type, capacity_kw, latitude, longitude, etc. }
       const response = await axios.post(`${API_BASE_URL}/simulate`, data);
       return response.data;
     } catch (error) {
@@ -15,11 +15,12 @@ export const apiService = {
     }
   },
   
+  // Alias de simulate para compatibilidad
   runSimulation: async (data) => {
     return apiService.simulate(data);
   },
 
-  // Endpoints futuros
+  // Obtiene el historial de simulaciones de un usuario
   getHistory: async (userEmail) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/history?user_email=${userEmail}`);
@@ -30,17 +31,19 @@ export const apiService = {
     }
   },
 
+  // Obtiene datos meteorológicos y potencial solar
   getWeather: async (lat, lon) => {
-      // Usado para potencial solar por ahora
       try {
         const response = await axios.get(`${API_BASE_URL}/solar-potential`, { params: { lat, lon } });
         return response.data; 
       } catch (error) {
         console.warn("Error API Clima:", error);
+        // Valor por defecto si falla
         return { peak_sun_hours: 1500 };
       }
   },
 
+  // Obtiene el catálogo de componentes (paneles, turbinas, etc.)
   getCatalog: async (technology) => {
     try {
         const response = await axios.get(`${API_BASE_URL}/catalog/${technology}`);

@@ -1,4 +1,3 @@
-// Dynamic Results Dashboard
 import React, { useState } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
@@ -8,7 +7,7 @@ import { Download, Printer, TrendingUp, DollarSign, Zap, Calendar, Activity, Bat
 import { useTheme } from '../../contexts/ThemeContext';
 import './ResultsDashboard.css';
 
-/* Helper to map series names/keys to CSS classes */
+// Asigna colores CSS a cada serie de datos para las gráficas
 const getSeriesColorClass = (name) => {
     const map = {
         'Ventas a Red': 'text-color-sales',
@@ -26,7 +25,7 @@ const getSeriesColorClass = (name) => {
     return map[name] || '';
 };
 
-/* Custom Tooltip Component replacing inline styles */
+// Tooltip personalizado para mostrar datos en las gráficas
 const CustomTooltip = ({ active, payload, label, formatter, labelFormatter }) => {
   if (active && payload && payload.length) {
     const labelStr = labelFormatter ? labelFormatter(label) : label;
@@ -49,9 +48,8 @@ const CustomTooltip = ({ active, payload, label, formatter, labelFormatter }) =>
   return null;
 };
 
+// Tarjeta que muestra un indicador clave (KPI)
 const KPICard = ({ title, value, unit, icon: Icon, trend, color, description }) => {
-  // Map legacy color prop (bg-green-500) to semantic variant class
-  // Simple heuristic mapping or pass variant prop directly in future
   const getVariant = (colorClass) => {
       if(colorClass?.includes('green')) return 'kpi-green';
       if(colorClass?.includes('emerald')) return 'kpi-emerald';
@@ -83,20 +81,19 @@ const KPICard = ({ title, value, unit, icon: Icon, trend, color, description }) 
   </div>
 )};
 
+// Panel principal de resultados con gráficas y KPIs
 const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParams, viewMode = 'full' }) => {
   const { isDark } = useTheme();
-  // If residential mode, default to 'production' view, else 'financial'
   const [activeView, setActiveView] = useState(viewMode === 'residential' ? 'production' : 'financial');
 
-  // --- Advanced Technical Analysis Processing ---
-  // Hooks must be called unconditionally at top level
-  // We use optional chaining to safely derive variables even if results is null derived
+  // Datos de generación hora a hora
   const hourlyGen = results?.graphs?.hourly_generation || [];
   
-  // 1. Seasonal Profile Processing
+  // Calcula el perfil de generación promedio por estación del año
   const seasonalProfile = React.useMemo(() => {
     if (!hourlyGen || hourlyGen.length < 8760) return [];
     
+    // Acumuladores para cada estación
     const profiles = {
       Invierno: Array(24).fill(0), Primavera: Array(24).fill(0),
       Verano: Array(24).fill(0), Otoño: Array(24).fill(0)
@@ -110,16 +107,19 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
     const cumDays = [0];
     daysInMonth.forEach((d, i) => cumDays.push(cumDays[i] + d));
     
+    // Encuentra en qué mes estamos según el día del año
     const getMonth = (dayOfYear) => {
        for(let i=0; i<12; i++) if(dayOfYear < cumDays[i+1]) return i;
        return 11;
     };
 
+    // Recorremos todas las horas del año y las agrupamos por estación
     hourlyGen.forEach((val, h) => {
       const hourOfDay = h % 24;
       const dayOfYear = Math.floor(h / 24);
-      const month = getMonth(dayOfYear); // 0-11
+      const month = getMonth(dayOfYear);
       
+      // Asignamos cada mes a su estación
       let season = 'Invierno';
       if (month >= 2 && month <= 4) season = 'Primavera';
       else if (month >= 5 && month <= 7) season = 'Verano';
@@ -129,6 +129,7 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
       counts[season][hourOfDay] += 1;
     });
 
+    // Devolvemos el promedio por hora del día para cada estación
     return Array.from({length: 24}, (_, i) => ({
       hour: i,
       Invierno: profiles.Invierno[i] / (counts.Invierno[i] || 1),
@@ -138,11 +139,12 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
     }));
   }, [hourlyGen]);
 
-  // 2. Duration Curve Processing (Downsampled)
+  // Curva de duración: ordena la generación de mayor a menor
   const durationCurve = React.useMemo(() => {
      if (!hourlyGen || hourlyGen.length === 0) return [];
      const sorted = [...hourlyGen].sort((a, b) => b - a);
      
+     // Tomamos una muestra cada cierto número de horas para no saturar la gráfica
      const points = [];
      const step = Math.max(1, Math.floor(sorted.length / 100));
      for(let i=0; i<sorted.length; i+=step) {
@@ -151,13 +153,11 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
      return points;
   }, [hourlyGen]);
 
-  if (!results) return null; // Early return moved AFTER hooks
+  if (!results) return null;
 
-  // Adapt Backend Response to Frontend Component Structure
   const financials = results.financials;
   
-  // Transform annual data: Map Backend Keys -> Frontend Keys & Calculate Cumulative
-  // Use initial_equity if available (for levered view), otherwise fallback to total_investment (unlevered view logic, but technically wrong for equity chart)
+  // Calculamos el flujo de caja acumulado
   const initialOutflow = financials.initial_equity !== undefined ? financials.initial_equity : financials.total_investment;
   
   let runningTotal = -initialOutflow; 
@@ -175,7 +175,6 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
       };
   });
   
-  // Transform monthly array [v1, v2...] to [{month: 'Jan', generation_kwh: v1}...]
   const rawMonthly = results.graphs?.monthly_generation || [];
   const monthNamesEs = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const monthly_production = Array.isArray(rawMonthly) 
@@ -185,17 +184,14 @@ const ResultsDashboard = ({ results, projectType, systemCapacity, technicalParam
       }))
     : []; 
 
-  // Formatter helpers
   const formatCurrency = (val) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val);
   const formatEnergy = (val) => `${new Intl.NumberFormat('es-ES').format(Math.round(val))}`;
   const formatNumber = (val) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }).format(val);
 
-  // Technical KPIs Calculations
   const annualGenKwh = results.generation?.annual_kwh || results.annual_generation_kwh || 0;
   const specificYield = systemCapacity ? (annualGenKwh / systemCapacity) : 0;
   const capacityFactor = systemCapacity ? (annualGenKwh / (systemCapacity * 8760)) * 100 : 0;
 
-  // --- Export Functions ---
   const handleExportCSV = () => {
     if (!yearly_projection || yearly_projection.length === 0) return;
 

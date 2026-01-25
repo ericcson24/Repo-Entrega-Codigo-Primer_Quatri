@@ -2,12 +2,9 @@ const { FINANCIAL, TECHNICAL } = require('../config/constants');
 
 class FinancialService {
     
-    /**
-     * Calcula el Valor Actual Neto (VAN / NPV)
-     * @param {number} rate - Tasa de descuento (WACC) nominal (ej. 0.05)
-     * @param {number[]} cashFlows - Array de flujos de caja por año (Año 0 es inversión negativa)
-     * @returns {number} NPV
-     */
+    // Calcula cuánto vale hoy el dinero que ganará el proyecto en el futuro
+    // Rate: tasa de descuento (ejemplo: 0.05 = 5%)
+    // CashFlows: dinero que entra/sale cada año (año 0 es negativo porque invertimos)
     static calculateNPV(rate, cashFlows) {
         let npv = 0;
         for (let t = 0; t < cashFlows.length; t++) {
@@ -16,23 +13,14 @@ class FinancialService {
         return npv;
     }
 
-    /**
-     * Calcula la Tasa Interna de Retorno (TIR / IRR)
-     * Utiliza el método de Newton-Raphson
-     * @param {number[]} cashFlows 
-     * @param {number} guess - Estimación inicial
-     * @returns {number} IRR
-     */
+    // Calcula qué rentabilidad porcentual tiene el proyecto
+    // Es la tasa que hace que el VAN sea cero
+    // Usa el método Newton-Raphson para encontrar la solución
     static calculateIRR(cashFlows, guess = 0.1) {
-        // Validación: Si la recuperación total es extremadamente baja, la TIR es efectivamente -100%.
-        // Valor Total = Beneficio Neto (Suma de todos los flujos).
-        // Si el beneficio neto es cercano a la inversión inicial (significando Retornos ~ 0), devolver -1.
-        // cashFlows[0] es la inversión negativa.
-        // Si (Suma - Inversión0) < (Abs(Inversión0) * 0.05) -> Se ha recuperado menos del 5% del capital.
         const totalValue = cashFlows.reduce((a, b) => a + b, 0);
-        const initialInv = cashFlows[0]; // negativo
+        const initialInv = cashFlows[0];
         
-        // Si no hemos recuperado ni el 1% del valor nominal de la inversión
+        // Si recuperamos menos del 1% de la inversión, la rentabilidad es muy mala (-99%)
         if ((totalValue - initialInv) < (Math.abs(initialInv) * 0.01)) {
              return -0.99;
         }
@@ -46,7 +34,6 @@ class FinancialService {
             let dNpv = 0;
             for (let t = 0; t < cashFlows.length; t++) {
                 const num = cashFlows[t];
-                // Cálculo de potencia protegido para tasas muy altas
                 const den = Math.pow(1 + rate, t);
                 npv += num / den;
                 dNpv -= (t * num) / (den * (1 + rate));
@@ -54,16 +41,12 @@ class FinancialService {
 
             if (Math.abs(npv) < tol) return rate;
             
-            // Evitar división por cero
-            if (Math.abs(dNpv) < tol) return rate; 
+            if (Math.abs(dNpv) < tol) return rate;
 
             let newRate = rate - npv / dNpv;
             
-            // CONVERGENCE GUARD:
-            // If the rate explodes (e.g. > 10000 or < -0.99), clamp or abort.
-            if (Math.abs(newRate) > 100) newRate = 100; // Cap at 10,000%
+            if (Math.abs(newRate) > 100) newRate = 100;
             
-            // Allow searching in negative territory down to -99%
             if (newRate < -0.999) newRate = -0.999;
             
             if (Math.abs(newRate - rate) < tol) return newRate;
@@ -72,21 +55,15 @@ class FinancialService {
         return rate;
     }
 
-    /**
-     * Calcula el Payback Period (Retorno de la inversión)
-     * @param {number[]} cashFlows 
-     * @returns {number|null} Año del payback o null si no se recupera
-     */
+    // Calcula en cuántos años recuperamos la inversión inicial
+    // Devuelve el número de años o null si nunca se recupera
     static calculatePayback(cashFlows) {
         let cumulative = cashFlows[0];
-        if (cumulative >= 0) return 0; // Inversión 0 o regalo
+        if (cumulative >= 0) return 0;
 
         for(let i = 1; i < cashFlows.length; i++) {
             cumulative += cashFlows[i];
             if (cumulative >= 0) {
-                // Interpolación lineal simple para mayor precisión decimal
-                // Si en el año i-1 debíamos X, y en el año i ganamos Y...
-                // Payback = (i - 1) + (abs(cumulative_prev) / cashFlow_i)
                 const prevCumulative = cumulative - cashFlows[i];
                 const fractalYear = Math.abs(prevCumulative) / cashFlows[i];
                 return (i - 1) + fractalYear;
@@ -95,37 +72,31 @@ class FinancialService {
         return null;
     }
 
-    /**
-     * Genera la proyección financiera completa
-     */
+    // Genera toda la proyección financiera del proyecto año por año
+    // Calcula ingresos, costes, impuestos, flujos de caja, etc.
     static generateProjection(initialInvestment, year1Revenue, capacityKw, type, financialParams, longTermGeneration = null, year1Generation = null) {
         
-        // Prioritize User Parameters if available, falling back to System Constants
-        
-        // Duration: User inputs integer years
+        // Cuántos años dura el proyecto
         const years = (financialParams?.project_lifetime) 
             ? parseInt(financialParams.project_lifetime) 
             : FINANCIAL.SIMULATION_YEARS;
 
-        // Debt Params Extraction with explicit logging and fallback
+        // Parámetros de financiación (préstamo bancario)
         let debtRatio = FINANCIAL.DEFAULT_DEBT_RATIO;
         let interestRate = FINANCIAL.DEFAULT_INTEREST_RATE;
         let loanTerm = FINANCIAL.DEFAULT_LOAN_TERM;
 
         if (financialParams) {
-            // Debt Ratio: Check camelCase first, then snake_case
+            // Buscamos el ratio de deuda (% del proyecto financiado con préstamo)
             if (financialParams.debtRatio !== undefined && financialParams.debtRatio !== null) {
                 debtRatio = Number(financialParams.debtRatio);
             } else if (financialParams.debt_ratio !== undefined && financialParams.debt_ratio !== null) {
-                // Heuristic: If value > 1, assume it's percentage and convert to decimal. 
                 const dr = Number(financialParams.debt_ratio);
-                // Assume if dr > 1 it is %, otherwise it is 0.X format ??
-                // FIX: If user sends 0.7 for 70%, that's fine. If 70, that's fine too.
-                // The only ambiguity is 1% (1 vs 0.01). We assume < 1.0 is Ratio, >= 1.0 is Percent.
+                // Si viene mayor que 1, es porcentaje (70 = 70%), si no, es decimal (0.7 = 70%)
                 debtRatio = (dr > 1.0) ? dr / 100.0 : dr;
             }
 
-            // Interest Rate
+            // Buscamos el tipo de interés del préstamo
             if (financialParams.interestRate !== undefined && financialParams.interestRate !== null) {
                 interestRate = Number(financialParams.interestRate);
             } else if (financialParams.interest_rate !== undefined && financialParams.interest_rate !== null) {
@@ -133,7 +104,7 @@ class FinancialService {
                 interestRate = (ir > 1.0) ? ir / 100.0 : ir; 
             }
 
-            // Loan Term
+            // Buscamos el plazo del préstamo (años)
             if (financialParams.loanTerm !== undefined && financialParams.loanTerm !== null) {
                 loanTerm = Number(financialParams.loanTerm);
             } else if (financialParams.loan_term !== undefined && financialParams.loan_term !== null) {
@@ -141,29 +112,24 @@ class FinancialService {
             }
         }
         
-        // Ensure debt ratio logic handles potential string inputs too
+        // Convertimos porcentajes a decimales si es necesario
         if (financialParams) {
             debtRatio = (debtRatio > 1.0) ? debtRatio / 100.0 : debtRatio;
             interestRate = (interestRate > 1.0) ? interestRate / 100.0 : interestRate;
         }
         
-        // Re-validate after parsing
+        // Aseguramos que el ratio de deuda está entre 0 y 1
         if (debtRatio > 1) debtRatio = 1; 
         if (debtRatio < 0) debtRatio = 0;
-        
-        console.log(`[FinancialService] Params Used -> DebtRatio: ${debtRatio}, Interest: ${interestRate}, Term: ${loanTerm}`);
 
+        // Calculamos cuánto ponemos nosotros y cuánto pide el banco
         const initialEquity = initialInvestment * (1 - debtRatio);
         const initialDebt = initialInvestment * debtRatio;
 
-        // Ensure we don't have negative numbers from bad subtraction
         if (debtRatio > 1) debtRatio = 1; 
         if (debtRatio < 0) debtRatio = 0;
         
-        // Inflation Rates: User inputs Percentages (e.g. 2.0), System uses Decimals (0.02)
-        // Check if params exist and seem to be percentages (> 1 usually implies %, but 0-1 is ambiguous. 
-        // We will assume User Params from Frontend are ALWAYS Percentages if they come from the standard form)
-        
+        // Tasas de inflación (cómo suben los precios cada año)
         const rawInflation = financialParams?.inflation_rate; 
         const inflation = (rawInflation !== undefined) 
             ? parseFloat(rawInflation) / 100.0 
@@ -174,22 +140,18 @@ class FinancialService {
             ? parseFloat(rawEnergyInflation) / 100.0 
             : FINANCIAL.ENERGY_INFLATION_RATE;
 
-        // Discount Rate (WACC): User inputs Percentage
         const rawDiscount = financialParams?.discount_rate;
         const discountRate = (rawDiscount !== undefined) 
             ? parseFloat(rawDiscount) / 100.0 
             : FINANCIAL.WACC;
 
-        // --- NEW Advanced Parameters Extraction ---
-        const selfConsumptionRatio = parseFloat(financialParams?.self_consumption_ratio || 0); // 0.0 - 1.0
+        // Parámetros avanzados para autoconsumo y ayudas
+        const selfConsumptionRatio = parseFloat(financialParams?.self_consumption_ratio || 0);
         const priceSurplus = parseFloat(financialParams?.electricity_price_surplus || 0);
         const priceSaved = parseFloat(financialParams?.electricity_price_saved || 0);
         
         const grants = parseFloat(financialParams?.grants_amount || 0);
-        const taxDeductionYear1 = parseFloat(financialParams?.tax_deduction || 0); // Treated as Year 1 Cash Inflow (or Year 0 reduction)
-        // Let's treat Grant as Year 0 reduction, Tax Deduction as Year 1 Benefit? Usually ICIO is upfront, IBI is annual. 
-        // User said "Deducciones... reduce payback". I'll treat 'tax_deduction' as a lump sum upfront benefit for simplicity or Year 1.
-        // Let's deduct Grants from Initial Investment immediately.
+        const taxDeductionYear1 = parseFloat(financialParams?.tax_deduction || 0);
         
         const inverterYear = parseInt(financialParams?.inverter_replacement_year || 12);
         const inverterCost = parseFloat(financialParams?.inverter_replacement_cost || 0);
@@ -203,7 +165,7 @@ class FinancialService {
             : FINANCIAL.TAX_RATE;
 
 
-        // Calculamos servicio de deuda (Pago anual constante - Método Francés)
+        // Calculamos la cuota anual del préstamo (sistema francés)
         let annualDebtService = 0;
         if (initialDebt > 0 && interestRate > 0) {
             annualDebtService = initialDebt * interestRate * Math.pow(1 + interestRate, loanTerm) / (Math.pow(1 + interestRate, loanTerm) - 1);
@@ -211,41 +173,31 @@ class FinancialService {
             annualDebtService = initialDebt / loanTerm;
         }
 
-        // Si tenemos proyección detallada de generación (AI Engine), la usamos.
-        // Si no, usamos fallback de degradación lineal simple.
+        // Decidimos si usar la generación detallada del motor IA o una estimación simple
         let useDetailedGeneration = false;
         let impliedPricePerKwh = 0;
 
         if (longTermGeneration && Array.isArray(longTermGeneration) && year1Generation > 0) {
              useDetailedGeneration = true;
-             // Calculamos el precio medio implícito del año 1 para extrapolar
-             // Precio = Ingresos Año 1 / Generación Año 1
              
-             // BUG FIX: If 'year1Revenue' is calculated by backend using a default low price (e.g. 0.03),
-             // then 'impliedPrice' becomes this low price, perpetuating the error for 30 years.
-             // We must check if user provided an override price in 'financialParams' (electricity_price_saved/surplus)
-             // or enforce a reasonable market minimum if implied is absurdly low (< 0.04).
-             
+             // Calculamos el precio medio del primer año
              let implied = year1Revenue / year1Generation;
              
-             // Check for user-provided base price override (often passed as 'energy_price' or 'electricity_price')
              if (financialParams?.energy_price) {
                  implied = parseFloat(financialParams.energy_price);
              } else if (financialParams?.electricity_price) {
                  implied = parseFloat(financialParams.electricity_price);
              }
              
-             // Market Reality Check: Hard floor at 0.05 EUR/kWh unless explicitly zero (self-consumption only scenarios?)
-             // Only apply if user didn't set specific self-consumption params
+             // Ponemos un precio mínimo razonable (6 céntimos/kWh)
              if (implied < 0.05 && selfConsumptionRatio === 0) {
-                 console.log(`[FinancialService] Warning: Implied price ${implied} is too low. Adjusting to Market Floor 0.06€`);
                  implied = 0.06;
              }
              
              impliedPricePerKwh = implied;
         }
 
-        // Obtener constantes específicas por tecnología (Solo usadas si fallamos al modo fallback)
+        // Obtenemos las constantes técnicas según el tipo de proyecto
         let degradation = 0;
         let omCostPerKw = 0;
 
@@ -269,46 +221,33 @@ class FinancialService {
         }
 
         const taxRate = corpTaxRate;
-        // El usuario invierte Equity, por lo tanto usamos Cost of Equity para descontar (Ke) o WACC.
-        // Simularemos FCFF (Free Cash Flow to Firm) y FCFE (Free Cash Flow to Equity).
-        // Usaremos WACC para FCFF y Cost of Equity (~8-10%) para FCFE. 
-        // Para simplificar la salida principal, usamos WACC sobre el flujo total del proyecto (FCFF) para metrics de Proyecto
-        // y calculamos metrics de Equity por separado.
-
-        // Use User's Discount Rate if provided (override WACC and Ke with specific user preference)
         const wacc = (financialParams?.discount_rate !== undefined) ? discountRate : FINANCIAL.WACC;
 
-        // ADJUSTED YEAR 0: Investment minus Grants
-        // Grants reduce the cash outflow at T=0
+        // Preparamos los flujos de caja: Año 0 es la inversión (negativa)
+        // Las ayudas reducen lo que tenemos que poner
         let effectiveInvestment = initialInvestment - grants;
-        if (effectiveInvestment < 0) effectiveInvestment = 0; // Edge case
+        if (effectiveInvestment < 0) effectiveInvestment = 0;
         
-        // However, Depreciation usually applies to the FULL Asset Value (unless grant tax rules differ).
-        // For simplicity, we depreciate the FULL initialInvestment, but cash flow starts better.
+        // Año 0: flujo del proyecto completo y flujo del inversor
         
-        let cashFlowsProject = [-Math.abs(effectiveInvestment)]; // Año 0 Proyecto
+        let cashFlowsProject = [-Math.abs(effectiveInvestment)];
         
-        // Equity needs to cover the investment part NOT covered by debt.
-        // Usually Grants cover part of Equity need.
-        // Let's assume Grants reduce Equity requirement first? Or Pro-rata?
-        // Standard: Debt is negotiated on Asset Value. Equity puts the rest. Grants reimburse Equity.
-        // So Initial Equity Outflow = (Inv * (1-Dr)) - Grants
+        // El inversor pone menos porque las ayudas le reducen la inversión
         let effectiveEquity = initialEquity - grants;
-        let cashFlowsEquity = [-Math.abs(effectiveEquity)];      // Año 0 Accionista
+        let cashFlowsEquity = [-Math.abs(effectiveEquity)];        let annualBreakdown = [];
 
-        let annualBreakdown = [];
-
+        // Ingresos y costes iniciales del primer año
         let currentRevenue = year1Revenue;
-        // O&M Base + Extras
         let currentOmCost = (capacityKw * omCostPerKw) + annualInsurance + annualLease + annualAdmin;
 
         let remainingPrincipal = initialDebt;
 
+        // Calculamos año por año
         for (let y = 1; y <= years; y++) {
-            // 1. Ingresos y O&M (Operativos)
             let generationYear = 0;
             
             if (useDetailedGeneration) {
+                 // Usamos los datos mes a mes del motor IA
                  const startIdx = (y - 1) * 12;
                  const endIdx = y * 12;
                  if (startIdx < longTermGeneration.length) {
@@ -316,67 +255,63 @@ class FinancialService {
                      generationYear = yearGenSlice.reduce((a, b) => a + b, 0);
                  }
             } else {
-                 // Fallback generation calculation if needed, but usually passed
+                 // Estimación simple con degradación anual
                  generationYear = year1Generation * Math.pow(1 - degradation, y - 1);
             }
 
-            // Calculate Revenue using Self-Consumption Split
-            // Use impliedPrice if no advanced prices provided, else use advanced logic
+            // Calculamos los ingresos según autoconsumo o venta
             let revenueSavings = 0;
             let revenueSales = 0;
 
             if (selfConsumptionRatio > 0 || priceSaved > 0 || priceSurplus > 0) {
+                 // Dividimos entre energía autoconsumida y vendida a la red
                  const consumed = generationYear * selfConsumptionRatio;
                  const surplus = generationYear * (1 - selfConsumptionRatio);
                  
-                 // Inflate prices
+                 // Aplicamos inflación a los precios
                  const pSaved = (priceSaved > 0 ? priceSaved : impliedPricePerKwh) * Math.pow(1 + energyInflation, y - 1);
                  const pSurplus = (priceSurplus > 0 ? priceSurplus : 0.05) * Math.pow(1 + energyInflation, y - 1);
                  
                  revenueSavings = consumed * pSaved;
                  revenueSales = surplus * pSurplus;
                  currentRevenue = revenueSavings + revenueSales;
-                 
-                 if (y === 1) {
-                     console.log(`[FinancialService] Year 1 Split Revenue: Consumed ${consumed.toFixed(0)}kWh @ ${pSaved.toFixed(3)} | Surplus ${surplus.toFixed(0)}kWh @ ${pSurplus.toFixed(3)} | Total Rev: ${currentRevenue.toFixed(2)}`);
-                 }
             } else {
-                 // Default Path (Inflation applied to total)
+                 // Modo simple: toda la energía se vende
                  if (useDetailedGeneration) {
                      const currentPrice = impliedPricePerKwh * Math.pow(1 + energyInflation, y - 1);
                      currentRevenue = generationYear * currentPrice;
                  } else {
                      if (y > 1) currentRevenue = currentRevenue * (1 - degradation) * (1 + energyInflation);
                  }
-                 revenueSales = currentRevenue; // Default to all sales
+                 revenueSales = currentRevenue;
             }
 
-            // Costes O&M crecen con inflación general
+            // Los costes de operación suben con la inflación
             if (y > 1) {
                 currentOmCost = currentOmCost * (1 + inflation);
             }
             
-            // Add Inverter Replacement / Major Maintenance (One-Offs)
+            // Gastos extraordinarios (ej: cambio de inversor)
             let extraordinaryExpense = 0;
             if (y === inverterYear) {
                 extraordinaryExpense = inverterCost;
             }
 
+            // EBITDA: beneficio antes de intereses, impuestos, depreciación y amortización
             const ebitda = currentRevenue - currentOmCost - extraordinaryExpense;
             
-            // 2. Amortización Fiscal (Depreciation)
-            // Depreciation usually on Initial Asset Investment (regardless of funding)
+            // Depreciación fiscal (el valor del activo se reparte entre los años)
             const depreciation = initialInvestment / years;
-            const ebit = ebitda - depreciation; // Earnings Before Interest and Taxes
+            const ebit = ebitda - depreciation;
             
-            // 3. Gastos Financieros (Intereses)
+            // Calculamos intereses y amortización del préstamo
             let interestPayment = 0;
             let principalPayment = 0;
             
             if (y <= loanTerm && remainingPrincipal > 0) {
+                // Mientras estemos pagando el préstamo
                 interestPayment = remainingPrincipal * interestRate;
                 principalPayment = annualDebtService - interestPayment;
-                // Ajuste final por redondeo
                 if (principalPayment > remainingPrincipal) {
                     principalPayment = remainingPrincipal;
                     annualDebtService = interestPayment + principalPayment;
@@ -387,31 +322,25 @@ class FinancialService {
                 principalPayment = 0;
             }
 
-            // 4. Impuestos
-            const ebt = ebit - interestPayment; // Earnings Before Tax
+            // Calculamos impuestos sobre beneficios
+            const ebt = ebit - interestPayment;
             let tax = ebt > 0 ? ebt * taxRate : 0;
             
-            // Apply Tax Deductions (Credits) in Year 1 if applicable
+            // Aplicamos deducciones fiscales del año 1 si existen
             if (y === 1 && taxDeductionYear1 > 0) {
                 tax -= taxDeductionYear1;
-                if (tax < 0) tax = 0; // Assuming no refund, just 0 tax. Or carry forward? 
-                // Let's assume simpler: It's a benefit added to Net Income directly if tax < 0? 
-                // "Deduction" usually reduces Taxable Income. "Credit" reduces Tax.
-                // User said "Deducciones IBI/ICIO". ICIO is a tax paid at start (Capex). IBI is annual expense.
-                // If they input "Tax Deduction" as a lump sum value in Euros, let's treat it as a Tax Credit in Year 1.
+                if (tax < 0) tax = 0;
             }
             
+            // Beneficio neto después de impuestos
             const netIncome = ebt - tax;
 
-            // 5. Flujos de Caja
-            const taxOnEbit = ebit > 0 ? ebit * taxRate : 0; // Approximated for Unlevered
-            // Note: If extraordinaryExpense is Capex, it shouldn't reduce EBITDA but be subtracted after.
-            // But if it's "Replacement", valid to expense it or capitalize. 
-            // For simplicity here, treated as Expense (reducing Taxable Income).
+            // Flujos de caja libres
+            const taxOnEbit = ebit > 0 ? ebit * taxRate : 0;
             
             const freeCashFlowProject = (ebit - taxOnEbit) + depreciation;
             
-            // FCFE (Levered): Equity View -> Net Income + Depreciation - Principal Repayment
+            // Flujo del inversor (resta el pago del préstamo)
             const freeCashFlowEquity = netIncome + depreciation - principalPayment;
 
             cashFlowsProject.push(freeCashFlowProject);
@@ -437,53 +366,27 @@ class FinancialService {
             });
         }
 
-        // Métricas de Proyecto (Sin deuda)
+        // Calculamos las métricas financieras del proyecto
         const npvProject = this.calculateNPV(wacc, cashFlowsProject);
         const irrProject = this.calculateIRR(cashFlowsProject);
         const paybackProject = this.calculatePayback(cashFlowsProject);
 
-        // Métricas de Equity (Con deuda - Lo que le interesa al inversor)
-        // Coste del Equity suele ser mayor al WACC, ej 8-10%. Usamos 8% estandard.
-        // Si el usuario da un discount rate, lo aplicamos aquí preferentemente.
+        // Calculamos las métricas desde el punto de vista del inversor
         const costOfEquity = (financialParams?.discount_rate !== undefined) ? discountRate : 0.08; 
         const npvEquity = this.calculateNPV(costOfEquity, cashFlowsEquity);
         const irrEquity = this.calculateIRR(cashFlowsEquity);
         const paybackEquity = this.calculatePayback(cashFlowsEquity);
 
-        // Correct ROI Calculation: (Net Profit / Investment) * 100
-        // cashFlowsEquity.reduce sums all flows (-Inv + Returns). This IS the Net Profit (Nominal).
-        // Example: Inv 100, Returns 80. Sum = -20. ROI = -20/100 = -20%.
+        // ROI: cuánto ganamos por cada euro invertido
         const totalNetProfitNominal = cashFlowsEquity.reduce((a, b) => a + b, 0);
         const roiPercent = (totalNetProfitNominal / effectiveEquity) * 100;
 
-        // Total Intereses Pagados
+        // Total de intereses pagados al banco
         const totalInterestPaid = annualBreakdown.reduce((acc, item) => acc + item.interest, 0);
-
-        // Cálculo del LCOE (Levelized Cost of Energy)
-        // LCOE = Suma(Costos_t / (1+r)^t) / Suma(Energía_t / (1+r)^t)
-        // Costos_t = Investment_t + O&M_t + Fuel_t (si aplica)
-        // Para energías renovables sin combustible: Investment + O&M
-        let sumDiscountedCosts = Math.abs(effectiveInvestment); // Año 0 (ya actualizado)
-        let sumDiscountedEnergy = 0;
-
-        for (let y = 1; y <= years; y++) {
-            const breakdown = annualBreakdown[y - 1];
-            // Costos = O&M + cualquier otro costo operativo
-            // No incluimos intereses ni impuestos en LCOE (es un costo técnico, no financiero)
-            const yearCosts = breakdown.om_cost + (breakdown.year === inverterYear ? inverterCost : 0);
-            const yearEnergy = breakdown.generation_kwh / 1000; // Convertir kWh a MWh
-            
-            const discountFactor = Math.pow(1 + wacc, y);
-            sumDiscountedCosts += yearCosts / discountFactor;
-            sumDiscountedEnergy += yearEnergy / discountFactor;
-        }
-
-        const lcoe = sumDiscountedEnergy > 0 ? sumDiscountedCosts / sumDiscountedEnergy : null;
 
         return {
             financials: {
-                // Devolvemos Equity Metrics como principales si hay deuda, o Proyecto si no.
-                // Para claridad, devolvemos ambas etiquetadas.
+                // Devolvemos principalmente las métricas del inversor
                 npv: npvEquity, 
                 irr: irrEquity,
                 payback: paybackEquity,
@@ -497,9 +400,7 @@ class FinancialService {
 
                 roi_percent: roiPercent,
                 total_interest_paid: totalInterestPaid,
-                total_nominal_profit: totalNetProfitNominal,
-                
-                lcoe: lcoe // €/MWh
+                total_nominal_profit: totalNetProfitNominal
             },
             cashFlows: cashFlowsEquity, // Graficaremos flujos del inversor por defecto
             annualBreakdown

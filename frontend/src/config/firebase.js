@@ -1,8 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// TODO: Replace with your actual Firebase project config
-// from Firebase Console -> Project Settings -> General -> Your Apps -> SDK Setup
+// Configuración de Firebase desde variables de entorno
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "YOUR_API_KEY",
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "your-app.firebaseapp.com",

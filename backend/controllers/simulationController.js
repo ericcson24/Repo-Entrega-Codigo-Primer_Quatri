@@ -1,12 +1,12 @@
 const axios = require('axios');
 const FinancialService = require('../services/financialService');
-const aiService = require('../services/aiService');
+const physicsService = require('../services/physicsService');
 const { URLS } = require('../config/constants');
 const { pool } = require('../config/db');
 
 class SimulationController {
     
-    // Obtener Potencial Solar
+    // Obtiene el potencial solar de una ubicación
     static async getSolarPotential(req, res) {
         try {
             const { lat, lon } = req.query;
@@ -14,7 +14,7 @@ class SimulationController {
                 return res.status(400).json({ error: "Faltan parámetros de latitud/longitud" });
             }
             
-            const data = await aiService.getSolarPotential(parseFloat(lat), parseFloat(lon));
+            const data = await physicsService.getSolarPotential(parseFloat(lat), parseFloat(lon));
             res.json(data);
         } catch (error) {
             console.error(error);
@@ -22,6 +22,7 @@ class SimulationController {
         }
     }
 
+    // Obtiene el historial de simulaciones de un usuario
     static async getHistory(req, res) {
         try {
             const { user_email } = req.query;
@@ -29,7 +30,7 @@ class SimulationController {
                 return res.status(400).json({ error: "El correo electrónico es obligatorio" });
             }
 
-            // Alternativa en modo memoria si la BD falla
+            // Intentamos obtener datos de la base de datos
             try {
                 const result = await pool.query(
                     'SELECT id, project_type, input_params, results, created_at FROM simulations WHERE user_email = $1 ORDER BY created_at DESC LIMIT 50',
@@ -38,7 +39,7 @@ class SimulationController {
                 res.json(result.rows);
             } catch (dbErr) {
                 console.warn("Advertencia de base de datos en getHistory:", dbErr.message);
-                res.json([]); // Retornar historial vacío gracefully
+                res.json([]);
             }
         } catch (error) {
             console.error("Error obteniendo historial:", error);
@@ -46,6 +47,7 @@ class SimulationController {
         }
     }
 
+    // Ejecuta una simulación completa de proyecto renovable
     static async runSimulation(req, res) {
         try {
             const { 
@@ -55,59 +57,56 @@ class SimulationController {
                 capacity_kw, 
                 budget, 
                 parameters,
-                financial_params, // { debtRatio, interestRate, loanTerm }
-                user_email // Opcional para guardar
+                financial_params,
+                user_email
             } = req.body;
-            const aiUrl = URLS.AI_ENGINE_BASE_URL;
+            const physicsUrl = URLS.PHYSICS_ENGINE_BASE_URL;
 
-            // Validación básica pendiente de refactorizar a middleware
+            // Validamos que vengan todos los parámetros necesarios
             if (!project_type || !latitude || !longitude || !capacity_kw || !budget) {
                 return res.status(400).json({ error: "Faltan parámetros obligatorios" });
             }
 
-            // 1. Obtener Predicción de Generación del Motor de Cálculo
-            // Mapeamos el endpoint según tecnología
-            const endpoint = `${aiUrl}/predict/${project_type}`;
-            
+            // 1. Pedimos al motor de física que calcule la generación de energía
+            const endpoint = `${physicsUrl}/predict/${project_type}`;
+
             let genResponse;
-            // Estructurar carga útil estrictamente para el modelo Pydantic de Python
             const payload = {
                 project_type,
                 latitude, 
                 longitude, 
                 capacity_kw, 
-                parameters,      // Pasar como diccionario
-                financial_params // Pasar como diccionario
+                parameters,
+                financial_params
             };
 
             try {
-                // Retry logic for AI Engine connection
                 const MAX_RETRIES = 5;
-                const RETRY_DELAY = 1000; // 1 second
+                const RETRY_DELAY = 1000;
 
+                // Intentamos conectar con el motor IA hasta 5 veces
                 for (let i = 0; i < MAX_RETRIES; i++) {
                     try {
                         genResponse = await axios.post(endpoint, payload);
-                        break; // Success, exit loop
+                        break;
                     } catch (err) {
                         const isConnRefused = err.code === 'ECONNREFUSED' || (err.response && err.response.status === 503);
                         if (isConnRefused && i < MAX_RETRIES - 1) {
-                            console.warn(`Intento ${i + 1}/${MAX_RETRIES} fallido al conectar con AI Engine. Reintentando en ${RETRY_DELAY/1000}s...`);
                             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                         } else {
-                            throw err; // Not actionable or max retries reached
+                            throw err;
                         }
                     }
                 }
             } catch (aiError) {
                 console.error("Error conectando con Motor de Estimación:", aiError.message);
                 
-                // Si el motor devuelve 404 (Sin datos), comunicarlo al cliente limpiamente
+                // Si no hay datos meteorológicos, avisamos claramente
                 if (aiError.response && aiError.response.status === 404) {
                     return res.status(404).json({ error: "No se encontraron datos meteorológicos para esta ubicación." });
                 }
                 
-                // Log de errores de validación de Python
+                // Si hay errores de validación, los mostramos
                 if (aiError.response && aiError.response.status === 422) {
                      console.error("Error de Validación desde Python:", JSON.stringify(aiError.response.data, null, 2));
                      console.error("Payload enviado:", JSON.stringify(payload, null, 2));
@@ -116,62 +115,59 @@ class SimulationController {
                 throw aiError;
             }
 
+            // Procesamos los datos de generación que nos devuelve el motor de cálculo
             const generationData = genResponse.data;
-            const hourlyGen = generationData.hourly_generation_kwh; 
+            const hourlyGen = generationData.hourly_generation_kwh;
 
-            // --- NORMALIZATION: Unified Keys across AI Engine versions ---
+            // Normalizamos los datos (diferentes versiones del motor usan nombres distintos)
             const annualGen = generationData.total_annual_generation_kwh || generationData.annual_generation_kwh || 0;
             let monthlyGen = generationData.monthly_generation_kwh || generationData.monthly_generation || [];
             if (!Array.isArray(monthlyGen) && typeof monthlyGen === 'object') {
                 monthlyGen = Object.values(monthlyGen);
             }
 
-            // Long Term Gen: Synthesize if missing (AI Engine mismatch)
+            // Generamos proyección a largo plazo si no viene del motor IA
             let longTermGen = generationData.long_term_monthly_generation_kwh || null;
             if (!longTermGen && monthlyGen.length > 0) {
                  const degradation = 0.005; 
                  longTermGen = [];
 
-                 // Determine duration - Use financial params or Default 25
+                 // Usamos la duración del proyecto configurada o 25 años por defecto
                  const projectYears = (financial_params && financial_params.project_lifetime) 
                     ? parseInt(financial_params.project_lifetime) 
                     : 25;
 
-                 // Use 12 months data or average
+                 // Usamos los 12 meses reales o un promedio
                  const baseMonths = (monthlyGen.length === 12) ? monthlyGen : Array(12).fill(annualGen / 12);
-                 for(let y=0; y<projectYears; y++) { // Project years dynamic
+                 for(let y=0; y<projectYears; y++) {
                      const factor = Math.pow(1 - degradation, y);
                      longTermGen.push(...baseMonths.map(m => m * factor));
                  }
             }
 
-            // 2. Obtener Precios de Mercado del AI Engine (Solo si no viene impuesto por usuario)
-            // Check if user set a fixed price (e.g. 0.22 €/kWh)
+            // 2. Obtenemos los precios de mercado eléctrico
+            // Primero miramos si el usuario especificó un precio fijo
             let userPrice = null;
             if (financial_params) {
                  if (financial_params.electricity_price) userPrice = parseFloat(financial_params.electricity_price);
                  else if (financial_params.energy_price) userPrice = parseFloat(financial_params.energy_price);
             }
             
-            // Si el usuario define un precio, lo usamos para el Año 1 (y FinancialService lo extrapola)
-            // Si no, pedimos curva horaria al AI Engine.
-            
+            // Calculamos los ingresos del primer año
             let hourlyPrices = [];
             let year1Revenue = 0;
 
             if (userPrice !== null && userPrice > 0) {
-                 console.log(`[Controller] Using User Defined Energy Price: ${userPrice} €/kWh`);
+                 // El usuario puso un precio fijo
                  year1Revenue = annualGen * userPrice;
-                 // Mock hourly prices for completeness if needed? 
-                 // FinancialService doesn't need them if we pass the Revenue.
             } else {
-                // Determine if we should maintain a specific market price level
+                // Pedimos los precios de mercado al motor de cálculo
                 let initialPrice = undefined;
                 if (financial_params && financial_params.initial_electricity_price) {
                      initialPrice = parseFloat(financial_params.initial_electricity_price);
                 }
 
-                const priceResponse = await axios.post(`${aiUrl}/market/prices`, { 
+                const priceResponse = await axios.post(`${physicsUrl}/market/prices`, { 
                     latitude, longitude, capacity_kw, project_type,
                     initial_price: initialPrice
                 });
@@ -189,14 +185,7 @@ class SimulationController {
                 }
             }
 
-            // Console log to debug Financial Params reception
-            console.log("Controlador: Recibidos params financieros:", JSON.stringify(financial_params));
-            console.log(`Controlador: Year 1 Revenue Calculated: ${year1Revenue} €`);
-
-            // 4. Proyección Financiera con Servicio Dedicado
-            // IMPORTANTE: Pasamos 'energy_price' explícitamente en financial_params si lo calculamos aquí por otro medio (fallback 50)?
-            // No, FinancialService ya lo manejará si se lo pasamos.
-            
+            // 3. Generamos la proyección financiera completa
             const projection = FinancialService.generateProjection(
                 budget, 
                 year1Revenue, 

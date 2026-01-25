@@ -41,8 +41,8 @@ Nota: Los identificadores de proyecto en Google Cloud deben estar en minúsculas
 
 3. Desplegar **Motor de Cálculo** (Python):
    ```bash
-   cd ai_engine
-    gcloud run deploy simulator-ai \
+   cd physics_engine
+    gcloud run deploy simulator-physics \
      --source . \
      --region european-west1 \
      --allow-unauthenticated \
@@ -58,7 +58,7 @@ Nota: Los identificadores de proyecto en Google Cloud deben estar en minúsculas
      --region europe-west1 \
      --allow-unauthenticated \
      --clear-base-image \
-     --set-env-vars="DB_HOST=[HOST_NEON],DB_USER=[USUARIO],DB_PASS=[CONTRASEÑA],DB_NAME=[BASE_DATOS],AI_ENGINE_URL=[URL_SERVICIO_PYTHON]"
+     --set-env-vars="DB_HOST=[HOST_NEON],DB_USER=[USUARIO],DB_PASS=[CONTRASEÑA],DB_NAME=[BASE_DATOS],PHYSICS_ENGINE_URL=[URL_SERVICIO_PYTHON]"
    ```
 
 ---

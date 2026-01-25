@@ -127,7 +127,6 @@ const BiomassCalculator = () => {
             const data = await apiService.simulate(payload);
             setResults(data);
         } catch (error) {
-            console.error(error);
             alert("Simulación fallida.");
         } finally {
             setLoading(false);

@@ -39,6 +39,6 @@ module.exports = {
     },
 
     URLS: {
-        AI_ENGINE_BASE_URL: process.env.AI_ENGINE_URL || 'http://localhost:8000'
+        PHYSICS_ENGINE_BASE_URL: process.env.PHYSICS_ENGINE_URL || 'http://localhost:8000'
     }
 };

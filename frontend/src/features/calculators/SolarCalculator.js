@@ -129,7 +129,6 @@ const SolarCalculator = () => {
             const data = await apiService.simulate(payload);
             setResults(data);
         } catch (error) {
-            console.error("Fallo en simulación:", error);
             alert("La simulación falló. Revisa la consola para más detalles.");
         } finally {
             setLoading(false);

@@ -96,7 +96,6 @@ const AdvancedWindCalculator = () => {
                 user_email: currentUser?.email,
                 parameters: {
                     ...formData.parameters,
-                    // Aplanar o mapear parámetros si es necesario
                 }
             };
             const data = await apiService.simulate(payload);
